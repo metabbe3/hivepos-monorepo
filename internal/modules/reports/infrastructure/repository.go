@@ -54,24 +54,28 @@ func whereClause(tenantID, tenantCol, branchCol, dateCol string, filter applicat
 }
 
 // GetOrdersReport — order count + revenue + breakdown by status.
+//
+// Order has no tenantId column; tenant scoping joins "Branch" b ON b.id = o."branchId".
+// The whereClause helper is given the already-aliased columns so the rendered
+// SQL composes correctly into the FROM "Order" o JOIN "Branch" b shape.
 func (r *PgReportsRepository) GetOrdersReport(ctx context.Context, tenantID string, filter application.ReportFilter) (*domain.OrdersReport, error) {
-	where, args := whereClause(tenantID, `"tenantId"`, `"branchId"`, `"createdAt"`, filter)
+	where, args := whereClause(tenantID, `b."tenantId"`, `o."branchId"`, `o."createdAt"`, filter)
 
 	// Aggregate totals
 	var totalOrders int64
 	var totalRevenue float64
 	totQ := fmt.Sprintf(`
-		SELECT COUNT(*), COALESCE(SUM("totalAmount"::float), 0)
-		FROM "Order" WHERE %s`, where)
+		SELECT COUNT(*), COALESCE(SUM(o."totalAmount"::float), 0)
+		FROM "Order" o JOIN "Branch" b ON b.id = o."branchId" WHERE %s`, where)
 	if err := r.db.QueryRowContext(ctx, totQ, args...).Scan(&totalOrders, &totalRevenue); err != nil {
 		return nil, fmt.Errorf("orders totals: %w", err)
 	}
 
 	// Breakdown by status
 	bdQ := fmt.Sprintf(`
-		SELECT status, COUNT(*)
-		FROM "Order" WHERE %s
-		GROUP BY status`, where)
+		SELECT o.status, COUNT(*)
+		FROM "Order" o JOIN "Branch" b ON b.id = o."branchId" WHERE %s
+		GROUP BY o.status`, where)
 	rows, err := r.db.QueryContext(ctx, bdQ, args...)
 	if err != nil {
 		return nil, fmt.Errorf("orders breakdown: %w", err)
@@ -320,9 +324,11 @@ func (r *PgReportsRepository) GetMonthlyPnL(ctx context.Context, tenantID string
 
 // GetProfitReport — revenue - expenses for a window.
 func (r *PgReportsRepository) GetProfitReport(ctx context.Context, tenantID string, filter application.ReportFilter) (*domain.ProfitReport, error) {
-	revWhere, revArgs := whereClause(tenantID, `"tenantId"`, `"branchId"`, `"createdAt"`, filter)
+	revWhere, revArgs := whereClause(tenantID, `b."tenantId"`, `o."branchId"`, `o."createdAt"`, filter)
 	var revenue float64
-	revQ := fmt.Sprintf(`SELECT COALESCE(SUM("totalAmount"::float), 0) FROM "Order" WHERE %s`, revWhere)
+	revQ := fmt.Sprintf(`
+		SELECT COALESCE(SUM(o."totalAmount"::float), 0)
+		FROM "Order" o JOIN "Branch" b ON b.id = o."branchId" WHERE %s`, revWhere)
 	if err := r.db.QueryRowContext(ctx, revQ, revArgs...).Scan(&revenue); err != nil {
 		return nil, fmt.Errorf("profit revenue: %w", err)
 	}
@@ -346,11 +352,11 @@ func (r *PgReportsRepository) GetProfitReport(ctx context.Context, tenantID stri
 
 // GetOutstandingReport — sum of unpaid/partial orders.
 func (r *PgReportsRepository) GetOutstandingReport(ctx context.Context, tenantID string, filter application.ReportFilter) (*domain.OutstandingReport, error) {
-	where, args := whereClause(tenantID, `"tenantId"`, `"branchId"`, `"createdAt"`, filter)
+	where, args := whereClause(tenantID, `b."tenantId"`, `o."branchId"`, `o."createdAt"`, filter)
 	q := fmt.Sprintf(`
-		SELECT COUNT(*), COALESCE(SUM("totalAmount"::float), 0)
-		FROM "Order"
-		WHERE %s AND "paymentStatus" IN ('PENDING', 'PARTIAL')`, where)
+		SELECT COUNT(*), COALESCE(SUM(o."totalAmount"::float), 0)
+		FROM "Order" o JOIN "Branch" b ON b.id = o."branchId"
+		WHERE %s AND o."paymentStatus" IN ('PENDING', 'PARTIAL')`, where)
 
 	var rep domain.OutstandingReport
 	if err := r.db.QueryRowContext(ctx, q, args...).Scan(&rep.OrderCount, &rep.TotalOutstanding); err != nil {

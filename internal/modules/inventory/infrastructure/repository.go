@@ -17,7 +17,10 @@ func NewPgStockItemRepository(db *sql.DB) *PgStockItemRepository {
 	return &PgStockItemRepository{db: db}
 }
 
-const stockItemColumns = `id, name, unit, "currentQuantity"::float, "lowStockThreshold"::float, "purchasePricePerUnit"::float, "isActive", "branchId", "createdAt", "updatedAt"`
+// stockItemColumns lists StockItem columns qualified with the "s." alias; the
+// JOIN to "Branch" (which also exposes "name") would otherwise be ambiguous.
+// Callers compose the SELECT as `SELECT <cols> FROM "StockItem" s ...`.
+const stockItemColumns = `s.id, s.name, s.unit, s."currentQuantity"::float, s."lowStockThreshold"::float, s."purchasePricePerUnit"::float, s."isActive", s."branchId", s."createdAt", s."updatedAt"`
 
 func (r *PgStockItemRepository) Create(ctx context.Context, s *domain.StockItem) error {
 	return r.db.QueryRowContext(ctx, `
@@ -31,7 +34,7 @@ func (r *PgStockItemRepository) Create(ctx context.Context, s *domain.StockItem)
 func (r *PgStockItemRepository) FindByID(ctx context.Context, id, tenantID string) (*domain.StockItem, error) {
 	s := &domain.StockItem{}
 	err := r.db.QueryRowContext(ctx, `
-		SELECT s.`+stockItemColumns+`
+		SELECT `+stockItemColumns+`
 		FROM "StockItem" s
 		JOIN "Branch" b ON b.id = s."branchId"
 		WHERE s.id = $1 AND b."tenantId" = $2`, id, tenantID,
@@ -73,7 +76,7 @@ func (r *PgStockItemRepository) List(ctx context.Context, tenantID string, filte
 
 	offset := (filter.Page - 1) * filter.Limit
 	query := fmt.Sprintf(`
-		SELECT s.%s
+		SELECT %s
 		FROM "StockItem" s JOIN "Branch" b ON b.id = s."branchId"
 		%s ORDER BY s."createdAt" DESC LIMIT $%d OFFSET $%d`, stockItemColumns, where, idx, idx+1)
 	args = append(args, filter.Limit, offset)

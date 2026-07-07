@@ -17,7 +17,9 @@ func NewPgExpenseRepository(db *sql.DB) *PgExpenseRepository {
 	return &PgExpenseRepository{db: db}
 }
 
-const expenseColumns = `id, amount::float, description, date, "branchId", "categoryId", "createdAt"`
+// expenseColumns lists Expense columns qualified with the "e." alias; the JOIN
+// to "Branch" (which also exposes "createdAt") would otherwise be ambiguous.
+const expenseColumns = `e.id, e.amount::float, e.description, e.date, e."branchId", e."categoryId", e."createdAt"`
 
 // --- Expenses ---
 
@@ -40,7 +42,7 @@ func (r *PgExpenseRepository) CreateExpense(ctx context.Context, e *domain.Expen
 func (r *PgExpenseRepository) FindExpenseByID(ctx context.Context, id, tenantID string) (*domain.Expense, error) {
 	e := &domain.Expense{}
 	err := r.db.QueryRowContext(ctx, `
-		SELECT e.`+expenseColumns+`
+		SELECT `+expenseColumns+`
 		FROM "Expense" e
 		JOIN "Branch" b ON b.id = e."branchId"
 		WHERE e.id = $1 AND b."tenantId" = $2`, id, tenantID,
@@ -89,7 +91,7 @@ func (r *PgExpenseRepository) ListExpenses(ctx context.Context, tenantID string,
 
 	offset := (filter.Page - 1) * filter.Limit
 	query := fmt.Sprintf(`
-		SELECT e.%s
+		SELECT %s
 		FROM "Expense" e JOIN "Branch" b ON b.id = e."branchId"
 		%s ORDER BY e.date DESC, e."createdAt" DESC LIMIT $%d OFFSET $%d`, expenseColumns, where, idx, idx+1)
 	args = append(args, filter.Limit, offset)
@@ -133,7 +135,9 @@ func (r *PgExpenseRepository) DeleteExpense(ctx context.Context, id, tenantID st
 
 // --- ExpenseCategories ---
 
-const categoryColumns = `id, name, description, "branchId", "createdAt"`
+// categoryColumns lists ExpenseCategory columns qualified with the "c." alias;
+// the joined "Branch" also exposes "name"/"createdAt", so all refs must qualify.
+const categoryColumns = `c.id, c.name, c.description, c."branchId", c."createdAt"`
 
 func (r *PgExpenseRepository) CreateCategory(ctx context.Context, c *domain.ExpenseCategory) error {
 	var descVal interface{}
@@ -150,7 +154,7 @@ func (r *PgExpenseRepository) CreateCategory(ctx context.Context, c *domain.Expe
 func (r *PgExpenseRepository) FindCategoryByID(ctx context.Context, id, tenantID string) (*domain.ExpenseCategory, error) {
 	c := &domain.ExpenseCategory{}
 	err := r.db.QueryRowContext(ctx, `
-		SELECT c.`+categoryColumns+`
+		SELECT `+categoryColumns+`
 		FROM "ExpenseCategory" c
 		JOIN "Branch" b ON b.id = c."branchId"
 		WHERE c.id = $1 AND b."tenantId" = $2`, id, tenantID,
@@ -184,7 +188,7 @@ func (r *PgExpenseRepository) ListCategories(ctx context.Context, tenantID strin
 
 	offset := (filter.Page - 1) * filter.Limit
 	query := fmt.Sprintf(`
-		SELECT c.%s
+		SELECT %s
 		FROM "ExpenseCategory" c JOIN "Branch" b ON b.id = c."branchId"
 		%s ORDER BY c."createdAt" DESC LIMIT $%d OFFSET $%d`, categoryColumns, where, idx, idx+1)
 	args = append(args, filter.Limit, offset)

@@ -18,19 +18,23 @@ func NewPgBillingRepository(db *sql.DB) *PgBillingRepository {
 }
 
 // GetSubscriptionByTenant returns the tenant's subscription joined with its plan.
+//
+// Schema reality (prisma/schema.prisma):
+//   - Plan has priceMonthly + priceYearly (NO single "price" column). We expose
+//     priceMonthly as the headline Amount; yearly callers can extend later.
+//   - Subscription has NO trialStart/trialEnd columns (trial is implicit via the
+//     TRIAL status enum). Those fields stay nil on the domain aggregate.
 func (r *PgBillingRepository) GetSubscriptionByTenant(ctx context.Context, tenantID string) (*domain.Subscription, error) {
 	s := &domain.Subscription{}
 	var (
-		planName            sql.NullString
-		amount              sql.NullFloat64
-		trialStart, trialEnd sql.NullTime
-		periodStart, periodEnd sql.NullTime
+		planName                sql.NullString
+		amount                  sql.NullFloat64
+		periodStart, periodEnd  sql.NullTime
 	)
 	err := r.db.QueryRowContext(ctx, `
 		SELECT s.id, s."tenantId", s."planId", s.status,
 		       p.name AS "planName",
-		       p.price::float AS amount,
-		       s."trialStart", s."trialEnd",
+		       p."priceMonthly"::float AS amount,
 		       s."currentPeriodStart", s."currentPeriodEnd"
 		FROM "Subscription" s
 		LEFT JOIN "Plan" p ON p.id = s."planId"
@@ -38,7 +42,6 @@ func (r *PgBillingRepository) GetSubscriptionByTenant(ctx context.Context, tenan
 	).Scan(
 		&s.ID, &s.TenantID, &s.PlanID, &s.Status,
 		&planName, &amount,
-		&trialStart, &trialEnd,
 		&periodStart, &periodEnd,
 	)
 	if err == sql.ErrNoRows {
@@ -49,12 +52,6 @@ func (r *PgBillingRepository) GetSubscriptionByTenant(ctx context.Context, tenan
 	}
 	s.PlanName = planName.String
 	s.Amount = amount.Float64
-	if trialStart.Valid {
-		s.TrialStart = &trialStart.Time
-	}
-	if trialEnd.Valid {
-		s.TrialEnd = &trialEnd.Time
-	}
 	if periodStart.Valid {
 		s.CurrentPeriodStart = &periodStart.Time
 	}
@@ -65,13 +62,18 @@ func (r *PgBillingRepository) GetSubscriptionByTenant(ctx context.Context, tenan
 }
 
 // GetPlanByID returns a single billable plan.
+//
+// The Plan table stores priceMonthly + priceYearly (no single "price" column)
+// and has no cadence/interval column. We expose priceMonthly as Price and
+// default Interval to MONTHLY; checkout computes the real total from the chosen
+// cadence when that becomes a product surface.
 func (r *PgBillingRepository) GetPlanByID(ctx context.Context, planID string) (*domain.Plan, error) {
-	p := &domain.Plan{}
+	p := &domain.Plan{Interval: domain.IntervalMonthly}
 	var features []byte // Postgres stores features as JSON; we keep it raw here.
 	err := r.db.QueryRowContext(ctx, `
-		SELECT id, name, price::float, interval, features
+		SELECT id, name, "priceMonthly"::float, features
 		FROM "Plan" WHERE id = $1`, planID,
-	).Scan(&p.ID, &p.Name, &p.Price, &p.Interval, &features)
+	).Scan(&p.ID, &p.Name, &p.Price, &features)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -84,33 +86,34 @@ func (r *PgBillingRepository) GetPlanByID(ctx context.Context, planID string) (*
 }
 
 // CreatePayment inserts a new pending SaaSPayment row.
+//
+// SaaSPayment has no "subscriptionId"/"provider"/"providerOrderId" columns; the
+// provider is fixed to Midtrans and the order id lives in "midtransOrderId".
+// outletCount/unitPrice/monthsPurchased are required NOT NULL in the schema, so
+// we seed sensible defaults (1 outlet, the plan price as unit price, 1 month) —
+// the real checkout flow will overwrite these before the Snap request.
 func (r *PgBillingRepository) CreatePayment(ctx context.Context, p *domain.SaaSPayment) error {
-	var subscriptionID interface{}
-	if p.SubscriptionID != "" {
-		subscriptionID = p.SubscriptionID
-	}
 	return r.db.QueryRowContext(ctx, `
-		INSERT INTO "SaaSPayment" ("subscriptionId", "tenantId", amount, status, provider, "providerOrderId", "createdAt")
-		VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id, "createdAt"`,
-		subscriptionID, p.TenantID, p.Amount, p.Status, p.Provider, p.ProviderOrderID,
+		INSERT INTO "SaaSPayment" ("tenantId", amount, "outletCount", "unitPrice", "monthsPurchased",
+			"midtransOrderId", status, kind, "createdAt")
+		VALUES ($1, $2, 1, $2, 1, $3, $4, 'INITIAL', NOW()) RETURNING id, "createdAt"`,
+		p.TenantID, p.Amount, p.ProviderOrderID, p.Status,
 	).Scan(&p.ID, &p.CreatedAt)
 }
 
-// GetPaymentByOrderID looks up a payment by its provider order id.
+// GetPaymentByOrderID looks up a payment by its Midtrans order id.
 func (r *PgBillingRepository) GetPaymentByOrderID(ctx context.Context, orderID string) (*domain.SaaSPayment, error) {
-	p := &domain.SaaSPayment{}
-	var subscriptionID sql.NullString
+	p := &domain.SaaSPayment{Provider: "MIDTRANS"}
 	err := r.db.QueryRowContext(ctx, `
-		SELECT id, "subscriptionId", "tenantId", amount::float, status, provider, "providerOrderId", "createdAt"
-		FROM "SaaSPayment" WHERE "providerOrderId" = $1`, orderID,
-	).Scan(&p.ID, &subscriptionID, &p.TenantID, &p.Amount, &p.Status, &p.Provider, &p.ProviderOrderID, &p.CreatedAt)
+		SELECT id, "tenantId", amount::float, status, "midtransOrderId", "createdAt"
+		FROM "SaaSPayment" WHERE "midtransOrderId" = $1`, orderID,
+	).Scan(&p.ID, &p.TenantID, &p.Amount, &p.Status, &p.ProviderOrderID, &p.CreatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("finding payment: %w", err)
 	}
-	p.SubscriptionID = subscriptionID.String
 	return p, nil
 }
 
@@ -144,23 +147,36 @@ func (r *PgBillingRepository) ActivateSubscription(ctx context.Context, tenantID
 }
 
 // GetPromoByCode returns an active, non-expired promo by code.
+//
+// PromoCode column mapping (prisma/schema.prisma):
+//   type            -> domain.DiscountType   (PromoType enum: PERCENTAGE | FIXED)
+//   value           -> domain.DiscountValue
+//   maxRedemptions  -> domain.MaxRedemptions (nullable; 0 = unlimited for the aggregate)
+//   redemptionCount -> domain.UsedCount
+//   isActive        -> domain.Active
 func (r *PgBillingRepository) GetPromoByCode(ctx context.Context, code string) (*domain.PromoCode, error) {
 	pc := &domain.PromoCode{}
-	var validUntil sql.NullTime
+	var (
+		validUntil     sql.NullTime
+		maxRedemptions sql.NullInt64
+	)
 	err := r.db.QueryRowContext(ctx, `
-		SELECT id, code, "discountType", "discountValue"::float,
-		       "maxRedemptions", "usedCount", "validUntil", active
+		SELECT id, code, type::text, value::float,
+		       "maxRedemptions", "redemptionCount", "validUntil", "isActive"
 		FROM "PromoCode"
-		WHERE code = $1 AND active = true AND ("validUntil" IS NULL OR "validUntil" >= NOW())`, code,
+		WHERE code = $1 AND "isActive" = true AND ("validUntil" IS NULL OR "validUntil" >= NOW())`, code,
 	).Scan(
 		&pc.ID, &pc.Code, &pc.DiscountType, &pc.DiscountValue,
-		&pc.MaxRedemptions, &pc.UsedCount, &validUntil, &pc.Active,
+		&maxRedemptions, &pc.UsedCount, &validUntil, &pc.Active,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("finding promo code: %w", err)
+	}
+	if maxRedemptions.Valid {
+		pc.MaxRedemptions = int(maxRedemptions.Int64)
 	}
 	if validUntil.Valid {
 		pc.ValidUntil = &validUntil.Time

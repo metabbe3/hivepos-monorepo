@@ -17,7 +17,10 @@ func NewPgServiceRepository(db *sql.DB) *PgServiceRepository {
 	return &PgServiceRepository{db: db}
 }
 
-const serviceColumns = `id, name, description, "pricingType", "basePrice"::float, "commissionType", "commissionValue"::float, module, "isActive", "isDefaultSpeed", "branchId", "groupId", "createdAt", "updatedAt"`
+// serviceColumns lists Service columns fully qualified with the "s." alias so a
+// JOIN to "Branch" (which also has a "name" column) does not raise an ambiguous
+// column reference. Callers compose the SELECT as `SELECT <cols> FROM "Service" s ...`.
+const serviceColumns = `s.id, s.name, s.description, s."pricingType", s."basePrice"::float, s."commissionType", s."commissionValue"::float, s.module, s."isActive", s."isDefaultSpeed", s."branchId", s."groupId", s."createdAt", s."updatedAt"`
 
 func scanService(row interface{}, s *domain.Service) error {
 	type scanner interface {
@@ -55,7 +58,7 @@ func (r *PgServiceRepository) Create(ctx context.Context, s *domain.Service) err
 func (r *PgServiceRepository) FindByID(ctx context.Context, id, tenantID string) (*domain.Service, error) {
 	s := &domain.Service{}
 	err := r.db.QueryRowContext(ctx, `
-		SELECT s.`+serviceColumns+`
+		SELECT `+serviceColumns+`
 		FROM "Service" s
 		JOIN "Branch" b ON b.id = s."branchId"
 		WHERE s.id = $1 AND b."tenantId" = $2`, id, tenantID,
@@ -108,7 +111,7 @@ func (r *PgServiceRepository) List(ctx context.Context, tenantID string, filter 
 
 	offset := (filter.Page - 1) * filter.Limit
 	query := fmt.Sprintf(`
-		SELECT s.%s
+		SELECT %s
 		FROM "Service" s JOIN "Branch" b ON b.id = s."branchId"
 		%s ORDER BY s."createdAt" DESC LIMIT $%d OFFSET $%d`, serviceColumns, where, idx, idx+1)
 	args = append(args, filter.Limit, offset)
@@ -155,7 +158,9 @@ func (r *PgServiceRepository) Delete(ctx context.Context, id, tenantID string) e
 
 // --- ServiceGroup ---
 
-const groupColumns = `id, name, description, "sortOrder", module, "branchId", "createdAt", "updatedAt"`
+// groupColumns lists ServiceGroup columns qualified with the "g." alias (the
+// joined "Branch" also exposes "name", so all refs must be qualified).
+const groupColumns = `g.id, g.name, g.description, g."sortOrder", g.module, g."branchId", g."createdAt", g."updatedAt"`
 
 func (r *PgServiceRepository) CreateGroup(ctx context.Context, g *domain.ServiceGroup) error {
 	var descVal interface{}
@@ -172,7 +177,7 @@ func (r *PgServiceRepository) CreateGroup(ctx context.Context, g *domain.Service
 func (r *PgServiceRepository) FindGroupByID(ctx context.Context, id, tenantID string) (*domain.ServiceGroup, error) {
 	g := &domain.ServiceGroup{}
 	err := r.db.QueryRowContext(ctx, `
-		SELECT g.`+groupColumns+`
+		SELECT `+groupColumns+`
 		FROM "ServiceGroup" g
 		JOIN "Branch" b ON b.id = g."branchId"
 		WHERE g.id = $1 AND b."tenantId" = $2`, id, tenantID,
@@ -206,7 +211,7 @@ func (r *PgServiceRepository) ListGroups(ctx context.Context, tenantID string, f
 
 	offset := (filter.Page - 1) * filter.Limit
 	query := fmt.Sprintf(`
-		SELECT g.%s
+		SELECT %s
 		FROM "ServiceGroup" g JOIN "Branch" b ON b.id = g."branchId"
 		%s ORDER BY g."sortOrder" ASC, g."createdAt" DESC LIMIT $%d OFFSET $%d`, groupColumns, where, idx, idx+1)
 	args = append(args, filter.Limit, offset)

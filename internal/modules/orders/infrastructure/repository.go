@@ -19,8 +19,12 @@ func NewPgOrderRepository(db *sql.DB) *PgOrderRepository {
 }
 
 // List returns paginated orders for a tenant, optionally filtered by branch/status.
+//
+// Order has no tenantId column (Prisma models it via the Branch relation), so
+// tenant scoping joins "Branch" b ON b.id = o."branchId" and filters b."tenantId".
+// The tenantId on the returned aggregate is backfilled from the Branch row.
 func (r *PgOrderRepository) List(ctx context.Context, tenantID string, filter application.ListFilter) ([]*domain.Order, int64, error) {
-	where := `WHERE o."tenantId" = $1`
+	where := `WHERE b."tenantId" = $1`
 	args := []interface{}{tenantID}
 	argIdx := 2
 
@@ -42,7 +46,7 @@ func (r *PgOrderRepository) List(ctx context.Context, tenantID string, filter ap
 
 	// Count total
 	var total int64
-	countQ := fmt.Sprintf(`SELECT COUNT(*) FROM "Order" o JOIN "Customer" c ON c.id = o."customerId" %s`, where)
+	countQ := fmt.Sprintf(`SELECT COUNT(*) FROM "Order" o JOIN "Customer" c ON c.id = o."customerId" JOIN "Branch" b ON b.id = o."branchId" %s`, where)
 	if err := r.db.QueryRowContext(ctx, countQ, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("counting orders: %w", err)
 	}
@@ -51,10 +55,11 @@ func (r *PgOrderRepository) List(ctx context.Context, tenantID string, filter ap
 	offset := (filter.Page - 1) * filter.Limit
 	query := fmt.Sprintf(`
 		SELECT o.id, o."orderNumber", o."customerId", o.status, o."paymentStatus",
-		       o."totalAmount"::float, o."discountAmount"::float, o.notes, o."branchId", o."tenantId", o.module, o."createdAt", o."updatedAt",
+		       o."totalAmount"::float, o."discountAmount"::float, o.notes, o."branchId", b."tenantId", o.module, o."createdAt", o."updatedAt",
 		       c.name, c.phone
 		FROM "Order" o
 		JOIN "Customer" c ON c.id = o."customerId"
+		JOIN "Branch" b ON b.id = o."branchId"
 		%s
 		ORDER BY o."createdAt" DESC
 		LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)
@@ -69,31 +74,33 @@ func (r *PgOrderRepository) List(ctx context.Context, tenantID string, filter ap
 	var orders []*domain.Order
 	for rows.Next() {
 		o := &domain.Order{}
-		var customerName, customerPhone string
+		var customerName, customerPhone, notes sql.NullString
 		if err := rows.Scan(
 			&o.ID, &o.OrderNumber, &o.CustomerID, &o.Status, &o.PaymentStatus,
-			&o.TotalAmount, &o.DiscountAmount, &o.Notes, &o.BranchID, &o.TenantID, &o.Module, &o.CreatedAt, &o.UpdatedAt,
+			&o.TotalAmount, &o.DiscountAmount, &notes, &o.BranchID, &o.TenantID, &o.Module, &o.CreatedAt, &o.UpdatedAt,
 			&customerName, &customerPhone,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scanning order: %w", err)
 		}
+		o.Notes = notes.String
 		orders = append(orders, o)
 	}
 
 	return orders, total, nil
 }
 
-// FindByID returns a single order with its items, scoped to tenantID.
+// FindByID returns a single order with its items, scoped to tenantID via Branch.
 func (r *PgOrderRepository) FindByID(ctx context.Context, id, tenantID string) (*domain.Order, error) {
 	o := &domain.Order{}
+	var notes sql.NullString
 	err := r.db.QueryRowContext(ctx, `
-		SELECT id, "orderNumber", "customerId", status, "paymentStatus",
-		       "totalAmount"::float, "discountAmount"::float, notes, "branchId", "tenantId", module, "createdAt", "updatedAt"
-		FROM "Order"
-		WHERE id = $1 AND "tenantId" = $2`, id, tenantID,
+		SELECT o.id, o."orderNumber", o."customerId", o.status, o."paymentStatus",
+		       o."totalAmount"::float, o."discountAmount"::float, o.notes, o."branchId", b."tenantId", o.module, o."createdAt", o."updatedAt"
+		FROM "Order" o JOIN "Branch" b ON b.id = o."branchId"
+		WHERE o.id = $1 AND b."tenantId" = $2`, id, tenantID,
 	).Scan(
 		&o.ID, &o.OrderNumber, &o.CustomerID, &o.Status, &o.PaymentStatus,
-		&o.TotalAmount, &o.DiscountAmount, &o.Notes, &o.BranchID, &o.TenantID, &o.Module, &o.CreatedAt, &o.UpdatedAt,
+		&o.TotalAmount, &o.DiscountAmount, &notes, &o.BranchID, &o.TenantID, &o.Module, &o.CreatedAt, &o.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -101,19 +108,22 @@ func (r *PgOrderRepository) FindByID(ctx context.Context, id, tenantID string) (
 	if err != nil {
 		return nil, fmt.Errorf("finding order: %w", err)
 	}
+	o.Notes = notes.String
 	return o, nil
 }
 
 // FindByClientID checks idempotency (X-Client-Id header).
 func (r *PgOrderRepository) FindByClientID(ctx context.Context, clientID string) (*domain.Order, error) {
 	o := &domain.Order{}
+	var notes sql.NullString
 	err := r.db.QueryRowContext(ctx, `
-		SELECT id, "orderNumber", "customerId", status, "paymentStatus",
-		       "totalAmount"::float, "discountAmount"::float, notes, "branchId", "tenantId", module, "createdAt", "updatedAt"
-		FROM "Order" WHERE "clientId" = $1`, clientID,
+		SELECT o.id, o."orderNumber", o."customerId", o.status, o."paymentStatus",
+		       o."totalAmount"::float, o."discountAmount"::float, o.notes, o."branchId", b."tenantId", o.module, o."createdAt", o."updatedAt"
+		FROM "Order" o JOIN "Branch" b ON b.id = o."branchId"
+		WHERE o."clientId" = $1`, clientID,
 	).Scan(
 		&o.ID, &o.OrderNumber, &o.CustomerID, &o.Status, &o.PaymentStatus,
-		&o.TotalAmount, &o.DiscountAmount, &o.Notes, &o.BranchID, &o.TenantID, &o.Module, &o.CreatedAt, &o.UpdatedAt,
+		&o.TotalAmount, &o.DiscountAmount, &notes, &o.BranchID, &o.TenantID, &o.Module, &o.CreatedAt, &o.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -121,6 +131,7 @@ func (r *PgOrderRepository) FindByClientID(ctx context.Context, clientID string)
 	if err != nil {
 		return nil, fmt.Errorf("finding order by clientId: %w", err)
 	}
+	o.Notes = notes.String
 	return o, nil
 }
 
@@ -179,11 +190,13 @@ func (r *PgOrderRepository) Create(ctx context.Context, order *domain.Order, ite
 	return tx.Commit()
 }
 
-// UpdateStatus advances the order status.
+// UpdateStatus advances the order status. Tenant scoping uses a Branch subquery
+// because Order has no tenantId column (it lives on the related Branch).
 func (r *PgOrderRepository) UpdateStatus(ctx context.Context, id, tenantID string, status domain.OrderStatus) error {
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE "Order" SET status = $1, "updatedAt" = NOW()
-		WHERE id = $2 AND "tenantId" = $3`, status, id, tenantID)
+		WHERE id = $2 AND "branchId" IN (SELECT id FROM "Branch" WHERE "tenantId" = $3)`,
+		status, id, tenantID)
 	if err != nil {
 		return fmt.Errorf("updating status: %w", err)
 	}
@@ -198,6 +211,16 @@ func (r *PgOrderRepository) Delete(ctx context.Context, id, tenantID string) err
 	}
 	defer tx.Rollback()
 
+	// Guard: confirm the order belongs to the tenant before cascading deletes.
+	var belongs int
+	if err := tx.QueryRowContext(ctx, `
+		SELECT 1 FROM "Order" o JOIN "Branch" b ON b.id = o."branchId"
+		WHERE o.id = $1 AND b."tenantId" = $2`, id, tenantID).Scan(&belongs); err == sql.ErrNoRows {
+		return tx.Commit() // not found / not in tenant — nothing to delete
+	} else if err != nil {
+		return fmt.Errorf("checking order ownership: %w", err)
+	}
+
 	_, err = tx.ExecContext(ctx, `DELETE FROM "OrderItem" WHERE "orderId" = $1`, id)
 	if err != nil {
 		return fmt.Errorf("deleting items: %w", err)
@@ -206,7 +229,7 @@ func (r *PgOrderRepository) Delete(ctx context.Context, id, tenantID string) err
 	if err != nil {
 		return fmt.Errorf("deleting payments: %w", err)
 	}
-	_, err = tx.ExecContext(ctx, `DELETE FROM "Order" WHERE id = $1 AND "tenantId" = $2`, id, tenantID)
+	_, err = tx.ExecContext(ctx, `DELETE FROM "Order" WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("deleting order: %w", err)
 	}

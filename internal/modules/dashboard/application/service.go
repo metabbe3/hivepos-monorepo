@@ -2,7 +2,7 @@ package application
 
 import (
 	"context"
-	"fmt"
+	"time"
 
 	"github.com/hivepos/api/internal/modules/dashboard/domain"
 )
@@ -32,8 +32,17 @@ func NewService(repo Repository) *Service {
 }
 
 func (s *Service) GetStats(ctx context.Context, tenantID string, f StatsFilter) (*domain.Stats, error) {
+	// Default the aggregation window to the last 30 days (WIB-agnostic). The TS
+	// backend applied a 30-day default; the Go port's hard requirement broke
+	// callers (e.g. the dashboard card) that omit from/to entirely.
 	if f.From == "" || f.To == "" {
-		return nil, fmt.Errorf("from and to dates are required")
+		now := time.Now()
+		if f.To == "" {
+			f.To = now.Format("2006-01-02")
+		}
+		if f.From == "" {
+			f.From = now.AddDate(0, 0, -30).Format("2006-01-02")
+		}
 	}
 	return s.Repo.GetStats(ctx, tenantID, f)
 }

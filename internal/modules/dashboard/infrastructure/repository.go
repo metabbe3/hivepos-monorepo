@@ -37,9 +37,11 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 	}
 
 	// Build the orders WHERE clause with tenant + branch + module + date range.
+	// Order has no tenantId column — tenant scoping joins "Branch" b and filters
+	// b."tenantId". The same join is repeated in every orders sub-query below.
 	args := []interface{}{tenantID}
 	idx := 2
-	ordersWhere := `WHERE o."tenantId" = $1`
+	ordersWhere := `WHERE b."tenantId" = $1`
 	if f.BranchID != "" && f.BranchID != "ALL" {
 		ordersWhere += fmt.Sprintf(` AND o."branchId" = $%d`, idx)
 		args = append(args, f.BranchID)
@@ -58,7 +60,7 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 	// 1) Orders grouped by status: count + sum(totalAmount).
 	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
 		SELECT o.status, COUNT(*), COALESCE(SUM(o."totalAmount"), 0)::float
-		FROM "Order" o %s GROUP BY o.status`, ordersWhere), args...)
+		FROM "Order" o JOIN "Branch" b ON b.id = o."branchId" %s GROUP BY o.status`, ordersWhere), args...)
 	if err != nil {
 		return nil, fmt.Errorf("querying orders by status: %w", err)
 	}
@@ -77,18 +79,25 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 	}
 	rows.Close()
 
-	// 2) Payment breakdown by method (only PAID payments).
+	// 2) Payment breakdown by method. Payment has no tenantId/branchId and Order
+	// has no tenantId either, so we join Payment → Order → Branch and filter the
+	// Branch tenant. paidAt anchors the window.
 	pArgs := []interface{}{tenantID}
 	pIdx := 2
-	pWhere := `WHERE pay."tenantId" = $1 AND pay.status = 'PAID'`
+	pWhere := `WHERE b."tenantId" = $1`
 	if f.BranchID != "" && f.BranchID != "ALL" {
-		pWhere += fmt.Sprintf(` AND pay."branchId" = $%d`, pIdx)
+		pWhere += fmt.Sprintf(` AND o."branchId" = $%d`, pIdx)
 		pArgs = append(pArgs, f.BranchID)
 		pIdx++
 	}
+	pWhere += fmt.Sprintf(` AND DATE(pay."paidAt") >= $%d AND DATE(pay."paidAt") <= $%d`, pIdx, pIdx+1)
+	pArgs = append(pArgs, f.From, f.To)
 	pRows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
-		SELECT pay.method, COALESCE(SUM(pay.amount), 0)::float
-		FROM "Payment" pay %s GROUP BY pay.method`, pWhere), pArgs...)
+		SELECT pay."paymentMethod", COALESCE(SUM(pay.amount), 0)::float
+		FROM "Payment" pay
+		JOIN "Order" o ON o.id = pay."orderId"
+		JOIN "Branch" b ON b.id = o."branchId"
+		%s GROUP BY pay."paymentMethod"`, pWhere), pArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("querying payment breakdown: %w", err)
 	}
@@ -116,19 +125,20 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 		return nil, fmt.Errorf("counting customers: %w", err)
 	}
 
-	// 4) Total expenses in the same window.
+	// 4) Total expenses in the same window. Expense has no tenantId — scope via
+	// the joined Branch. The window is inclusive on both ends (matches TS).
 	eArgs := []interface{}{tenantID}
 	eIdx := 2
-	eWhere := `WHERE e."tenantId" = $1`
+	eWhere := `WHERE b."tenantId" = $1`
 	if f.BranchID != "" && f.BranchID != "ALL" {
 		eWhere += fmt.Sprintf(` AND e."branchId" = $%d`, eIdx)
 		eArgs = append(eArgs, f.BranchID)
 		eIdx++
 	}
-	eWhere += fmt.Sprintf(` AND e."date" >= $%d AND e."date" <= $%d`, eIdx, eIdx+1)
-	eArgs = append(eArgs, f.From, f.To)
+	eWhere += fmt.Sprintf(` AND e.date >= $%d AND e.date <= $%d`, eIdx, eIdx+1)
+	eArgs = append(eArgs, f.From+" 00:00:00", f.To+" 23:59:59")
 	if err := r.db.QueryRowContext(ctx, fmt.Sprintf(`
-		SELECT COALESCE(SUM(e.amount), 0)::float FROM "Expense" e %s`, eWhere), eArgs...).Scan(&s.TotalExpenses); err != nil {
+		SELECT COALESCE(SUM(e.amount), 0)::float FROM "Expense" e JOIN "Branch" b ON b.id = e."branchId" %s`, eWhere), eArgs...).Scan(&s.TotalExpenses); err != nil {
 		// Expense table may not exist in all tenants — treat as 0 rather than failing the whole dashboard.
 		s.TotalExpenses = 0
 	}
@@ -140,7 +150,7 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 func (r *PgDashboardRepository) GetKanban(ctx context.Context, tenantID, branchID, module string) ([]*domain.KanbanEntry, error) {
 	args := []interface{}{tenantID}
 	idx := 2
-	where := `WHERE o."tenantId" = $1`
+	where := `WHERE b."tenantId" = $1`
 	if branchID != "" && branchID != "ALL" {
 		where += fmt.Sprintf(` AND o."branchId" = $%d`, idx)
 		args = append(args, branchID)
@@ -154,7 +164,7 @@ func (r *PgDashboardRepository) GetKanban(ctx context.Context, tenantID, branchI
 
 	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
 		SELECT o.status, COUNT(*), COALESCE(SUM(o."totalAmount"), 0)::float
-		FROM "Order" o %s GROUP BY o.status ORDER BY o.status`, where), args...)
+		FROM "Order" o JOIN "Branch" b ON b.id = o."branchId" %s GROUP BY o.status ORDER BY o.status`, where), args...)
 	if err != nil {
 		return nil, fmt.Errorf("querying kanban: %w", err)
 	}
@@ -175,7 +185,7 @@ func (r *PgDashboardRepository) GetKanban(ctx context.Context, tenantID, branchI
 func (r *PgDashboardRepository) GetHeatmap(ctx context.Context, tenantID, branchID string) ([]*domain.HeatmapPoint, error) {
 	args := []interface{}{tenantID}
 	idx := 2
-	where := `WHERE o."tenantId" = $1`
+	where := `WHERE b."tenantId" = $1`
 	if branchID != "" && branchID != "ALL" {
 		where += fmt.Sprintf(` AND o."branchId" = $%d`, idx)
 		args = append(args, branchID)
@@ -185,7 +195,7 @@ func (r *PgDashboardRepository) GetHeatmap(ctx context.Context, tenantID, branch
 		SELECT EXTRACT(DOW FROM COALESCE(o."receivedAt", o."createdAt"))::int AS dow,
 		       EXTRACT(HOUR FROM COALESCE(o."receivedAt", o."createdAt"))::int AS hr,
 		       COUNT(*)
-		FROM "Order" o %s
+		FROM "Order" o JOIN "Branch" b ON b.id = o."branchId" %s
 		GROUP BY dow, hr ORDER BY dow, hr`, where), args...)
 	if err != nil {
 		return nil, fmt.Errorf("querying heatmap: %w", err)

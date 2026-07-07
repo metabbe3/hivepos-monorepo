@@ -29,6 +29,18 @@ const branchColumns = `id, name, address, phone, "invoiceFooter", "isActive", "t
 	"printerPaperSize", "coverageEnd", "isFreeTier", slug, "pickupSlots",
 	"workDays"::text, "createdAt", "updatedAt"`
 
+// nullableJSON scans a possibly-NULL JSON column into a json.RawMessage.
+// PostgreSQL returns driver.Value <nil> for NULL; json.RawMessage cannot
+// receive a nil, so we funnel through sql.NullString and yield an empty
+// RawMessage (which marshals as omitted/empty) when the column is NULL.
+func nullableJSON(dst *json.RawMessage, ns sql.NullString) {
+	if !ns.Valid {
+		*dst = json.RawMessage(nil)
+		return
+	}
+	*dst = append((*dst)[:0], ns.String...)
+}
+
 // parseIntArray parses a postgres int[] text representation like {1,2,3}.
 func parseIntArray(s string) []int32 {
 	s = strings.TrimSpace(s)
@@ -102,14 +114,18 @@ func workDaysOrDefault(wd []int32) string {
 
 func (r *PgBranchRepository) FindByID(ctx context.Context, id, tenantID string) (*domain.Branch, error) {
 	b := &domain.Branch{}
-	var workDaysText []byte
+	var (
+		workDaysText     []byte
+		operatingHours   sql.NullString
+		pickupSlots      sql.NullString
+	)
 	err := r.db.QueryRowContext(ctx, `
 		SELECT `+branchColumns+` FROM "Branch" WHERE id = $1 AND "tenantId" = $2`, id, tenantID,
 	).Scan(
 		&b.ID, &b.Name, &b.Address, &b.Phone, &b.InvoiceFooter, &b.IsActive, &b.TenantID,
-		&b.Latitude, &b.Longitude, &b.OperatingHours, &b.WhatsappLink, &b.GoogleMapsLink,
+		&b.Latitude, &b.Longitude, &operatingHours, &b.WhatsappLink, &b.GoogleMapsLink,
 		&b.PrinterHost, &b.PrinterPort, &b.PrinterName, &b.PrinterEnabled, &b.PrinterLastSeen,
-		&b.PrinterPaperSize, &b.CoverageEnd, &b.IsFreeTier, &b.Slug, &b.PickupSlots,
+		&b.PrinterPaperSize, &b.CoverageEnd, &b.IsFreeTier, &b.Slug, &pickupSlots,
 		&workDaysText, &b.CreatedAt, &b.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
@@ -118,6 +134,8 @@ func (r *PgBranchRepository) FindByID(ctx context.Context, id, tenantID string) 
 	if err != nil {
 		return nil, fmt.Errorf("finding branch: %w", err)
 	}
+	nullableJSON(&b.OperatingHours, operatingHours)
+	nullableJSON(&b.PickupSlots, pickupSlots)
 	b.WorkDays = parseIntArray(string(workDaysText))
 	return b, nil
 }
@@ -153,17 +171,23 @@ func (r *PgBranchRepository) List(ctx context.Context, tenantID string, filter a
 	var list []*domain.Branch
 	for rows.Next() {
 		b := &domain.Branch{}
-		var workDaysText []byte
+		var (
+			workDaysText   []byte
+			operatingHours sql.NullString
+			pickupSlots    sql.NullString
+		)
 		err := rows.Scan(
 			&b.ID, &b.Name, &b.Address, &b.Phone, &b.InvoiceFooter, &b.IsActive, &b.TenantID,
-			&b.Latitude, &b.Longitude, &b.OperatingHours, &b.WhatsappLink, &b.GoogleMapsLink,
+			&b.Latitude, &b.Longitude, &operatingHours, &b.WhatsappLink, &b.GoogleMapsLink,
 			&b.PrinterHost, &b.PrinterPort, &b.PrinterName, &b.PrinterEnabled, &b.PrinterLastSeen,
-			&b.PrinterPaperSize, &b.CoverageEnd, &b.IsFreeTier, &b.Slug, &b.PickupSlots,
+			&b.PrinterPaperSize, &b.CoverageEnd, &b.IsFreeTier, &b.Slug, &pickupSlots,
 			&workDaysText, &b.CreatedAt, &b.UpdatedAt,
 		)
 		if err != nil {
 			return nil, 0, err
 		}
+		nullableJSON(&b.OperatingHours, operatingHours)
+		nullableJSON(&b.PickupSlots, pickupSlots)
 		b.WorkDays = parseIntArray(string(workDaysText))
 		list = append(list, b)
 	}
