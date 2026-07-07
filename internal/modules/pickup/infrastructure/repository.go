@@ -27,7 +27,7 @@ func scanPickup(scanner interface{ Scan(...interface{}) error }, p *domain.Picku
 }
 
 const pickupColumns = `id, "tenantId", "branchId", status, "customerName", "customerPhone",
-	address, "requestedDate", "requestedSlot", notes, "convertedOrderId", "createdAt", "updatedAt"`
+	"addressText", "requestedDate", "requestedSlot", notes, "convertedOrderId", "createdAt", "updatedAt"`
 
 func (r *PgPickupRepository) Create(ctx context.Context, p *domain.PickupRequest) error {
 	// requestedDate is sent as a string from the client; store as timestamp if present.
@@ -37,7 +37,7 @@ func (r *PgPickupRepository) Create(ctx context.Context, p *domain.PickupRequest
 	}
 	return r.db.QueryRowContext(ctx, `
 		INSERT INTO "PickupRequest" ("tenantId", "branchId", status, "customerName",
-			"customerPhone", address, "requestedDate", "requestedSlot", notes, "createdAt", "updatedAt")
+			"customerPhone", "addressText", "requestedDate", "requestedSlot", notes, "createdAt", "updatedAt")
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
 		RETURNING id, "createdAt", "updatedAt"`,
 		p.TenantID, p.BranchID, p.Status, p.CustomerName,
