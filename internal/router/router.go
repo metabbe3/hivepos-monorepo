@@ -10,24 +10,26 @@ import (
 )
 
 // New creates the main API router with all middleware chains.
-// Domain route groups are registered separately (internal/modules/*/routes.go).
 func New() chi.Router {
+	return NewWithMiddleware()
+}
+
+// NewWithMiddleware creates the router with optional extra middleware (e.g. JWT).
+// ALL middleware must be registered BEFORE routes (chi requirement).
+func NewWithMiddleware(extra ...func(http.Handler) http.Handler) chi.Router {
 	r := chi.NewRouter()
 
-	// Global middleware
+	// Global middleware (before any routes)
 	r.Use(chimw.RequestID)
 	r.Use(chimw.RealIP)
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
+	for _, m := range extra {
+		r.Use(m)
+	}
 
 	// Health check (no auth)
 	r.Get("/api/health", healthHandler)
-
-	// API v1 group — all authenticated routes go under here.
-	// Each module registers its own sub-router via Register(r).
-	// Example:
-	//   r.Route("/api/v1/orders", orders.RegisterRoutes)
-	//   r.Route("/api/v1/customers", customers.RegisterRoutes)
 
 	return r
 }
@@ -45,8 +47,7 @@ type ModuleRouter interface {
 	Register(r chi.Router)
 }
 
-// JSONBody decodes a JSON request body into dst. Returns false if decoding failed
-// (the error response is already written).
+// JSONBody decodes a JSON request body into dst. Returns false if decoding failed.
 func JSONBody(w http.ResponseWriter, r *http.Request, dst interface{}) bool {
 	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
 		apphttp.ValidationError(w, "Invalid JSON body")

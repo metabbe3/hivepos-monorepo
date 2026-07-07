@@ -26,9 +26,8 @@ func (r *PgAuthRepository) FindUserByEmail(ctx context.Context, email string) (*
 	err := r.db.QueryRowContext(ctx, `
 		SELECT u.id, u.email, u.name, u."passwordHash", u."tenantId",
 		       u."sessionVersion", u."createdAt",
-		       COALESCE(ur.role, ''), COALESCE(u."branchId", '')
+		       COALESCE(u.role::text, ''), COALESCE(u."branchId", '')
 		FROM "User" u
-		LEFT JOIN "UserRole" ur ON ur."userId" = u.id
 		WHERE u.email = $1`, email,
 	).Scan(
 		&u.ID, &u.Email, &u.Name, &u.PasswordHash, &u.TenantID,
@@ -54,9 +53,9 @@ func (r *PgAuthRepository) FindUserByID(ctx context.Context, id string) (*domain
 	err := r.db.QueryRowContext(ctx, `
 		SELECT u.id, u.email, u.name, u."passwordHash", u."tenantId",
 		       u."sessionVersion", u."createdAt",
-		       COALESCE(ur.role, ''), COALESCE(u."branchId", '')
+		       COALESCE(u.role::text, ''), COALESCE(u."branchId", '')
 		FROM "User" u
-		LEFT JOIN "UserRole" ur ON ur."userId" = u.id
+		
 		WHERE u.id = $1`, id,
 	).Scan(
 		&u.ID, &u.Email, &u.Name, &u.PasswordHash, &u.TenantID,
@@ -83,11 +82,11 @@ func (r *PgAuthRepository) LoadUserContext(ctx context.Context, userID string) (
 	err := r.db.QueryRowContext(ctx, `
 		SELECT u.id, u.email, u.name, u."passwordHash", u."tenantId",
 		       u."sessionVersion", u."createdAt",
-		       COALESCE(ur.role, ''), COALESCE(u."branchId", ''),
+		       COALESCE(u.role::text, ''), COALESCE(u."branchId", ''),
 		       COALESCE(t.name, ''), COALESCE(t.slug, ''),
 		       COALESCE(b.name, '')
 		FROM "User" u
-		LEFT JOIN "UserRole" ur ON ur."userId" = u.id
+		
 		LEFT JOIN "Tenant" t ON t.id = u."tenantId"
 		LEFT JOIN "Branch" b ON b.id = u."branchId"
 		WHERE u.id = $1`, userID,
@@ -183,12 +182,10 @@ func (r *PgAuthRepository) CreateTenantWithOwner(ctx context.Context, input doma
 		return "", "", "", fmt.Errorf("attaching branch to user: %w", err)
 	}
 
-	// 4. UserRole (assign OWNER role)
+	// 4. Assign OWNER role on the User row directly (Prisma enum, not a join table).
 	if _, err = tx.ExecContext(ctx, `
-		INSERT INTO "UserRole" ("userId", role, "tenantId", "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, NOW(), NOW())`,
-		userID, "OWNER", tenantID); err != nil {
-		return "", "", "", fmt.Errorf("inserting user role: %w", err)
+		UPDATE "User" SET role = 'OWNER' WHERE id = $1`, userID); err != nil {
+		return "", "", "", fmt.Errorf("setting owner role: %w", err)
 	}
 
 	// 5. Seed default services for the module.

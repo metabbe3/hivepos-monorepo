@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	appauth "github.com/hivepos/api/internal/auth"
 	apphttp "github.com/hivepos/api/internal/shared/http"
 )
 
@@ -48,9 +49,8 @@ func Recover(next http.Handler) http.Handler {
 // RequireAuth rejects requests without valid claims.
 func RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Claims are injected by the auth middleware (set in context by JWTManager.Middleware).
-		// If no claims → 401.
-		if r.Context().Value(authClaimsKey) == nil {
+		claims := appauth.GetClaims(r)
+		if claims == nil {
 			apphttp.UnauthorizedError(w, "Authentication required")
 			return
 		}
@@ -63,21 +63,18 @@ func RequirePermission(resource, action string) func(http.Handler) http.Handler 
 	perm := resource + ":" + action
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			claims := getAuthClaims(r)
+			claims := appauth.GetClaims(r)
 			if claims == nil {
 				apphttp.UnauthorizedError(w, "Authentication required")
 				return
 			}
-			// Super-admin bypass.
 			if claims.Role == "SUPER_ADMIN" {
 				next.ServeHTTP(w, r)
 				return
 			}
-			// Wildcard permission (Owner role).
 			for _, p := range claims.Permissions {
 				if p == "*" || p == perm {
 					next.ServeHTTP(w, r)
-					return
 				}
 			}
 			apphttp.ForbiddenError(w, "Missing permission: "+perm)
@@ -88,12 +85,11 @@ func RequirePermission(resource, action string) func(http.Handler) http.Handler 
 // RequireTenant ensures the request has a tenantId (from JWT or subdomain).
 func RequireTenant(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		claims := getAuthClaims(r)
+		claims := appauth.GetClaims(r)
 		if claims == nil || claims.TenantID == "" {
 			apphttp.ForbiddenError(w, "Session missing tenant context")
 			return
 		}
-		// Inject tenantId into context for downstream handlers.
 		ctx := context.WithValue(r.Context(), TenantIDKey, claims.TenantID)
 		ctx = context.WithValue(ctx, BranchIDKey, claims.BranchID)
 		ctx = context.WithValue(ctx, UserIDKey, claims.UserID)
@@ -152,14 +148,12 @@ func SetClaimsBridge(r *http.Request, userID, role, tenantID, branchID string, p
 	return r.WithContext(ctx)
 }
 
-// GetTenantID extracts tenantId from the request context.
+// GetTenantID extracts tenantId from the request context (JWT claims or middleware).
 func GetTenantID(r *http.Request) string {
 	if v, ok := r.Context().Value(TenantIDKey).(string); ok {
 		return v
 	}
-	// Fallback: check auth claims
-	c := getAuthClaims(r)
-	if c != nil {
+	if c := appauth.GetClaims(r); c != nil {
 		return c.TenantID
 	}
 	return ""
@@ -170,8 +164,7 @@ func GetBranchID(r *http.Request) string {
 	if v, ok := r.Context().Value(BranchIDKey).(string); ok {
 		return v
 	}
-	c := getAuthClaims(r)
-	if c != nil {
+	if c := appauth.GetClaims(r); c != nil {
 		return c.BranchID
 	}
 	return ""
@@ -182,8 +175,7 @@ func GetUserID(r *http.Request) string {
 	if v, ok := r.Context().Value(UserIDKey).(string); ok {
 		return v
 	}
-	c := getAuthClaims(r)
-	if c != nil {
+	if c := appauth.GetClaims(r); c != nil {
 		return c.UserID
 	}
 	return ""

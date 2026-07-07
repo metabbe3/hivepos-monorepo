@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -15,12 +14,22 @@ import (
 	"github.com/hivepos/api/internal/config"
 	"github.com/hivepos/api/internal/database"
 	"github.com/hivepos/api/internal/middleware"
+	"github.com/hivepos/api/internal/modules/attendance"
 	"github.com/hivepos/api/internal/modules/auth"
 	"github.com/hivepos/api/internal/modules/billing"
+	"github.com/hivepos/api/internal/modules/branches"
+	"github.com/hivepos/api/internal/modules/customers"
+	"github.com/hivepos/api/internal/modules/dashboard"
+	"github.com/hivepos/api/internal/modules/expenses"
+	"github.com/hivepos/api/internal/modules/inventory"
+	"github.com/hivepos/api/internal/modules/orders"
+	"github.com/hivepos/api/internal/modules/pickup"
 	"github.com/hivepos/api/internal/modules/public_api"
 	"github.com/hivepos/api/internal/modules/reports"
+	"github.com/hivepos/api/internal/modules/services"
 	"github.com/hivepos/api/internal/modules/superadmin"
 	"github.com/hivepos/api/internal/modules/tenant"
+	"github.com/hivepos/api/internal/modules/users"
 	"github.com/hivepos/api/internal/router"
 )
 
@@ -39,46 +48,69 @@ func main() {
 	defer db.Close()
 	log.Println("✓ Connected to PostgreSQL")
 
-	// Build router
-	r := router.New()
-
-	// JWT middleware — validates Bearer/cookie tokens and injects appauth.Claims
-	// into the request context. Safe to apply globally: anonymous requests pass
-	// through and individual handlers decide whether to require auth.
+	// Build router — ALL middleware must be registered BEFORE any routes (chi requirement).
 	jwtMgr := appauth.NewJWTManager(cfg.JWTSecret)
-	r.Use(jwtMgr.Middleware)
+	r := router.NewWithMiddleware(jwtMgr.Middleware)
 
-	// Register domain modules
+	// Register ALL domain modules
+	// Core CRUD (require auth)
+	ordersModule := orders.NewModule(db)
+	r.Route("/api/orders", func(r chi.Router) { r.Use(middleware.RequireAuth); ordersModule.Register(r) })
+
+	customersModule := customers.NewModule(db)
+	r.Route("/api/customers", func(r chi.Router) { r.Use(middleware.RequireAuth); customersModule.Register(r) })
+
+	servicesModule := services.NewModule(db)
+	r.Route("/api/services", func(r chi.Router) { r.Use(middleware.RequireAuth); servicesModule.Register(r) })
+	r.Route("/api/service-groups", func(r chi.Router) { r.Use(middleware.RequireAuth); servicesModule.RegisterGroups(r) })
+
+	branchesModule := branches.NewModule(db)
+	r.Route("/api/branches", func(r chi.Router) { r.Use(middleware.RequireAuth); branchesModule.Register(r) })
+
+	inventoryModule := inventory.NewModule(db)
+	r.Route("/api/stock-items", func(r chi.Router) { r.Use(middleware.RequireAuth); inventoryModule.Register(r) })
+
+	expensesModule := expenses.NewModule(db)
+	r.Route("/api/expenses", func(r chi.Router) { r.Use(middleware.RequireAuth); expensesModule.Register(r) })
+	r.Route("/api/expense-categories", func(r chi.Router) { r.Use(middleware.RequireAuth); expensesModule.RegisterCategories(r) })
+
+	usersModule := users.NewModule(db)
+	r.Route("/api/users", func(r chi.Router) { r.Use(middleware.RequireAuth); usersModule.RegisterUsers(r) })
+	r.Route("/api/roles", func(r chi.Router) { r.Use(middleware.RequireAuth); usersModule.RegisterRoles(r) })
+
+	attendanceModule := attendance.NewModule(db)
+	r.Route("/api/attendance", func(r chi.Router) { r.Use(middleware.RequireAuth); attendanceModule.Register(r) })
+
+	pickupModule := pickup.NewModule(db)
+	r.Route("/api/pickup-requests", func(r chi.Router) { r.Use(middleware.RequireAuth); pickupModule.Register(r) })
+
+	dashboardModule := dashboard.NewModule(db)
+	r.Route("/api/dashboard", func(r chi.Router) { r.Use(middleware.RequireAuth); dashboardModule.Register(r) })
+
+	// Billing
 	billingModule := billing.NewModule(db)
 	r.Route("/api/billing", billingModule.Register)
 
+	// Auth (login, register)
 	authModule := auth.NewModule(db, jwtMgr)
 	r.Route("/api/auth", authModule.Register)
 	r.Post("/api/register", authModule.RegisterHandler)
 
-	// Public API — anonymous, tenant resolved by slug. No auth required.
-	// ponytail: medium — public endpoints resolved by slug; add API-key rate limiting when abuse occurs.
+	// Public API (no auth)
 	publicModule := publicapi.NewModule(db)
 	r.Route("/api/public", publicModule.Register)
 
-	// Reports — read-only SQL aggregation endpoints.
+	// Reports (read-only)
 	reportsModule := reports.NewModule(db)
 	r.Route("/api/reports", reportsModule.Register)
 
-	// Super-admin — platform-level management (cross-tenant). Gated by SUPER_ADMIN role.
+	// Super-admin
 	superAdminModule := superadmin.NewModule(db)
-	r.Route("/api/super-admin", func(r chi.Router) {
-		r.Use(middleware.RequireAuth)
-		// ponytail: medium — narrow to SUPER_ADMIN role once auth claims populate Role for platform users.
-		superAdminModule.Register(r)
-	})
+	r.Route("/api/super-admin", func(r chi.Router) { r.Use(middleware.RequireAuth); superAdminModule.Register(r) })
 
-	// Tenant — tenant-scoped self-management (onboarding, website, referral, whatsapp templates).
+	// Tenant
 	tenantModule := tenant.NewModule(db)
-	r.Route("/api/tenant", func(r chi.Router) {
-		r.Use(middleware.RequireAuth, middleware.RequireTenant)
-		tenantModule.Register(r)
-	})
+	r.Route("/api/tenant", func(r chi.Router) { r.Use(middleware.RequireAuth, middleware.RequireTenant); tenantModule.Register(r) })
 
 	// HTTP server
 	srv := &http.Server{
@@ -118,6 +150,3 @@ func main() {
 	db.Close()
 	log.Println("Server stopped")
 }
-
-// Helper to avoid unused import warning during scaffold phase
-var _ = fmt.Sprintf
