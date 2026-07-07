@@ -1,0 +1,38 @@
+# hivePOS API — Go backend (runs alongside the Next.js app during transition)
+# Connects to the SAME PostgreSQL as pos-saas.
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - DATABASE_URL=postgresql://posadmin:poslocal@db:5432/pos_saas?sslmode=disable
+      - APP_ENV=development
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-production}
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: posadmin
+      POSTGRES_PASSWORD: poslocal
+      POSTGRES_DB: pos_saas
+    ports:
+      - "5437:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U posadmin"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
