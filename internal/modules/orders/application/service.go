@@ -43,18 +43,18 @@ type ListFilter struct {
 
 // Service implements the order use cases.
 type Service struct {
-	repo Repository
+	Repo Repository
 }
 
 func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+	return &Service{Repo: repo}
 }
 
 // Create creates a new order (idempotent via ClientID).
 func (s *Service) Create(ctx context.Context, input CreateOrderInput, tenantID, branchID, userID string, clientID *string) (*domain.Order, error) {
 	// Idempotency check
 	if clientID != nil {
-		existing, err := s.repo.FindByClientID(ctx, *clientID)
+		existing, err := s.Repo.FindByClientID(ctx, *clientID)
 		if err == nil && existing != nil {
 			return existing, nil // Already created — return the same order
 		}
@@ -79,7 +79,7 @@ func (s *Service) Create(ctx context.Context, input CreateOrderInput, tenantID, 
 		})
 	}
 
-	if err := s.repo.Create(ctx, order, items); err != nil {
+	if err := s.Repo.Create(ctx, order, items); err != nil {
 		return nil, fmt.Errorf("creating order: %w", err)
 	}
 
@@ -88,7 +88,7 @@ func (s *Service) Create(ctx context.Context, input CreateOrderInput, tenantID, 
 
 // Get retrieves a single order.
 func (s *Service) Get(ctx context.Context, id, tenantID string) (*domain.Order, error) {
-	order, err := s.repo.FindByID(ctx, id, tenantID)
+	order, err := s.Repo.FindByID(ctx, id, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("finding order: %w", err)
 	}
@@ -106,5 +106,5 @@ func (s *Service) List(ctx context.Context, tenantID string, filter ListFilter) 
 	if filter.Limit < 1 || filter.Limit > 100 {
 		filter.Limit = 20
 	}
-	return s.repo.List(ctx, tenantID, filter)
+	return s.Repo.List(ctx, tenantID, filter)
 }

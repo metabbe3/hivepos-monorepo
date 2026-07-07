@@ -140,7 +140,6 @@ type authClaims struct {
 }
 
 // SetClaimsBridge allows the auth package to inject claims into the middleware's context key.
-// Called from the router setup after JWT validation.
 func SetClaimsBridge(r *http.Request, userID, role, tenantID, branchID string, perms []string) *http.Request {
 	c := &authClaims{
 		UserID:      userID,
@@ -151,4 +150,41 @@ func SetClaimsBridge(r *http.Request, userID, role, tenantID, branchID string, p
 	}
 	ctx := context.WithValue(r.Context(), authClaimsKey, c)
 	return r.WithContext(ctx)
+}
+
+// GetTenantID extracts tenantId from the request context.
+func GetTenantID(r *http.Request) string {
+	if v, ok := r.Context().Value(TenantIDKey).(string); ok {
+		return v
+	}
+	// Fallback: check auth claims
+	c := getAuthClaims(r)
+	if c != nil {
+		return c.TenantID
+	}
+	return ""
+}
+
+// GetBranchID extracts branchId from the request context.
+func GetBranchID(r *http.Request) string {
+	if v, ok := r.Context().Value(BranchIDKey).(string); ok {
+		return v
+	}
+	c := getAuthClaims(r)
+	if c != nil {
+		return c.BranchID
+	}
+	return ""
+}
+
+// GetUserID extracts userId from the request context.
+func GetUserID(r *http.Request) string {
+	if v, ok := r.Context().Value(UserIDKey).(string); ok {
+		return v
+	}
+	c := getAuthClaims(r)
+	if c != nil {
+		return c.UserID
+	}
+	return ""
 }
