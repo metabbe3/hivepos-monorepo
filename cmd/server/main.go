@@ -10,13 +10,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	appauth "github.com/hivepos/api/internal/auth"
 	"github.com/hivepos/api/internal/config"
 	"github.com/hivepos/api/internal/database"
+	"github.com/hivepos/api/internal/middleware"
 	"github.com/hivepos/api/internal/modules/auth"
 	"github.com/hivepos/api/internal/modules/billing"
 	"github.com/hivepos/api/internal/modules/public_api"
 	"github.com/hivepos/api/internal/modules/reports"
+	"github.com/hivepos/api/internal/modules/superadmin"
+	"github.com/hivepos/api/internal/modules/tenant"
 	"github.com/hivepos/api/internal/router"
 )
 
@@ -60,6 +64,21 @@ func main() {
 	// Reports — read-only SQL aggregation endpoints.
 	reportsModule := reports.NewModule(db)
 	r.Route("/api/reports", reportsModule.Register)
+
+	// Super-admin — platform-level management (cross-tenant). Gated by SUPER_ADMIN role.
+	superAdminModule := superadmin.NewModule(db)
+	r.Route("/api/super-admin", func(r chi.Router) {
+		r.Use(middleware.RequireAuth)
+		// ponytail: medium — narrow to SUPER_ADMIN role once auth claims populate Role for platform users.
+		superAdminModule.Register(r)
+	})
+
+	// Tenant — tenant-scoped self-management (onboarding, website, referral, whatsapp templates).
+	tenantModule := tenant.NewModule(db)
+	r.Route("/api/tenant", func(r chi.Router) {
+		r.Use(middleware.RequireAuth, middleware.RequireTenant)
+		tenantModule.Register(r)
+	})
 
 	// HTTP server
 	srv := &http.Server{
