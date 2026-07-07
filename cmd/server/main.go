@@ -10,8 +10,13 @@ import (
 	"syscall"
 	"time"
 
+	appauth "github.com/hivepos/api/internal/auth"
 	"github.com/hivepos/api/internal/config"
 	"github.com/hivepos/api/internal/database"
+	"github.com/hivepos/api/internal/modules/auth"
+	"github.com/hivepos/api/internal/modules/billing"
+	"github.com/hivepos/api/internal/modules/public_api"
+	"github.com/hivepos/api/internal/modules/reports"
 	"github.com/hivepos/api/internal/router"
 )
 
@@ -33,12 +38,28 @@ func main() {
 	// Build router
 	r := router.New()
 
-	// TODO: register domain modules:
-	//   ordersModule := orders.NewModule(db)
-	//   r.Route("/api/v1/orders", ordersModule.Register)
-	//   customersModule := customers.NewModule(db)
-	//   r.Route("/api/v1/customers", customersModule.Register)
-	//   ... etc
+	// JWT middleware — validates Bearer/cookie tokens and injects appauth.Claims
+	// into the request context. Safe to apply globally: anonymous requests pass
+	// through and individual handlers decide whether to require auth.
+	jwtMgr := appauth.NewJWTManager(cfg.JWTSecret)
+	r.Use(jwtMgr.Middleware)
+
+	// Register domain modules
+	billingModule := billing.NewModule(db)
+	r.Route("/api/billing", billingModule.Register)
+
+	authModule := auth.NewModule(db, jwtMgr)
+	r.Route("/api/auth", authModule.Register)
+	r.Post("/api/register", authModule.RegisterHandler)
+
+	// Public API — anonymous, tenant resolved by slug. No auth required.
+	// ponytail: medium — public endpoints resolved by slug; add API-key rate limiting when abuse occurs.
+	publicModule := publicapi.NewModule(db)
+	r.Route("/api/public", publicModule.Register)
+
+	// Reports — read-only SQL aggregation endpoints.
+	reportsModule := reports.NewModule(db)
+	r.Route("/api/reports", reportsModule.Register)
 
 	// HTTP server
 	srv := &http.Server{
