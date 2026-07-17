@@ -1,0 +1,477 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ═══════════════════════════════════════════════════════════════
+   hivePOS Theme System
+   Tailwind v4: @theme defines tokens → utilities auto-generated
+   Override values in :root (light) and .dark (dark mode)
+   ═══════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* ─── Surfaces ─── */
+  --color-background: #fafafa;
+  --color-foreground: #0a0a0f;
+  --color-surface: #ffffff;
+  --color-surface-muted: #fafafa;
+
+  /* ─── SaaS primary (indigo) ─── */
+  --color-primary: #4f46e5;
+  --color-primary-foreground: #ffffff;
+
+  /* ─── SaaS secondary accent (emerald) ─── */
+  --color-secondary: #10b981;
+  --color-secondary-foreground: #ffffff;
+
+  /* ─── App brand (indigo) — unified with --color-primary so CTAs match the
+     logo/links. .pub-scope (landing/login) overrides this to sky blue. ─── */
+  --color-brand: #4f46e5;
+  --color-brand-foreground: #ffffff;
+  --color-brand-light: #eef2ff;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-brand-800: #3730a3;
+
+  /* ─── Heatmap intensity scale (6 levels: empty → peak) ─── */
+  --heat-0: oklch(0.96 0.006 75);
+  --heat-1: oklch(0.90 0.05 75);
+  --heat-2: oklch(0.80 0.11 75);
+  --heat-3: oklch(0.70 0.16 75);
+  --heat-4: oklch(0.62 0.19 65);
+  --heat-5: oklch(0.54 0.22 55);
+
+  /* ─── Neutrals ─── */
+  --color-muted: #f1f1f4;
+  --color-muted-foreground: #71717a;
+  --color-border: #e4e4e7;
+  --color-card: #ffffff;
+  --color-card-foreground: #0a0a0f;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #0a0a0f;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+  --color-input: #e4e4e7;
+  --color-ring: #6366f1;
+  --color-accent: #f1f1f4;
+  --color-accent-foreground: #0a0a0f;
+
+  /* ─── Semantic ─── */
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+
+  /* ─── Sidebar (dashboard) ─── */
+  --color-sidebar: #f8f8fb;
+  --color-sidebar-foreground: #0a0a0f;
+  --color-sidebar-accent: #e8e8ee;
+  --color-sidebar-border: #e4e4e7;
+
+  /* ─── Typography ─── */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-manrope), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-jakarta), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* ─── Radius ─── */
+  --radius: 0.75rem;
+}
+
+/* ─── Dark Mode — override ALL theme tokens ─── */
+.dark {
+  --color-background: #0a0a0f;
+  --color-foreground: #fafafa;
+  --color-surface: #111118;
+  --color-surface-muted: #0d0d14;
+  --color-primary: #6366f1;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #10b981;
+  --color-secondary-foreground: #ffffff;
+  --color-brand: #6366f1;
+  --color-brand-foreground: #ffffff;
+  --color-brand-light: #1e1b4b;
+
+  /* ─── Heatmap intensity scale (dark: inverted lightness) ─── */
+  --heat-0: oklch(0.20 0.01 75);
+  --heat-1: oklch(0.30 0.06 75);
+  --heat-2: oklch(0.42 0.12 75);
+  --heat-3: oklch(0.56 0.17 75);
+  --heat-4: oklch(0.68 0.19 65);
+  --heat-5: oklch(0.78 0.20 55);
+
+  --color-muted: #1a1a2e;
+  --color-muted-foreground: #a1a1aa;
+  --color-border: #27272a;
+  --color-card: #111118;
+  --color-card-foreground: #fafafa;
+  --color-popover: #111118;
+  --color-popover-foreground: #fafafa;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+  --color-input: #27272a;
+  --color-ring: #6366f1;
+  --color-accent: #1a1a2e;
+  --color-accent-foreground: #fafafa;
+  --color-sidebar: #0d0d14;
+  --color-sidebar-foreground: #fafafa;
+  --color-sidebar-accent: #1a1a2e;
+  --color-sidebar-border: #27272a;
+}
+
+/* ─── Enable class-based dark mode ─── */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ─── Base styles ─── */
+* {
+  border-color: var(--color-border);
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  font-feature-settings: "rlig" 1, "calt" 1;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-muted-foreground);
+  border-radius: 4px;
+  opacity: 0.3;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Keyframes & Animations
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Fade in up (existing) ─── */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+}
+
+/* ─── Stagger delays ─── */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+
+/* ─── ponytail: super-admin panel motion tokens ─── */
+:root {
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --stagger-step: 40ms;
+}
+
+@keyframes tile-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes row-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Tile entrance — used by MetricTile + StatGrid children */
+@media (prefers-reduced-motion: no-preference) {
+  .animate-tile-in {
+    animation: tile-in 0.3s var(--ease-out-quint) both;
+  }
+  .animate-row-in {
+    animation: row-in 0.35s var(--ease-out-quint) both;
+  }
+}
+
+/* Soft mesh background utility — used by MeshBackground component */
+.sa-mesh {
+  background-image:
+    radial-gradient(at 92% 0%,  color-mix(in oklch, var(--color-primary) 14%, transparent) 0px, transparent 55%),
+    radial-gradient(at 78% 8%,  color-mix(in oklch, var(--color-secondary) 10%, transparent) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, color-mix(in oklch, var(--color-brand) 8%, transparent) 0px, transparent 60%);
+}
+
+/* Glass card variant for the panel */
+.sa-glass {
+  background: color-mix(in oklch, var(--color-card) 85%, transparent);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid color-mix(in oklch, var(--color-border) 75%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in oklch, var(--color-foreground) 4%, transparent) inset,
+    0 1px 2px color-mix(in oklch, var(--color-foreground) 4%, transparent);
+}
+
+/* Tabular numerics helper */
+.sa-tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ─── Scroll reveal (IntersectionObserver-triggered) ─── */
+@keyframes scroll-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.scroll-reveal {
+  opacity: 0;
+  will-change: opacity, transform;
+}
+
+.scroll-reveal.is-visible {
+  animation: scroll-reveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ponytail: never trap content at opacity:0 for reduced-motion users.
+   Reveal animations are decorative — content must be visible without them. */
+@media (prefers-reduced-motion: reduce) {
+  .scroll-reveal,
+  .scroll-reveal.is-visible {
+    opacity: 1 !important;
+    animation: none !important;
+    transform: none !important;
+  }
+  .animate-float,
+  .animate-gradient,
+  .animate-marquee,
+  .animate-soft-pulse {
+    animation: none !important;
+  }
+}
+
+/* ─── Marquee (infinite horizontal scroll) ─── */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 30s linear infinite;
+}
+
+.marquee-pause:hover .animate-marquee {
+  animation-play-state: paused;
+}
+
+/* ─── Soft pulse (WhatsApp FAB) ─── */
+@keyframes soft-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(37, 211, 102, 0);
+  }
+}
+
+.animate-soft-pulse {
+  animation: soft-pulse 2s ease-in-out infinite;
+}
+
+/* ─── Subtle opacity pulse (overdue SLA card) ─── */
+/* ponytail: opacity-only so it layers on any bg tint without color conflict.
+   Gated behind no-preference — reduced-motion users get a static card, never
+   a frozen mid-pulse. The overdue state is already signaled by the red tint +
+   badge, so the pulse is enhancement, not the only signal. */
+@keyframes pulse-subtle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-pulse-subtle {
+    animation: pulse-subtle 1.8s ease-in-out infinite;
+  }
+}
+
+/* ─── Gradient shift (animated backgrounds) ─── */
+@keyframes gradient-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* ─── Float (floating cards) ─── */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Utility Classes
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Glass card (frosted glass surface) ─── */
+/* ponytail: landing-only, light-only — no dark variant. Only used under
+   .pub-scope (LandingNav, LandingHero), which never enters dark mode. */
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+}
+
+/* ─── Heatmap high-intensity pattern (colorblind a11y) ─── */
+.heat-pattern-high {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 2px,
+    rgba(255, 255, 255, 0.14) 2px,
+    rgba(255, 255, 255, 0.14) 3px
+  );
+}
+
+/* ─── Marquee edge fade ─── */
+.marquee-mask {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 8%,
+    black 92%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 8%,
+    black 92%,
+    transparent
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Public Surface Palette — white + sky blue
+   Scoped to .pub-scope so the dashboard (indigo brand) keeps its own hue.
+   Mechanism: override the stock Tailwind color variables *locally*, so every
+   bg-indigo-600 / text-emerald-500 / from-amber-400 / bg-brand / text-secondary
+   utility on public pages (landing, login, register, comparison, tenant-site)
+   resolves to sky blue with zero component edits.
+   ponytail: scoped token override instead of N component edits — shift the
+   public hue here in one place.
+   ═══════════════════════════════════════════════════════════════ */
+.pub-scope {
+  /* Public accent → sky blue (was orange #c2410c). White-dominant surfaces,
+     sky as the single committed accent. Hex (not oklch) for iOS Safari < 15.4. */
+  --color-secondary: #0284c7;
+  --color-secondary-foreground: #ffffff;
+  --color-brand: #0284c7;
+  --color-brand-700: #0369a1;
+
+  /* indigo → trust blue (#2563EB family). Standard Tailwind blue ramp. */
+  --color-indigo-50:  #eff6ff;
+  --color-indigo-100: #dbeafe;
+  --color-indigo-200: #bfdbfe;
+  --color-indigo-300: #93c5fd;
+  --color-indigo-400: #60a5fa;
+  --color-indigo-500: #3b82f6;
+  --color-indigo-600: #2563eb;
+  --color-indigo-700: #1d4ed8;
+  --color-indigo-800: #1e40af;
+  --color-indigo-900: #1e3a8a;
+  --color-indigo-950: #172554;
+
+  /* emerald + amber → sky ramp (were orange). Standard Tailwind sky ramp. */
+  --color-emerald-50:  #f0f9ff;
+  --color-emerald-100: #e0f2fe;
+  --color-emerald-200: #bae6fd;
+  --color-emerald-300: #7dd3fc;
+  --color-emerald-400: #38bdf8;
+  --color-emerald-500: #0ea5e9;
+  --color-emerald-600: #0284c7;
+  --color-emerald-700: #0369a1;
+  --color-emerald-800: #075985;
+  --color-emerald-900: #0c4a6e;
+  --color-emerald-950: #082f49;
+
+  --color-amber-50:  #f0f9ff;
+  --color-amber-100: #e0f2fe;
+  --color-amber-200: #bae6fd;
+  --color-amber-300: #7dd3fc;
+  --color-amber-400: #38bdf8;
+  --color-amber-500: #0ea5e9;
+  --color-amber-600: #0284c7;
+  --color-amber-700: #0369a1;
+  --color-amber-800: #075985;
+  --color-amber-900: #0c4a6e;
+  --color-amber-950: #082f49;
+
+  /* cool slate-white surface. Standard Tailwind slate ramp. */
+  --color-zinc-50:  #f8fafc;
+  --color-zinc-100: #f1f5f9;
+  --color-zinc-200: #e2e8f0;
+
+  /* ponytail: force light surfaces regardless of .dark on <html>.
+     Landing components hardcode text-zinc-* and bg-white without dark
+     variants; letting .dark propagate produces invisible dark-on-dark.
+     Hex (not oklch) so iOS Safari < 15.4 keeps the declaration. */
+  background-color: #ffffff;
+  color:           #0a0a0f;
+}
+
+/* Tabular figures on prices — prevents layout shift when counters animate */
+.pub-scope .price {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Receipt on-screen preview width per paper size — gives a realistic sense of
+   56/58/80mm so switching size visibly changes the layout. Scoped to screen so
+   browser-print (@page size) is unaffected. */
+@media screen {
+  .receipt-56mm { max-width: 200px; margin-inline: auto; }
+  .receipt-58mm { max-width: 224px; margin-inline: auto; }
+  .receipt-80mm { max-width: 300px; margin-inline: auto; }
+}

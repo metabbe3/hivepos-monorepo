@@ -1,0 +1,35 @@
+# hivePOS
+
+> Aplikasi kasir online (POS) untuk bisnis laundry, F&B, dan salon di Indonesia. Multi-outlet, laporan real-time, integrasi QRIS/e-wallet, dan struk thermal printer.
+
+hivePOS adalah SaaS POS yang dirancang untuk UMKM Indonesia. Paket Free permanen tersedia untuk 1 outlet; paket Growth seharga Rp 49.000 per outlet per bulan untuk multi-outlet dengan modul lengkap.
+
+## Pages
+
+- [Beranda / Landing](https://hivepos.id/): marketing site, fitur, harga, FAQ
+- [Login](https://hivepos.id/login): masuk ke dashboard tenant (email + password atau Google)
+- [Super-Admin Login](https://hivepos.id/super-admin/login): khusus admin platform
+- [Register](https://hivepos.id/register): daftar akun laundry baru
+- [Pickup request publik](https://hivepos.id/pickup): form pelanggan mengajukan penjemputan laundry
+- [Track pesanan](https://hivepos.id/track): pelanggan melacak status pesanan via nomor order
+- [Laundry kiloan info](https://hivepos.id/laundry-kiloan): informasi layanan kiloan
+- [Health check](https://hivepos.id/api/health): status layanan
+
+## Tenant subdomains
+
+Setiap tenant mendapat subdomain sendiri: `{slug}.hivepos.id` (contoh: `berkah.hivepos.id`). Login tenant dilakukan di subdomain tenant, bukan di apex.
+
+## Pricing
+
+- **Free**: 1 outlet, 2 staff, 100 order/bulan, modul laundry
+- **Growth**: Rp 49.000 per outlet per bulan. Unlimited staff dan order, semua modul (laundry, F&B, salon), trial gratis 14 hari.
+
+## Modules
+
+- **Laundry** (production): kiloan, satuan, express, cuci sepatu, cuci bedcover
+- **F&B** (beta): restoran, kafe, kedai
+- **Salon** (in development)
+
+## Tech
+
+Next.js 16, React 19, PostgreSQL, Prisma, NextAuth (credentials + Google OAuth), Midtrans untuk pembayaran. Container Docker, dilayani via Cloudflare Tunnel.
