@@ -1,0 +1,1425 @@
+openapi: 3.0.3
+
+info:
+  title: hivePOS API
+  version: 1.0.0
+  description: |
+    REST API for hivePOS — browser-native POS for Indonesian UMKM laundry.
+    All routes return a uniform JSON envelope and accept `Authorization: Bearer <token>`
+    (a NextAuth session JWT). **Native/mobile clients (Flutter) authenticate via
+    `POST /api/auth/login` and send the returned token as a Bearer header.**
+
+    ### Mobile notes (Flutter)
+    - **Tenant routing**: authenticated calls need NO subdomain or `?tenant=` —
+      `tenantId`/`branchId` come from the token. Only the *public* endpoints
+      (`/api/public/*`, `/api/track/*`) need `?tenant=<slug>` or the
+      `x-tenant-slug` header.
+    - **Envelope**: `{ success: true, data, meta? }` / `{ success: false, error: { code, message, details? } }`.
+    - **Types**: money is a JSON `number` (Decimal→Number), dates are ISO-8601
+      strings, ids are UUID strings.
+    - **Deletes** return `200 { data: { deleted: true } }` (no `204`).
+    - **Browser-only** (not for mobile): `/api/printers/*`, `/api/print`,
+      `/api/pwa/nonce`, `/api/super-admin/pwa/force-update`,
+      `/api/user/profile/oauth-link/start`.
+
+    See `FLUTTER_INTEGRATION.md` for a full client guide with Dart examples.
+
+servers:
+  - url: https://hivepos.id
+    description: Production (platform host). Authenticated calls use the token; no subdomain needed.
+  - url: http://localhost:3007
+    description: Local dev (npm run dev).
+
+tags:
+  - name: Auth
+    description: "Authentication, login & session"
+  - name: Public
+    description: "Unauthenticated public endpoints (tenant website / tracking / pickup / support)"
+  - name: Track
+    description: "Public order tracking by order number"
+  - name: Billing
+    description: "Tenant subscription billing (Midtrans)"
+  - name: Customers
+    description: "Customer CRUD, deposits & stats"
+  - name: Orders
+    description: "Orders, payments, status & proof photos"
+  - name: Pickup
+    description: "Pickup requests lifecycle"
+  - name: Dashboard
+    description: "Dashboard stats, heatmap & kanban"
+  - name: Services
+    description: "Services & service groups"
+  - name: Inventory
+    description: "Stock items, movements & expenses"
+  - name: Branches
+    description: "Branch/outlet management"
+  - name: Reports
+    description: "Reports & exports"
+  - name: Tickets
+    description: "Tenant support tickets"
+  - name: Users
+    description: "Users & RBAC roles"
+  - name: TenantConfig
+    description: "Tenant website & WhatsApp templates"
+  - name: Profile
+    description: "Current user profile"
+  - name: Printers
+    description: "Browser-only LAN printing (not for mobile)"
+  - name: System
+    description: "Health, telemetry, PWA nonce, photo cleanup"
+  - name: SuperAdmin
+    description: "Super-admin platform management"
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ───────────────────────── Auth ─────────────────────────
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Mobile/programmatic login → returns a Bearer token
+      description: |
+        Authenticates with email + password and returns the NextAuth session JWT
+        in the body (plus the resolved user). Store the token and send it as
+        `Authorization: Bearer <token>` on every other request. The token is
+        byte-compatible with the web session cookie. Rate-limited to 10/min/IP.
+        Pass `scope:"super-admin"` to authenticate platform staff.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+            examples:
+              tenant:
+                value: { email: "owner@berkahlaundry.id", password: "secret" }
+              super_admin:
+                value: { email: "admin@hivepos.id", password: "secret", scope: "super-admin" }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { description: Account pending approval / suspended (code FORBIDDEN) }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/auth/session-version:
+    get:
+      tags: [Auth]
+      summary: Current sessionVersion (for revocation polling)
+      description: Poll periodically; if it differs from the token's claim, re-login.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data: { type: object, properties: { sessionVersion: { type: integer } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/auth/{...nextauth}:
+    get:
+      tags: [Auth]
+      summary: NextAuth handler (GET) — browser flow
+      security: []
+      parameters:
+        - { name: ...nextauth, in: path, required: true, schema: { type: string } }
+      responses: { '200': { description: NextAuth response } }
+    post:
+      tags: [Auth]
+      summary: NextAuth handler (POST) — browser credentials/OAuth flow
+      security: []
+      parameters:
+        - { name: ...nextauth, in: path, required: true, schema: { type: string } }
+      responses: { '200': { description: NextAuth response } }
+
+  /api/register:
+    post:
+      tags: [Auth]
+      summary: Register a new tenant + owner + branch + trial subscription
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantName, slug, ownerName, email, password]
+              properties:
+                tenantName: { type: string }
+                slug: { type: string, description: tenant subdomain slug }
+                ownerName: { type: string }
+                email: { type: string, format: email }
+                password: { type: string }
+                trialTier: { type: string, enum: [GROWTH, PRO] }
+      responses:
+        '201': { description: Tenant created (auto-approved trial) }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  # ───────────────────────── Public ─────────────────────────
+  /api/public/branches:
+    get:
+      tags: [Public]
+      summary: List active branches (public tenant website)
+      security: []
+      parameters:
+        - { name: tenant, in: query, schema: { type: string }, description: tenant slug (or use x-tenant-slug header) }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { type: array, items: { $ref: '#/components/schemas/PublicBranch' } }
+
+  /api/public/services:
+    get:
+      tags: [Public]
+      summary: List active services with groups
+      security: []
+      parameters:
+        - { name: tenant, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { type: array, items: { $ref: '#/components/schemas/Service' } }
+
+  /api/public/orders/track:
+    get:
+      tags: [Public]
+      summary: Find orders by phone number (public)
+      security: []
+      parameters:
+        - { name: phone, in: query, required: true, schema: { type: string } }
+        - { name: tenant, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { type: array, items: { $ref: '#/components/schemas/Order' } }
+
+  /api/public/pickup-requests:
+    post:
+      tags: [Public]
+      summary: Submit a public pickup request
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customerName, customerPhone]
+              properties:
+                branchSlug: { type: string }
+                customerName: { type: string }
+                customerPhone: { type: string }
+                customerAddress: { type: string }
+                requestedDate: { type: string, format: date }
+                requestedSlot: { type: string }
+                notes: { type: string }
+      responses:
+        '201': { description: Pickup request created }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/public/tickets:
+    post:
+      tags: [Public]
+      summary: Submit a public support ticket
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subject, description]
+              properties:
+                subject: { type: string }
+                description: { type: string }
+                category: { type: string }
+                submitterName: { type: string }
+                submitterEmail: { type: string, format: email }
+                tenantSlug: { type: string }
+      responses:
+        '201': { description: Ticket created }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  # ───────────────────────── Track ─────────────────────────
+  /api/track/{orderNumber}:
+    get:
+      tags: [Track]
+      summary: Track an order by order number (public)
+      security: []
+      parameters:
+        - { name: orderNumber, in: path, required: true, schema: { type: string } }
+        - { name: tenant, in: query, schema: { type: string }, description: tenant slug (required when not on subdomain) }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/PublicTrackOrder' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/track/{orderNumber}/photos:
+    get:
+      tags: [Track]
+      summary: List proof photos for a tracked order (public)
+      security: []
+      parameters:
+        - { name: orderNumber, in: path, required: true, schema: { type: string } }
+        - { name: tenant, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { type: array, items: { $ref: '#/components/schemas/OrderPhoto' } }
+
+  /api/track/{orderNumber}/photos/{photoId}:
+    get:
+      tags: [Track]
+      summary: Stream a proof photo binary (public)
+      security: []
+      parameters:
+        - { name: orderNumber, in: path, required: true, schema: { type: string } }
+        - { name: photoId, in: path, required: true, schema: { type: string } }
+        - { name: tenant, in: query, schema: { type: string } }
+      responses:
+        '200': { description: image/webp binary }
+
+  # ───────────────────────── Billing ─────────────────────────
+  /api/billing/status:
+    get:
+      tags: [Billing]
+      summary: Tenant billing status (plan, trial, coverage)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/BillingStatus' }
+
+  /api/billing/checkout:
+    post:
+      tags: [Billing]
+      summary: Create a Midtrans checkout session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [branchIds, months, planTier]
+              properties:
+                branchIds: { type: array, items: { type: string } }
+                months: { type: integer }
+                planTier: { type: string }
+                promoCode: { type: string }
+      responses:
+        '200': { description: snap token / redirect url }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /api/billing/promo/validate:
+    post:
+      tags: [Billing]
+      summary: Validate a promo code for checkout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, branchIds, months]
+              properties:
+                code: { type: string }
+                branchIds: { type: array, items: { type: string } }
+                months: { type: integer }
+      responses:
+        '200': { description: discount details }
+
+  /api/billing/webhook:
+    post:
+      tags: [Billing]
+      summary: Midtrans payment webhook (signature-verified)
+      security: []
+      requestBody: { required: true, content: { application/json: { schema: { type: object } } } }
+      responses: { '200': { description: OK } }
+
+  # ───────────────────────── Customers ─────────────────────────
+  /api/customers:
+    get:
+      tags: [Customers]
+      summary: List / search customers
+      parameters:
+        - { name: search, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: sort, in: query, schema: { type: string } }
+        - { name: order, in: query, schema: { type: string, enum: [asc, desc] } }
+      responses:
+        '200':
+          description: OK (paginated)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { type: array, items: { $ref: '#/components/schemas/Customer' } }
+                  meta: { $ref: '#/components/schemas/PaginationMeta' }
+    post:
+      tags: [Customers]
+      summary: Create a customer (supports X-Client-Id idempotency for offline sync)
+      parameters:
+        - { name: X-Client-Id, in: header, schema: { type: string }, description: offline idempotency key }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /api/customers/{id}:
+    parameters:
+      - { $ref: '#/components/parameters/IdPath' }
+    get:
+      tags: [Customers]
+      summary: Get a customer
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { $ref: '#/components/schemas/CustomerResponse' } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Customers]
+      summary: Update a customer
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CustomerInput' } } } }
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { $ref: '#/components/schemas/CustomerResponse' } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Customers]
+      summary: Delete a customer
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DeletedResponse' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/customers/{id}/deposit:
+    parameters:
+      - { $ref: '#/components/parameters/IdPath' }
+    get:
+      tags: [Customers]
+      summary: List deposit transactions
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { type: array, items: { $ref: '#/components/schemas/CustomerDepositTxn' } } } } } } } }
+    post:
+      tags: [Customers]
+      summary: Record a deposit top-up
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [amount], properties: { amount: { type: number }, method: { type: string }, note: { type: string } } } } } }
+      responses:
+        '200': { description: OK }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /api/customers/{id}/stats:
+    parameters:
+      - { $ref: '#/components/parameters/IdPath' }
+    get:
+      tags: [Customers]
+      summary: Customer statistics
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses: { '200': { description: OK } }
+
+  # ───────────────────────── Orders ─────────────────────────
+  /api/orders:
+    get:
+      tags: [Orders]
+      summary: List / filter orders (paginated)
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: paymentStatus, in: query, schema: { type: string } }
+        - { name: dateFrom, in: query, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, schema: { type: string, format: date } }
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: sortBy, in: query, schema: { type: string } }
+        - { name: sortOrder, in: query, schema: { type: string, enum: [asc, desc] } }
+      responses:
+        '200':
+          description: OK (paginated)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { type: array, items: { $ref: '#/components/schemas/Order' } }
+                  meta: { $ref: '#/components/schemas/PaginationMeta' }
+    post:
+      tags: [Orders]
+      summary: Create an order (supports X-Client-Id idempotency for offline sync)
+      parameters:
+        - { name: X-Client-Id, in: header, schema: { type: string }, description: offline idempotency key }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderInput' }
+      responses:
+        '201':
+          description: Created
+          content: { application/json: { schema: { $ref: '#/components/schemas/OrderResponse' } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /api/orders/{id}:
+    parameters:
+      - { $ref: '#/components/parameters/IdPath' }
+    get:
+      tags: [Orders]
+      summary: Get order details
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/OrderResponse' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Orders]
+      summary: Update order notes / partial fields
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { notes: { type: string } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/OrderResponse' } } } } }
+    put:
+      tags: [Orders]
+      summary: Replace / full update an order
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/OrderInput' } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/OrderResponse' } } } } }
+    delete:
+      tags: [Orders]
+      summary: Delete an order
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DeletedResponse' } } } } }
+
+  /api/orders/{id}/payments:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    post:
+      tags: [Orders]
+      summary: Record a payment on an order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, paymentMethod]
+              properties:
+                amount: { type: number }
+                paymentMethod: { type: string, description: "e.g. CASH, QRIS, EWALLET, DEPOSIT" }
+                paidAt: { type: string, format: date-time }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/OrderResponse' } } } } }
+
+  /api/orders/{id}/status:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    patch:
+      tags: [Orders]
+      summary: Advance order status (workflow)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [status], properties: { status: { type: string } } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/OrderResponse' } } } }
+        '400': { description: Invalid status transition (code INVALID_STATUS_TRANSITION) }
+
+  /api/orders/{id}/photos:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    get:
+      tags: [Orders]
+      summary: List proof photos
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { type: array, items: { $ref: '#/components/schemas/OrderPhoto' } } } } } } } }
+    post:
+      tags: [Orders]
+      summary: Upload a proof photo (multipart)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [kind, file]
+              properties:
+                kind: { type: string, enum: [before, after, damage] }
+                file: { type: string, format: binary }
+      responses: { '201': { description: Created, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { $ref: '#/components/schemas/OrderPhoto' } } } } } } }
+
+  /api/orders/{id}/photos/{photoId}:
+    parameters:
+      - { $ref: '#/components/parameters/IdPath' }
+      - { name: photoId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [Orders]
+      summary: Stream a photo binary
+      responses: { '200': { description: image/webp binary } }
+    delete:
+      tags: [Orders]
+      summary: Delete a photo
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DeletedResponse' } } } } }
+
+  # ───────────────────────── Pickup ─────────────────────────
+  /api/pickup-requests:
+    get:
+      tags: [Pickup]
+      summary: List pickup requests (paginated)
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: limit, in: query, schema: { type: integer } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { type: array, items: { $ref: '#/components/schemas/PickupRequest' } }, meta: { $ref: '#/components/schemas/PaginationMeta' } } } } } } }
+    post:
+      tags: [Pickup]
+      summary: Create a staff-initiated pickup request
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PickupInput' } } } }
+      responses: { '201': { description: Created } }
+
+  /api/pickup-requests/count-pending:
+    get:
+      tags: [Pickup]
+      summary: Count pending pickup requests
+      responses: { '200': { description: OK } }
+
+  /api/pickup-requests/{id}:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    get:
+      tags: [Pickup]
+      summary: Get pickup request details
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+
+  /api/pickup-requests/{id}/accept:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    post: { tags: [Pickup], summary: Accept a pending pickup (PENDING→ACCEPTED), responses: { '200': { description: OK } } }
+  /api/pickup-requests/{id}/reject:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    post: { tags: [Pickup], summary: Reject a pickup, requestBody: { required: false, content: { application/json: { schema: { type: object, properties: { reason: { type: string } } } } } }, responses: { '200': { description: OK } } }
+  /api/pickup-requests/{id}/assign:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    post: { tags: [Pickup], summary: Assign/clear driver, requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { assignedDriverId: { type: string, nullable: true } } } } } }, responses: { '200': { description: OK } } }
+  /api/pickup-requests/{id}/schedule:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    post: { tags: [Pickup], summary: Schedule a pickup (ACCEPTED→SCHEDULED), requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { requestedDate: { type: string, format: date }, requestedSlot: { type: string }, assignedDriverId: { type: string } } } } } }, responses: { '200': { description: OK } } }
+  /api/pickup-requests/{id}/convert:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    post: { tags: [Pickup], summary: Convert a scheduled pickup to an order, responses: { '200': { description: OK } } }
+
+  # ───────────────────────── Dashboard ─────────────────────────
+  /api/dashboard/stats:
+    get:
+      tags: [Dashboard]
+      summary: Dashboard KPIs (revenue, orders, customers, cash flow, comparison)
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { $ref: '#/components/schemas/DashboardStats' } } } } } } }
+
+  /api/dashboard/heatmap:
+    get:
+      tags: [Dashboard]
+      summary: Order heatmap (hourly by day-of-week, revenue, visits)
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: granularity, in: query, schema: { type: string, enum: [daily, weekly, monthly] } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { $ref: '#/components/schemas/DashboardHeatmap' } } } } } } }
+
+  /api/dashboard/kanban:
+    get:
+      tags: [Dashboard]
+      summary: Kanban order list (active orders with service details)
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { type: array, items: { $ref: '#/components/schemas/KanbanOrder' } } } } } } } }
+
+  # ───────────────────────── Services ─────────────────────────
+  /api/services:
+    get:
+      tags: [Services]
+      summary: List services
+      parameters: [ { name: includeInactive, in: query, schema: { type: boolean } } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { type: array, items: { $ref: '#/components/schemas/Service' } } } } } } } }
+    post:
+      tags: [Services]
+      summary: Create a service
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ServiceInput' } } } }
+      responses: { '201': { description: Created } }
+
+  /api/services/{id}:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    patch: { tags: [Services], summary: Update a service, requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ServiceInput' } } } }, responses: { '200': { description: OK } } }
+    delete: { tags: [Services], summary: Delete a service, responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DeletedResponse' } } } } } }
+
+  /api/service-groups:
+    get: { tags: [Services], summary: List service groups, responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { type: array, items: { $ref: '#/components/schemas/ServiceGroup' } } } } } } } } }
+    post: { tags: [Services], summary: Create a service group, requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { name: { type: string }, sort: { type: integer } } } } } }, responses: { '201': { description: Created } } }
+    patch: { tags: [Services], summary: Reorder service groups, requestBody: { required: true, content: { application/json: { schema: { type: object } } } }, responses: { '200': { description: OK } } }
+
+  /api/service-groups/{id}:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    patch: { tags: [Services], summary: Update a service group, requestBody: { required: true, content: { application/json: { schema: { type: object } } } }, responses: { '200': { description: OK } } }
+    delete: { tags: [Services], summary: Delete a service group, responses: { '200': { description: OK } } }
+
+  # ───────────────────────── Inventory ─────────────────────────
+  /api/stock-items:
+    get: { tags: [Inventory], summary: List stock items, responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { type: array, items: { $ref: '#/components/schemas/StockItem' } } } } } } } } }
+    post: { tags: [Inventory], summary: Create a stock item, requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/StockItemInput' } } } }, responses: { '201': { description: Created } } }
+  /api/stock-items/{id}:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    patch: { tags: [Inventory], summary: Update a stock item, requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/StockItemInput' } } } }, responses: { '200': { description: OK } } }
+    delete: { tags: [Inventory], summary: Delete a stock item, responses: { '200': { description: OK } } }
+  /api/stock-items/{id}/movements:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    get: { tags: [Inventory], summary: List stock movements, responses: { '200': { description: OK } } }
+    post: { tags: [Inventory], summary: Record a stock movement (in/out/adjust), requestBody: { required: true, content: { application/json: { schema: { type: object, required: [quantity, type], properties: { quantity: { type: number }, type: { type: string }, note: { type: string } } } } } }, responses: { '200': { description: OK } } }
+
+  /api/expenses:
+    get:
+      tags: [Inventory]
+      summary: List expenses
+      parameters:
+        - { name: categoryId, in: query, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { type: array, items: { $ref: '#/components/schemas/Expense' } } } } } } } }
+    post: { tags: [Inventory], summary: Create an expense, requestBody: { required: true, content: { application/json: { schema: { type: object, required: [amount, categoryId], properties: { amount: { type: number }, categoryId: { type: string }, note: { type: string }, date: { type: string, format: date } } } } } }, responses: { '201': { description: Created } } }
+  /api/expenses/{id}:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    patch: { tags: [Inventory], summary: Update an expense, requestBody: { required: true, content: { application/json: { schema: { type: object } } } }, responses: { '200': { description: OK } } }
+    delete: { tags: [Inventory], summary: Delete an expense, responses: { '200': { description: OK } } }
+
+  /api/expense-categories:
+    get: { tags: [Inventory], summary: List expense categories, responses: { '200': { description: OK } } }
+    post: { tags: [Inventory], summary: Create an expense category, requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { name: { type: string } } } } } }, responses: { '201': { description: Created } } }
+  /api/expense-categories/{id}:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    patch: { tags: [Inventory], summary: Update a category, requestBody: { required: true, content: { application/json: { schema: { type: object } } } }, responses: { '200': { description: OK } } }
+    delete: { tags: [Inventory], summary: Delete a category, responses: { '200': { description: OK } } }
+
+  # ───────────────────────── Branches ─────────────────────────
+  /api/branches:
+    get: { tags: [Branches], summary: List branches, responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { type: array, items: { $ref: '#/components/schemas/Branch' } } } } } } } } }
+    post: { tags: [Branches], summary: Create a branch, requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { name: { type: string }, address: { type: string }, phone: { type: string } } } } } }, responses: { '201': { description: Created } } }
+  /api/branches/{id}:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    get: { tags: [Branches], summary: Get a branch, responses: { '200': { description: OK } } }
+    patch: { tags: [Branches], summary: Update a branch, requestBody: { required: true, content: { application/json: { schema: { type: object } } } }, responses: { '200': { description: OK } } }
+
+  # ───────────────────────── Reports ─────────────────────────
+  /api/reports/export:
+    get:
+      tags: [Reports]
+      summary: Generate a PDF report
+      parameters:
+        - { name: type, in: query, required: true, schema: { type: string, enum: [revenue, orders, customers, services, commission, outstanding, expenses, profit, inventory, payment-collection] } }
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+      responses: { '200': { description: application/pdf binary } }
+  /api/reports/orders: { get: { tags: [Reports], summary: Orders report, parameters: [ { $ref: '#/components/parameters/DateRange' } ], responses: { '200': { description: OK } } } }
+  /api/reports/revenue: { get: { tags: [Reports], summary: Revenue report, parameters: [ { $ref: '#/components/parameters/DateRange' } ], responses: { '200': { description: OK } } } }
+  /api/reports/customers: { get: { tags: [Reports], summary: Customer report, parameters: [ { $ref: '#/components/parameters/DateRange' } ], responses: { '200': { description: OK } } } }
+  /api/reports/services: { get: { tags: [Reports], summary: Service report, parameters: [ { $ref: '#/components/parameters/DateRange' } ], responses: { '200': { description: OK } } } }
+  /api/reports/commission: { get: { tags: [Reports], summary: Commission report, parameters: [ { $ref: '#/components/parameters/DateRange' } ], responses: { '200': { description: OK } } } }
+  /api/reports/outstanding: { get: { tags: [Reports], summary: Outstanding balances report, parameters: [ { $ref: '#/components/parameters/DateRange' } ], responses: { '200': { description: OK } } } }
+  /api/reports/expenses: { get: { tags: [Reports], summary: Expenses report, parameters: [ { $ref: '#/components/parameters/DateRange' } ], responses: { '200': { description: OK } } } }
+  /api/reports/profit: { get: { tags: [Reports], summary: Profit report, parameters: [ { $ref: '#/components/parameters/DateRange' } ], responses: { '200': { description: OK } } } }
+  /api/reports/inventory: { get: { tags: [Reports], summary: Inventory report, parameters: [ { $ref: '#/components/parameters/DateRange' } ], responses: { '200': { description: OK } } } }
+  /api/reports/payment-collection: { get: { tags: [Reports], summary: Payment collection report, parameters: [ { $ref: '#/components/parameters/DateRange' } ], responses: { '200': { description: OK } } } }
+  /api/reports/financial-statement: { get: { tags: [Reports], summary: Comprehensive financial statement, parameters: [ { $ref: '#/components/parameters/DateRange' } ], responses: { '200': { description: OK } } } }
+  /api/reports/monthly-pnl:
+    get:
+      tags: [Reports]
+      summary: Monthly P&L (Indonesian format)
+      parameters:
+        - { name: month, in: query, required: true, schema: { type: integer, minimum: 1, maximum: 12 } }
+        - { name: year, in: query, required: true, schema: { type: integer } }
+      responses: { '200': { description: OK } }
+  /api/reports/monthly-pnl/export:
+    get:
+      tags: [Reports]
+      summary: Export monthly P&L as XLSX (multi-sheet)
+      parameters:
+        - { name: month, in: query, required: true, schema: { type: integer } }
+        - { name: year, in: query, required: true, schema: { type: integer } }
+      responses: { '200': { description: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet binary } }
+
+  # ───────────────────────── Tickets ─────────────────────────
+  /api/tickets:
+    get: { tags: [Tickets], summary: List the tenant's tickets, responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { type: array, items: { $ref: '#/components/schemas/Ticket' } } } } } } } } }
+    post: { tags: [Tickets], summary: Create a tenant ticket, requestBody: { required: true, content: { application/json: { schema: { type: object, required: [subject, description], properties: { subject: { type: string }, description: { type: string }, category: { type: string } } } } } }, responses: { '201': { description: Created } } }
+  /api/tickets/unread:
+    get: { tags: [Tickets], summary: Unread ticket event count, responses: { '200': { description: OK } } }
+    post: { tags: [Tickets], summary: Mark tickets as read, responses: { '200': { description: OK } } }
+  /api/tickets/{id}:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    get: { tags: [Tickets], summary: Get ticket details, responses: { '200': { description: OK } } }
+  /api/tickets/{id}/comments:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    post: { tags: [Tickets], summary: Add a comment, requestBody: { required: true, content: { application/json: { schema: { type: object, required: [body], properties: { body: { type: string } } } } } }, responses: { '201': { description: Created } } }
+  /api/tickets/{id}/csat:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    post: { tags: [Tickets], summary: Submit a CSAT rating, requestBody: { required: true, content: { application/json: { schema: { type: object, required: [rating], properties: { rating: { type: integer }, comment: { type: string } } } } } }, responses: { '200': { description: OK } } }
+
+  # ───────────────────────── Users & Roles ─────────────────────────
+  /api/users:
+    get: { tags: [Users], summary: List users, responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { type: array, items: { $ref: '#/components/schemas/User' } } } } } } } } }
+    post: { tags: [Users], summary: Create a user, requestBody: { required: true, content: { application/json: { schema: { type: object, required: [name, email, password, roleId], properties: { name: { type: string }, email: { type: string, format: email }, password: { type: string }, roleId: { type: string }, branchId: { type: string } } } } } }, responses: { '201': { description: Created } } }
+  /api/users/{id}:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    patch: { tags: [Users], summary: Update a user, requestBody: { required: true, content: { application/json: { schema: { type: object } } } }, responses: { '200': { description: OK } } }
+    delete: { tags: [Users], summary: Delete a user, responses: { '200': { description: OK } } }
+  /api/roles:
+    get: { tags: [Users], summary: List RBAC roles, responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { type: array, items: { $ref: '#/components/schemas/Role' } } } } } } } } }
+    post: { tags: [Users], summary: Create a role, requestBody: { required: true, content: { application/json: { schema: { type: object, required: [name, permissions], properties: { name: { type: string }, permissions: { type: array, items: { type: string } } } } } } }, responses: { '201': { description: Created } } }
+  /api/roles/{id}:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    get: { tags: [Users], summary: Get a role, responses: { '200': { description: OK } } }
+    patch: { tags: [Users], summary: Update a role, requestBody: { required: true, content: { application/json: { schema: { type: object } } } }, responses: { '200': { description: OK } } }
+    delete: { tags: [Users], summary: Delete a role, responses: { '200': { description: OK } } }
+
+  # ───────────────────────── Tenant config ─────────────────────────
+  /api/tenant/website:
+    get: { tags: [TenantConfig], summary: Get website settings (Pro), responses: { '200': { description: OK } } }
+    patch: { tags: [TenantConfig], summary: Update website settings, requestBody: { required: true, content: { application/json: { schema: { type: object } } } }, responses: { '200': { description: OK } } }
+    delete: { tags: [TenantConfig], summary: Reset website settings, responses: { '200': { description: OK } } }
+  /api/tenant/whatsapp-templates:
+    get: { tags: [TenantConfig], summary: Get WhatsApp message templates, responses: { '200': { description: OK } } }
+    patch: { tags: [TenantConfig], summary: Update WhatsApp templates, requestBody: { required: true, content: { application/json: { schema: { type: object } } } }, responses: { '200': { description: OK } } }
+
+  # ───────────────────────── Profile ─────────────────────────
+  /api/user:
+    get: { tags: [Profile], summary: Current session user, responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { $ref: '#/components/schemas/AuthUser' } } } } } } } }
+  /api/user/profile:
+    get: { tags: [Profile], summary: Get own profile, responses: { '200': { description: OK } } }
+    patch: { tags: [Profile], summary: Update own profile / change password, requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { name: { type: string }, phone: { type: string }, currentPassword: { type: string }, newPassword: { type: string } } } } } }, responses: { '200': { description: OK } } }
+  /api/user/profile/oauth-link/start:
+    post: { tags: [Profile], summary: 'Browser-only — initiate Google OAuth link (sets cookie + redirect). Not for mobile.', security: [], responses: { '302': { description: Redirect } } }
+  /api/user/profile/oauth-link:
+    delete: { tags: [Profile], summary: Unlink Google account, responses: { '200': { description: OK } } }
+
+  # ───────────────────────── Printers (browser-only) ─────────────────────────
+  /api/print:
+    post: { tags: [Printers], summary: 'Browser-only — print receipt to a LAN network printer. Not for mobile.', requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { orderId: { type: string } } } } } }, responses: { '200': { description: OK } } }
+  /api/printers/scan:
+    post: { tags: [Printers], summary: 'Browser-only — scan LAN for thermal printers (OWNER). Not for mobile.', requestBody: { required: false, content: { application/json: { schema: { type: object, properties: { port: { type: integer } } } } } }, responses: { '200': { description: OK } } }
+  /api/printers/test:
+    post: { tags: [Printers], summary: 'Browser-only — test a LAN printer (OWNER). Not for mobile.', requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { host: { type: string }, port: { type: integer }, sendTestPrint: { type: boolean }, paperSize: { type: string } } } } } }, responses: { '200': { description: OK } } }
+
+  # ───────────────────────── System ─────────────────────────
+  /api/health:
+    get: { tags: [System], summary: Health check (DB liveness probe), security: [], responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/HealthStatus' } } } } } }
+  /api/pwa/nonce:
+    get: { tags: [System], summary: 'PWA force-update nonce (service-worker poll). Browser-only.', security: [], responses: { '200': { description: OK } } }
+  /api/telemetry:
+    post: { tags: [System], summary: Batch telemetry events (rate-limited per user), requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { events: { type: array, items: { type: object } } } } } } }, responses: { '200': { description: OK } } }
+  /api/photo-cleanup:
+    post: { tags: [System], summary: Cron-only — delete expired photos (CRON_SECRET). Not called by clients., security: [], responses: { '200': { description: OK } } }
+
+  # ───────────────────────── Super-admin ─────────────────────────
+  /api/super-admin/stats:
+    get: { tags: [SuperAdmin], summary: "Platform stats (tenants, revenue, recent)", responses: { '200': { description: OK } } }
+  /api/super-admin/tenants/{id}:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    get: { tags: [SuperAdmin], summary: Tenant detail (subscription + counts), responses: { '200': { description: OK } } }
+  /api/super-admin/tenants/{id}/approve:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    post: { tags: [SuperAdmin], summary: Approve a pending tenant, responses: { '200': { description: OK } } }
+  /api/super-admin/tenants/{id}/suspend:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    post: { tags: [SuperAdmin], summary: Suspend a tenant, requestBody: { required: true, content: { application/json: { schema: { type: object, required: [reason], properties: { reason: { type: string, minLength: 10 } } } } } }, responses: { '200': { description: OK } } }
+    delete: { tags: [SuperAdmin], summary: Reactivate a suspended tenant, responses: { '200': { description: OK } } }
+  /api/super-admin/tenants/{id}/billing:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    get: { tags: [SuperAdmin], summary: Tenant billing/payment history, parameters: [ { name: limit, in: query, schema: { type: integer } } ], responses: { '200': { description: OK } } }
+  /api/super-admin/tenants/{id}/subscription:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    patch: { tags: [SuperAdmin], summary: Override subscription (extend trial / cancel / change plan / mark paid), requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { op: { type: string }, days: { type: integer }, planId: { type: string }, amount: { type: number }, months: { type: integer }, outletCount: { type: integer }, reason: { type: string } } } } } }, responses: { '200': { description: OK } } }
+
+  /api/super-admin/plans:
+    get: { tags: [SuperAdmin], summary: List plans, responses: { '200': { description: OK } } }
+    post: { tags: [SuperAdmin], summary: Create a plan, requestBody: { required: true, content: { application/json: { schema: { type: object } } } }, responses: { '201': { description: Created } } }
+  /api/super-admin/plans/{id}:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    patch: { tags: [SuperAdmin], summary: Update a plan, requestBody: { required: true, content: { application/json: { schema: { type: object } } } }, responses: { '200': { description: OK } } }
+    delete: { tags: [SuperAdmin], summary: Delete a plan, responses: { '200': { description: OK } } }
+
+  /api/super-admin/promo-codes:
+    get: { tags: [SuperAdmin], summary: List promo codes, responses: { '200': { description: OK } } }
+    post: { tags: [SuperAdmin], summary: Create a promo code, requestBody: { required: true, content: { application/json: { schema: { type: object } } } }, responses: { '201': { description: Created } } }
+    patch: { tags: [SuperAdmin], summary: Toggle/update a promo code, requestBody: { required: true, content: { application/json: { schema: { type: object } } } }, responses: { '200': { description: OK } } }
+
+  /api/super-admin/billing/overview:
+    get: { tags: [SuperAdmin], summary: "Platform billing overview (MRR, churn, ARPU)", responses: { '200': { description: OK } } }
+  /api/super-admin/billing/payments:
+    get:
+      tags: [SuperAdmin]
+      summary: List SaaS payments (paginated)
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: tenantId, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: pageSize, in: query, schema: { type: integer } }
+      responses: { '200': { description: OK } }
+  /api/super-admin/billing/payments/export:
+    get: { tags: [SuperAdmin], summary: Export payments as CSV, parameters: [ { name: status, in: query, schema: { type: string } }, { name: from, in: query, schema: { type: string, format: date } }, { name: to, in: query, schema: { type: string, format: date } }, { name: tenantId, in: query, schema: { type: string } } ], responses: { '200': { description: text/csv } } }
+  /api/super-admin/billing/payments/{id}/refund:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    post: { tags: [SuperAdmin], summary: Refund a payment, requestBody: { required: true, content: { application/json: { schema: { type: object, required: [reason], properties: { reason: { type: string, minLength: 10 } } } } } }, responses: { '200': { description: OK } } }
+
+  /api/super-admin/users:
+    get:
+      tags: [SuperAdmin]
+      summary: List platform users (paginated, searchable)
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: tenantId, in: query, schema: { type: string } }
+        - { name: isActive, in: query, schema: { type: boolean } }
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: pageSize, in: query, schema: { type: integer } }
+      responses: { '200': { description: OK } }
+  /api/super-admin/users/export:
+    get: { tags: [SuperAdmin], summary: Export users as CSV, parameters: [ { name: q, in: query, schema: { type: string } }, { name: tenantId, in: query, schema: { type: string } }, { name: isActive, in: query, schema: { type: boolean } } ], responses: { '200': { description: text/csv } } }
+  /api/super-admin/users/{id}/suspend:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    post: { tags: [SuperAdmin], summary: Suspend a user, requestBody: { required: true, content: { application/json: { schema: { type: object, required: [reason], properties: { reason: { type: string, minLength: 10 } } } } } }, responses: { '200': { description: OK } } }
+    delete: { tags: [SuperAdmin], summary: Reactivate a user, responses: { '200': { description: OK } } }
+  /api/super-admin/users/{id}/reset-password:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    post: { tags: [SuperAdmin], summary: Reset a user's password (returns temp password), requestBody: { required: true, content: { application/json: { schema: { type: object, required: [reason], properties: { reason: { type: string, minLength: 10 } } } } } }, responses: { '200': { description: OK } } }
+
+  /api/super-admin/admins:
+    get: { tags: [SuperAdmin], summary: List super admins, responses: { '200': { description: OK } } }
+    post: { tags: [SuperAdmin], summary: Create a super admin, requestBody: { required: true, content: { application/json: { schema: { type: object } } } }, responses: { '201': { description: Created } } }
+  /api/super-admin/admins/{id}:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    patch: { tags: [SuperAdmin], summary: Update admin role, requestBody: { required: true, content: { application/json: { schema: { type: object } } } }, responses: { '200': { description: OK } } }
+    delete: { tags: [SuperAdmin], summary: Deactivate admin, responses: { '200': { description: OK } } }
+
+  /api/super-admin/tickets/{id}/comments:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    post: { tags: [SuperAdmin], summary: Add admin comment, requestBody: { required: true, content: { application/json: { schema: { type: object, required: [body], properties: { body: { type: string } } } } } }, responses: { '200': { description: OK } } }
+  /api/super-admin/tickets/{id}/status:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    post: { tags: [SuperAdmin], summary: Update ticket status (email notification), requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { status: { type: string }, reason: { type: string } } } } } }, responses: { '200': { description: OK } } }
+  /api/super-admin/tickets/{id}/priority:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    post: { tags: [SuperAdmin], summary: Update ticket priority, requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { priority: { type: string }, reason: { type: string } } } } } }, responses: { '200': { description: OK } } }
+
+  /api/super-admin/feature-flags:
+    get: { tags: [SuperAdmin], summary: List feature flags, responses: { '200': { description: OK } } }
+    post: { tags: [SuperAdmin], summary: Create a feature flag, requestBody: { required: true, content: { application/json: { schema: { type: object } } } }, responses: { '201': { description: Created } } }
+  /api/super-admin/feature-flags/{id}:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    get: { tags: [SuperAdmin], summary: Get a feature flag, responses: { '200': { description: OK } } }
+    patch: { tags: [SuperAdmin], summary: Update a feature flag, requestBody: { required: true, content: { application/json: { schema: { type: object } } } }, responses: { '200': { description: OK } } }
+    delete: { tags: [SuperAdmin], summary: Delete a feature flag, responses: { '200': { description: OK } } }
+  /api/super-admin/feature-flags/{id}/tenants:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    get: { tags: [SuperAdmin], summary: Search tenants / list overrides, parameters: [ { name: q, in: query, schema: { type: string } }, { name: overrideOnly, in: query, schema: { type: boolean } } ], responses: { '200': { description: OK } } }
+    post: { tags: [SuperAdmin], summary: Set a per-tenant override, requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { tenantId: { type: string }, enabled: { type: boolean }, reason: { type: string } } } } } }, responses: { '200': { description: OK } } }
+  /api/super-admin/feature-flags/{id}/tenants/{tenantId}:
+    parameters: [ { $ref: '#/components/parameters/IdPath' }, { name: tenantId, in: path, required: true, schema: { type: string } } ]
+    delete: { tags: [SuperAdmin], summary: Remove a per-tenant override, responses: { '200': { description: OK } } }
+
+  /api/super-admin/audit-log/export:
+    get: { tags: [SuperAdmin], summary: Export audit log as CSV, parameters: [ { name: targetType, in: query, schema: { type: string } }, { name: actorEmail, in: query, schema: { type: string } }, { name: actionPrefix, in: query, schema: { type: string } }, { name: from, in: query, schema: { type: string, format: date } }, { name: to, in: query, schema: { type: string, format: date } } ], responses: { '200': { description: text/csv } } }
+  /api/super-admin/error-logs/{id}/resolve:
+    parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+    post: { tags: [SuperAdmin], summary: Mark error log resolved, requestBody: { required: false, content: { application/json: { schema: { type: object, properties: { reason: { type: string } } } } } }, responses: { '200': { description: OK } } }
+    delete: { tags: [SuperAdmin], summary: Mark error log unresolved, responses: { '200': { description: OK } } }
+
+  /api/super-admin/pwa/force-update:
+    post: { tags: [SuperAdmin], summary: 'Browser-only — rotate PWA nonce for all clients. Not for mobile.', responses: { '200': { description: OK } } }
+  /api/super-admin/impersonate:
+    post: { tags: [SuperAdmin], summary: Start impersonating a tenant user, requestBody: { required: true, content: { application/json: { schema: { type: object, required: [userId], properties: { userId: { type: string } } } } } }, responses: { '200': { description: OK } } }
+  /api/super-admin/impersonate/stop:
+    post: { tags: [SuperAdmin], summary: Stop impersonation, responses: { '200': { description: OK } } }
+  /api/super-admin/me/sessions:
+    post: { tags: [SuperAdmin], summary: Revoke all other sessions (bump sessionVersion), responses: { '200': { description: OK } } }
+  /api/super-admin/me/password:
+    post: { tags: [SuperAdmin], summary: Change own password, requestBody: { required: true, content: { application/json: { schema: { type: object, required: [currentPassword, newPassword], properties: { currentPassword: { type: string }, newPassword: { type: string } } } } } }, responses: { '200': { description: OK } } }
+
+components:
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    DateRange:
+      name: from
+      in: query
+      required: false
+      schema: { type: string, format: date }
+      description: shared `from`/`to` date-range query params
+
+  responses:
+    Unauthorized:
+      description: No/invalid token (401, code UNAUTHENTICATED)
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    ValidationError:
+      description: Invalid input (400, code VALIDATION_ERROR) — see error.details[]
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Resource not found (404, code NOT_FOUND)
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Conflict:
+      description: Conflict / duplicate (409, code CONFLICT)
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    RateLimited:
+      description: Too many requests (429, code RATE_LIMITED)
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        A NextAuth session JWT obtained from `POST /api/auth/login`.
+        Send as `Authorization: Bearer <token>`. Carries tenant/branch/permission
+        context, so no tenant header is needed on authenticated calls.
+
+  schemas:
+    PaginationMeta:
+      type: object
+      properties:
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }
+
+    ErrorCode:
+      type: string
+      enum:
+        - VALIDATION_ERROR
+        - INVALID_INPUT
+        - UNAUTHENTICATED
+        - FORBIDDEN
+        - INSUFFICIENT_PERMISSION
+        - NOT_FOUND
+        - CONFLICT
+        - BUSINESS_RULE_VIOLATION
+        - INVALID_STATUS_TRANSITION
+        - INSUFFICIENT_BALANCE
+        - OUTLET_LOCKED
+        - SUBSCRIPTION_LIMIT_REACHED
+        - RATE_LIMITED
+        - DATABASE_ERROR
+        - EXTERNAL_SERVICE_ERROR
+        - INTERNAL_ERROR
+
+    FieldError:
+      type: object
+      properties:
+        field: { type: string, example: "items.0.quantity" }
+        message: { type: string }
+
+    ErrorEnvelope:
+      type: object
+      required: [success, error]
+      properties:
+        success: { type: boolean, example: false }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { $ref: '#/components/schemas/ErrorCode' }
+            message: { type: string }
+            details: { type: array, items: { $ref: '#/components/schemas/FieldError' } }
+
+    DeletedResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data: { type: object, properties: { deleted: { type: boolean, example: true } } }
+
+    # ── Auth ──
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+        scope: { type: string, enum: ["super-admin"], description: "omit for tenant users" }
+
+    AuthUser:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        name: { type: string, nullable: true }
+        role: { type: string, example: OWNER }
+        tenantId: { type: string, format: uuid, nullable: true }
+        tenantName: { type: string }
+        tenantSlug: { type: string, nullable: true }
+        branchId: { type: string, nullable: true, description: '"ALL" when user sees all outlets' }
+        branchName: { type: string }
+        activeModule: { type: string, example: laundry }
+        activeModules: { type: array, items: { type: string } }
+        permissions: { type: array, items: { type: string }, example: ["orders:read", "orders:create"] }
+        roleId: { type: string, nullable: true }
+        roleName: { type: string, nullable: true }
+        sessionVersion: { type: integer }
+        featureFlags: { type: object, additionalProperties: { type: boolean } }
+
+    LoginResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            token: { type: string, description: NextAuth session JWT — send as Bearer }
+            expiresAt: { type: integer, description: Unix ms (~8h from issue) }
+            user: { $ref: '#/components/schemas/AuthUser' }
+
+    # ── Core domain models ──
+    Customer:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        balance: { type: number, description: deposit balance (IDR) }
+        status: { type: string }
+        note: { type: string, nullable: true }
+        clientId: { type: string, nullable: true, description: offline idempotency key }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CustomerInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        phone: { type: string }
+        email: { type: string, format: email }
+        balance: { type: number }
+        note: { type: string }
+        clientId: { type: string, description: offline idempotency key }
+
+    CustomerResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/Customer' }
+
+    CustomerDepositTxn:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        amount: { type: number }
+        method: { type: string }
+        note: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    OrderItem:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        serviceId: { type: string, format: uuid }
+        serviceName: { type: string }
+        quantity: { type: number }
+        unitPrice: { type: number }
+        subtotal: { type: number }
+
+    OrderPayment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        amount: { type: number }
+        paymentMethod: { type: string }
+        paidAt: { type: string, format: date-time }
+
+    Order:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        orderNumber: { type: string }
+        status: { type: string, example: RECEIVED }
+        paymentStatus: { type: string, example: UNPAID }
+        customerId: { type: string, format: uuid, nullable: true }
+        customerName: { type: string, nullable: true }
+        branchId: { type: string, format: uuid }
+        totalAmount: { type: number, description: total in IDR }
+        paidAmount: { type: number }
+        discountAmount: { type: number }
+        notes: { type: string, nullable: true }
+        items: { type: array, items: { $ref: '#/components/schemas/OrderItem' } }
+        payments: { type: array, items: { $ref: '#/components/schemas/OrderPayment' } }
+        receivedAt: { type: string, format: date-time, nullable: true }
+        deliveredAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    OrderInput:
+      type: object
+      required: [items]
+      properties:
+        customerId: { type: string, format: uuid, nullable: true }
+        branchId: { type: string, format: uuid }
+        items:
+          type: array
+          items:
+            type: object
+            required: [serviceId, quantity]
+            properties:
+              serviceId: { type: string, format: uuid }
+              quantity: { type: number }
+        discountAmount: { type: number }
+        paymentMethod: { type: string }
+        notes: { type: string }
+        clientId: { type: string, description: offline idempotency key }
+
+    OrderResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/Order' }
+
+    OrderPhoto:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [before, after, damage] }
+        bytes: { type: integer }
+        width: { type: integer }
+        height: { type: integer }
+        mime: { type: string }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+
+    Service:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        groupId: { type: string, format: uuid, nullable: true }
+        basePrice: { type: number }
+        unit: { type: string, example: kg }
+        isActive: { type: boolean }
+        sortOrder: { type: integer }
+
+    ServiceInput:
+      type: object
+      required: [name, basePrice]
+      properties:
+        name: { type: string }
+        groupId: { type: string, format: uuid }
+        basePrice: { type: number }
+        unit: { type: string }
+        isActive: { type: boolean }
+
+    ServiceGroup:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        sortOrder: { type: integer }
+
+    Branch:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        address: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        isActive: { type: boolean }
+
+    PickupRequest:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, example: PENDING }
+        customerName: { type: string }
+        customerPhone: { type: string }
+        customerAddress: { type: string, nullable: true }
+        requestedDate: { type: string, format: date, nullable: true }
+        requestedSlot: { type: string, nullable: true }
+        assignedDriverId: { type: string, format: uuid, nullable: true }
+        notes: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    PickupInput:
+      type: object
+      required: [customerName, customerPhone]
+      properties:
+        customerName: { type: string }
+        customerPhone: { type: string }
+        customerAddress: { type: string }
+        requestedDate: { type: string, format: date }
+        requestedSlot: { type: string }
+        notes: { type: string }
+
+    Ticket:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        subject: { type: string }
+        description: { type: string }
+        category: { type: string, nullable: true }
+        status: { type: string }
+        priority: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { type: string }
+        roleId: { type: string, format: uuid, nullable: true }
+        roleName: { type: string, nullable: true }
+        branchId: { type: string, nullable: true }
+        isActive: { type: boolean }
+
+    Role:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        permissions: { type: array, items: { type: string } }
+        isSystem: { type: boolean }
+
+    StockItem:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        unit: { type: string }
+        quantity: { type: number }
+        lowStockThreshold: { type: number }
+        unitCost: { type: number }
+
+    StockItemInput:
+      type: object
+      required: [name, unit]
+      properties:
+        name: { type: string }
+        unit: { type: string }
+        quantity: { type: number }
+        lowStockThreshold: { type: number }
+        unitCost: { type: number }
+
+    Expense:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        amount: { type: number }
+        categoryId: { type: string, format: uuid }
+        note: { type: string, nullable: true }
+        date: { type: string, format: date }
+
+    DashboardStats:
+      type: object
+      description: Aggregated KPIs — shape is summary-style; inspect live response for exact fields.
+      properties:
+        revenue: { type: object }
+        orders: { type: object }
+        customers: { type: object }
+        cashFlow: { type: object }
+        comparison: { type: object }
+
+    DashboardHeatmap:
+      type: object
+      properties:
+        hourlyByDayOfWeek: { type: array, items: { type: object } }
+        revenueByDay: { type: array, items: { type: object } }
+        visits: { type: array, items: { type: object } }
+
+    KanbanOrder:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        orderNumber: { type: string }
+        status: { type: string }
+        customerName: { type: string, nullable: true }
+        serviceName: { type: string, nullable: true }
+        receivedAt: { type: string, format: date-time, nullable: true }
+
+    BillingStatus:
+      type: object
+      properties:
+        planTier: { type: string }
+        trialEndsAt: { type: string, format: date-time, nullable: true }
+        coveredBranchIds: { type: array, items: { type: string } }
+        isActive: { type: boolean }
+
+    PublicBranch:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        address: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        hours: { type: string, nullable: true }
+
+    PublicTrackOrder:
+      type: object
+      properties:
+        orderNumber: { type: string }
+        status: { type: string }
+        customerName: { type: string, nullable: true }
+        serviceName: { type: string, nullable: true }
+        receivedAt: { type: string, format: date-time, nullable: true }
+        estimatedDoneAt: { type: string, format: date-time, nullable: true }
+
+    HealthStatus:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            status: { type: string, example: ok }
+            database: { type: string, example: ok }
+            timestamp: { type: string, format: date-time }

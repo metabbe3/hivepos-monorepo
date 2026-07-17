@@ -1,0 +1,12 @@
+node_modules
+.next
+coverage
+test-results
+.playwright-mcp
+data
+.env
+.env.local
+.git
+*.md
+*.png
+e2e

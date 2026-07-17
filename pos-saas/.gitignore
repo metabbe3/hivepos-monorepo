@@ -1,0 +1,42 @@
+# Local env
+.env
+.env.local
+
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Production
+build/
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug
+npm-debug.log*
+
+# Local Docker data
+data/
+
+# IDE
+.idea/
+.vscode/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Test / screenshot artifacts
+coverage/
+.playwright-mcp/
+test-results/
+
+# Dev screenshots in repo root (NOT public/ assets)
+/*.png
+
+# Codebase RAG index (regenerable: run `npx tsx scripts/codebase-rag.ts index`)
+.codebase-rag/

@@ -1,0 +1,196 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-05T12:00:00Z",
+  "title": "Design System: hivePOS",
+  "extensions": {
+    "colorMeta": {
+      "counter-indigo": {
+        "role": "primary",
+        "displayName": "Counter Indigo",
+        "canonical": "#4f46e5",
+        "tonalRamp": ["#eef2ff", "#e0e7ff", "#c7d2fe", "#a5b4fc", "#818cf8", "#6366f1", "#4f46e5", "#4338ca", "#3730a3", "#312e81"]
+      },
+      "paid-emerald": {
+        "role": "secondary",
+        "displayName": "Paid Emerald",
+        "canonical": "#10b981",
+        "tonalRamp": ["#ecfdf5", "#d1fae5", "#a7f3d0", "#6ee7b7", "#34d399", "#10b981", "#059669", "#047857", "#065f46", "#064e3b"]
+      },
+      "buka-browser-sky": {
+        "role": "primary",
+        "displayName": "Buka-Browser Sky",
+        "canonical": "#0284c7",
+        "tonalRamp": ["#f0f9ff", "#e0f2fe", "#bae6fd", "#7dd3fc", "#38bdf8", "#0ea5e9", "#0284c7", "#0369a1", "#075985", "#0c4a6e"]
+      },
+      "counter-white": {
+        "role": "neutral",
+        "displayName": "Counter White",
+        "canonical": "#fafafa",
+        "tonalRamp": ["#ffffff", "#fafafa", "#f4f4f5", "#e4e4e7", "#d4d4d8", "#a1a1aa", "#71717a", "#52525b", "#27272a", "#0a0a0f"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#0a0a0f",
+        "tonalRamp": ["#fafafa", "#e4e4e7", "#a1a1aa", "#71717a", "#52525b", "#3f3f46", "#27272a", "#18181b", "#0a0a0f", "#000000"]
+      },
+      "whatsapp-green": {
+        "role": "tertiary",
+        "displayName": "WhatsApp Green",
+        "canonical": "#25d366",
+        "tonalRamp": ["#e7fcef", "#c9f5dc", "#93edba", "#5fe496", "#25d366", "#1ebd5b", "#189d4c", "#137d3c", "#0e5d2c", "#093d1c"]
+      },
+      "heat": {
+        "role": "data-viz",
+        "displayName": "Jam-Ramai Heat",
+        "canonical": "oklch(0.54 0.22 55)",
+        "tonalRamp": ["oklch(0.96 0.006 75)", "oklch(0.90 0.05 75)", "oklch(0.80 0.11 75)", "oklch(0.70 0.16 75)", "oklch(0.62 0.19 65)", "oklch(0.54 0.22 55)"],
+        "note": "6-step OKLCH intensity ramp for the busy-hours heatmap; hue drifts 75→55 as intensity rises. Top two levels carry a 45deg pattern overlay for colorblind a11y."
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display — Manrope", "purpose": "Dashboard/super-admin section openers and page titles. 700/800 weight only." },
+      "storefront-display": { "displayName": "Storefront Display — Plus Jakarta", "purpose": "Landing/tenant-site heroes only; gives the public door a warmer retail voice." },
+      "title": { "displayName": "Title — Inter 600", "purpose": "Card titles, page headers, section labels." },
+      "body": { "displayName": "Body — Inter 400", "purpose": "All operational copy at 14px. Cap 65–75ch in marketing prose." },
+      "label": { "displayName": "Label — Inter 500", "purpose": "Buttons, badges, table headers, form labels. Never uppercase-tracked eyebrows." }
+    },
+    "shadows": [
+      { "name": "hairline-ring", "value": "ring-1 ring-foreground/10 (≈ 1px ring at 10% ink)", "purpose": "Default container boundary — cards, popovers, dialogs. The workhorse; use ~90% of the time." },
+      { "name": "bento-hard", "value": "4px 4px 0 0 var(--color-foreground)", "purpose": "Neo-brutalist offset shadow. Super-admin back-office accent ONLY. Forbidden on tenant-facing surfaces." },
+      { "name": "bento-hard-sm", "value": "2px 2px 0 0 var(--color-foreground)", "purpose": "Small variant of the bento shadow for inner panel cells." },
+      { "name": "popover-lift", "value": "shadow-xl + ring-1 ring-foreground/10", "purpose": "Momentary elevation for floating layers — menus, dialogs, sheets. Removed on close." },
+      { "name": "fab-glow", "value": "shadow-xl shadow-[#25d366]/30", "purpose": "The single ambient shadow — reserved for the persistent WhatsApp FAB." }
+    ],
+    "motion": [
+      { "name": "ease-out-quint", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Default easing for state transitions and entrances." },
+      { "name": "tile-in", "value": "0.3s var(--ease-out-quint); from opacity:0 translateY(8px) scale(0.985)", "purpose": "MetricTile / StatGrid entrance. 40ms stagger (--stagger-step)." },
+      { "name": "row-in", "value": "0.35s var(--ease-out-quint); from opacity:0 translateX(-6px)", "purpose": "Table row entrance." },
+      { "name": "scroll-reveal", "value": "0.6s cubic-bezier(0.16,1,0.3,1); from opacity:0 translateY(30px); IntersectionObserver-triggered", "purpose": "Landing section reveals. Decorative — content must be visible without it." },
+      { "name": "soft-pulse", "value": "2s ease-in-out infinite; box-shadow 0→12px ring in WhatsApp green at 0.4→0 alpha", "purpose": "WhatsApp FAB attention pulse." },
+      { "name": "marquee", "value": "30s linear infinite; translateX 0→-50%", "purpose": "Horizontal scroller (currently unused on landing — PaymentMarquee is static)." },
+      { "name": "reduced-motion-guard", "value": "@media (prefers-reduced-motion: reduce) → animation:none; opacity:1 !important", "purpose": "Mandatory: every animation degrades to instant/crossfade. Already shipped in globals.css — preserve it." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Default operational CTA. Counter Indigo in-app, re-skins to Buka-Browser Sky under .pub-scope.",
+      "html": "<button class=\"ds-btn-primary\">Mulai Gratis</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 8px 14px; border-radius: 8px; background: var(--color-primary, #4f46e5); color: var(--color-primary-foreground, #fff); font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 13px; font-weight: 500; line-height: 1.4; border: none; cursor: pointer; transition: background 0.2s var(--ease-out-quint, cubic-bezier(0.22,1,0.36,1)), transform 0.1s; } .ds-btn-primary:hover { background: var(--color-brand-700, #4338ca); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-ring, #6366f1) 50%, transparent); } .ds-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Primary Button — Touch",
+      "kind": "button",
+      "refersTo": "button-touch",
+      "description": "44px-tall mobile primary action. Meets WCAG touch-target minimum.",
+      "html": "<button class=\"ds-btn-touch\">Bayar Sekarang</button>",
+      "css": ".ds-btn-touch { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 12px 20px; border-radius: 8px; background: var(--color-primary, #4f46e5); color: #fff; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 500; border: none; cursor: pointer; transition: background 0.2s var(--ease-out-quint, cubic-bezier(0.22,1,0.36,1)); } .ds-btn-touch:hover { background: var(--color-brand-700, #4338ca); } .ds-btn-touch:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-ring, #6366f1) 50%, transparent); }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary action — white fill, hairline border, ink text.",
+      "html": "<button class=\"ds-btn-outline\">Lihat Demo</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 8px 14px; border-radius: 8px; background: #ffffff; color: var(--color-foreground, #0a0a0f); font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 13px; font-weight: 500; border: 1px solid var(--color-border, #e4e4e7); cursor: pointer; transition: background 0.2s; } .ds-btn-outline:hover { background: var(--color-muted, #f1f1f4); } .ds-btn-outline:focus-visible { outline: none; border-color: var(--color-ring, #6366f1); box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-ring, #6366f1) 50%, transparent); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "32px-tall operator input. text-base prevents iOS zoom. Focus = ring color + 3px ring.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Cari pelanggan...\" />",
+      "css": ".ds-input { height: 32px; width: 100%; padding: 4px 10px; border-radius: 8px; background: #ffffff; color: var(--color-foreground, #0a0a0f); border: 1px solid var(--color-input, #e4e4e7); font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 16px; line-height: 1.5; transition: border-color 0.15s, box-shadow 0.15s; } .ds-input::placeholder { color: var(--color-muted-foreground, #71717a); } .ds-input:hover { background: color-mix(in oklch, var(--color-input, #e4e4e7) 30%, #fff); } .ds-input:focus-visible { outline: none; border-color: var(--color-ring, #6366f1); box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-ring, #6366f1) 50%, transparent); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Default container — Surface white, 8px radius, hairline ring, no resting shadow. Footer band uses muted fill.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-header\"><h3 class=\"ds-card-title\">Order Hari Ini</h3></div><div class=\"ds-card-body\">12 order aktif</div><div class=\"ds-card-footer\">Lihat semua</div></div>",
+      "css": ".ds-card { border-radius: 12px; background: var(--color-card, #ffffff); color: var(--color-card-foreground, #0a0a0f); box-shadow: 0 0 0 1px color-mix(in oklch, var(--color-foreground, #0a0a0f) 10%, transparent); padding: 16px; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 14px; } .ds-card-header { margin-bottom: 12px; } .ds-card-title { font-size: 18px; font-weight: 600; line-height: 1.3; margin: 0; } .ds-card-body { line-height: 1.5; } .ds-card-footer { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--color-border, #e4e4e7); background: var(--color-muted, #f1f1f4); border-radius: 0 0 12px 12px; font-weight: 500; }"
+    },
+    {
+      "name": "Status Badge — Paid",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Dual-coded status (tinted bg + colored text + WORD label). Never color alone. Model for all status badges.",
+      "html": "<span class=\"ds-badge ds-badge-paid\">Lunas</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; height: 20px; padding: 2px 8px; border-radius: 9999px; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 500; line-height: 1.4; } .ds-badge-paid { background: color-mix(in oklch, #10b981 15%, transparent); color: #047857; } .ds-badge-paid::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 9999px; background: #10b981; margin-right: 6px; }"
+    },
+    {
+      "name": "Metric Tile",
+      "kind": "custom",
+      "refersTo": "metric-tile",
+      "description": "Dashboard/super-admin KPI tile. Tinted icon circle, large tabular-nums value, uppercase label. Enters with tile-in.",
+      "html": "<div class=\"ds-metric\"><div class=\"ds-metric-icon\">Rp</div><div class=\"ds-metric-value\">4,2Jt</div><div class=\"ds-metric-label\">OMSET HARI INI</div></div>",
+      "css": ".ds-metric { border-radius: 12px; background: var(--color-card, #ffffff); box-shadow: 0 0 0 1px color-mix(in oklch, var(--color-foreground, #0a0a0f) 10%, transparent); padding: 20px; font-family: Inter, ui-sans-serif, system-ui, sans-serif; display: flex; flex-direction: column; gap: 6px; } .ds-metric-icon { width: 36px; height: 36px; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center; background: color-mix(in oklch, var(--color-primary, #4f46e5) 12%, transparent); color: var(--color-primary, #4f46e5); font-weight: 700; font-size: 13px; } .ds-metric-value { font-size: 28px; font-weight: 700; line-height: 1.1; color: var(--color-foreground, #0a0a0f); font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; } .ds-metric-label { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-muted-foreground, #71717a); }"
+    },
+    {
+      "name": "WhatsApp FAB",
+      "kind": "custom",
+      "refersTo": "whatsapp-fab",
+      "description": "The single persistent floating element on public surfaces. 56px circle, bottom-right, soft-pulse glow.",
+      "html": "<button class=\"ds-fab\" aria-label=\"Chat WhatsApp\"><svg width=\"28\" height=\"28\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4.1-1.1l-.3-.2-2.8.7.8-2.7-.2-.3A8 8 0 1 1 12 20zm4.4-6c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.8 1-.3.2-.5.1a6.5 6.5 0 0 1-1.9-1.2 7.2 7.2 0 0 1-1.3-1.7c-.1-.2 0-.4.1-.5l.4-.4.2-.4v-.4l-.8-1.8c-.2-.5-.4-.4-.5-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2c0 1.3.9 2.5 1.1 2.7s1.9 2.9 4.6 4c.6.3 1.1.4 1.5.5.6.2 1.2.2 1.6.1.5-.1 1.4-.6 1.6-1.1s.2-1 .2-1.1-.2-.2-.4-.3z\"/></svg></button>",
+      "css": ".ds-fab { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 9999px; background: #25d366; color: #ffffff; border: none; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 25px rgba(37,211,102,0.4); animation: ds-soft-pulse 2s ease-in-out infinite; z-index: 50; transition: transform 0.15s; } .ds-fab:hover { transform: scale(1.05); } .ds-fab:focus-visible { outline: none; box-shadow: 0 0 0 3px #fff, 0 0 0 6px rgba(37,211,102,0.6); } @keyframes ds-soft-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(37,211,102,0.4); } 50% { box-shadow: 0 0 0 12px rgba(37,211,102,0); } } @media (prefers-reduced-motion: reduce) { .ds-fab { animation: none; } }"
+    },
+    {
+      "name": "Bento Panel (super-admin)",
+      "kind": "card",
+      "refersTo": "bento-panel",
+      "description": "Back-office accent — 8px radius, 2px ink border, hard offset shadow. Super-admin ONLY.",
+      "html": "<div class=\"ds-bento\"><div class=\"ds-bento-value\">128</div><div class=\"ds-bento-label\">TENANTS</div></div>",
+      "css": ".ds-bento { border-radius: 8px; background: var(--color-card, #ffffff); color: var(--color-foreground, #0a0a0f); border: 2px solid var(--color-foreground, #0a0a0f); box-shadow: 4px 4px 0 0 var(--color-foreground, #0a0a0f); padding: 16px; font-family: Inter, ui-sans-serif, system-ui, sans-serif; } .ds-bento-value { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; } .ds-bento-label { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-muted-foreground, #71717a); margin-top: 4px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Clean Counter",
+    "overview": "hivePOS is the browser tab that behaves like a wiped-down Indonesian laundry counter at 9am — light, honest, natively Indonesian, ready the instant it's opened. Two committed hues across two surfaces, never mixed: Counter Indigo runs the app; Buka-Browser Sky runs the public door via a single scoped token override (.pub-scope) so the same components re-skin without forking. Density is operator-grade, not marketing-air: 32px controls, 8px card radii, tabular-aligned money, hairline ring borders, flat surfaces by default. The one place the system raises its voice is the bento hard-shadow in the super-admin back office. Motion is purposeful and always carries a prefers-reduced-motion off-switch. The system explicitly rejects heavy iPad-POS aesthetics, all-in-one suite bloat, hardware-bundle lock-in, and the 2026 'warm AI' landing default (no cream/sand body, no gradient text, no glassmorphism-as-decoration, no hero-metric template as reflex).",
+    "keyCharacteristics": [
+      "Two committed hues, two surfaces, never mixed (indigo in-app, sky on .pub-scope).",
+      "Operator-grade density: 32px controls, tabular money, hairline ring borders.",
+      "Flat by default; the bento hard-shadow is a rare, deliberate super-admin accent.",
+      "Motion with a mandatory reduced-motion off-switch.",
+      "Hex is canonical for the core palette (iOS Safari < 15.4); OKLCH reserved for the heat ramp.",
+      "Indonesian context (kiloan, QRIS, WhatsApp, 58mm thermal) is the happy path, not a localization afterthought."
+    ],
+    "rules": [
+      { "name": "The Two-Hue Rule", "body": "One surface, one hue. Indigo inside the app; sky on .pub-scope. Never mix. The token override enforces this at the layer, not by hand.", "section": "colors" },
+      { "name": "The Money-Is-Tabular Rule", "body": "Every currency figure renders with font-variant-numeric: tabular-nums. No exceptions, no ad-hoc .toString(). Money that wobbles looks wrong.", "section": "typography" },
+      { "name": "The Muted-Slate Rule", "body": "#71717a is for metadata only. Readable sentences step up to Ink. On #fafafa it sits at ~4.6:1 — borderline WCAG AA for body.", "section": "colors" },
+      { "name": "The No-Eyebrow Rule", "body": "No uppercase-tracked kickers above every section. Numbered markers only where a real ordered sequence exists.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at rest. Shadows appear only for genuinely floating layers (dialog, popover, FAB) or the deliberate super-admin bento accent.", "section": "elevation" },
+      { "name": "The No-Glass Rule", "body": "backdrop-filter blur is forbidden as a default surface treatment — rare, named exception (landing nav/hero, light mode only).", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep one hue per surface: Counter Indigo in the app, Buka-Browser Sky on .pub-scope.",
+      "Do render every currency figure with tabular-nums (.sa-tnum).",
+      "Do dual-code status (color + text label + pattern where high-stakes), modeled on the heatmap.",
+      "Do keep a visible focus-visible ring (ring-3 ring-ring/50) on every interactive element.",
+      "Do use concrete Indonesian copy: 'Rp 49K/outlet', '2 menit', '1 outlet gratis'.",
+      "Do ship prefers-reduced-motion fallbacks on every animation.",
+      "Do reach for the bento hard-shadow in the super-admin panel when the back office wants energy."
+    ],
+    "donts": [
+      "Don't use border-left/border-right > 1px as a colored accent stripe.",
+      "Don't use gradient text (background-clip: text + gradient).",
+      "Don't use glassmorphism / backdrop-filter as a default surface treatment.",
+      "Don't reproduce the hero-metric template (big number + small label + supporting stats + gradient) as a reflex.",
+      "Don't put an uppercase-tracked eyebrow above every section, or numbered 01/02/03 markers where there's no real sequence.",
+      "Don't use a cream/sand/beige body background — Counter White #fafafa is a true near-white on purpose.",
+      "Don't use Muted-Slate #71717a for body text or placeholders — step readable sentences up to Ink.",
+      "Don't nest cards inside cards.",
+      "Don't pretend to be enterprise — no platform/solution/ecosystem posture, no buzzwords.",
+      "Don't name competitors (Moka, Majoo, Qasir) in product UI."
+    ]
+  }
+}

@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<title>hivePOS · Product Knowledge Brief</title>
+<style>
+  :root{
+    --indigo:#4f46e5; --indigo2:#6366f1; --indigo3:#4338ca;
+    --ink:#0f172a; --muted:#64748b; --faint:#94a3b8;
+    --emerald:#10b981; --amber:#f59e0b; --rose:#ef4444;
+    --bg:#f8fafc; --card:#ffffff; --line:#e2e8f0; --slate:#f1f5f9;
+    --grad:linear-gradient(135deg,#6366f1 0%,#4338ca 100%);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#222;font-family:-apple-system,"Segoe UI",Roboto,Inter,system-ui,sans-serif;color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .slide{
+    width:1280px;height:720px;background:#fff;position:relative;overflow:hidden;
+    padding:56px 64px 52px;display:flex;flex-direction:column;
+    page-break-after:always;break-after:page;
+  }
+  .slide:last-child{page-break-after:auto}
+  /* footer */
+  .foot{position:absolute;left:64px;right:64px;bottom:22px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--faint);letter-spacing:.02em}
+  .wm{font-weight:800;font-size:15px;color:var(--ink);letter-spacing:-.02em}
+  .wm b{color:var(--indigo)}
+  .wm .d{margin:0 8px;color:var(--faint);font-weight:400}
+  /* typography */
+  .eyebrow{font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--indigo)}
+  h1{font-size:46px;line-height:1.08;letter-spacing:-.02em;font-weight:800}
+  h2{font-size:34px;line-height:1.12;letter-spacing:-.015em;font-weight:800}
+  h3{font-size:18px;font-weight:700}
+  .lead{font-size:20px;line-height:1.5;color:var(--muted);max-width:920px}
+  .muted{color:var(--muted)}
+  .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .head{margin-bottom:22px}
+  .head .eyebrow{margin-bottom:10px}
+  /* cards / grid */
+  .grid{display:grid;gap:16px}
+  .g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  .card.soft{background:var(--slate);border-color:transparent}
+  .card.tint{background:#eef2ff;border-color:transparent}
+  .ic{font-size:24px;line-height:1}
+  .feat .ic{margin-bottom:8px}
+  .feat h3{margin-bottom:4px}
+  .feat p{font-size:13.5px;line-height:1.45;color:var(--muted)}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:5px 11px;border-radius:999px;background:#eef2ff;color:var(--indigo)}
+  .pill.em{background:#dcfce7;color:#047857}.pill.am{background:#fef3c7;color:#b45309}.pill.rose{background:#fee2e2;color:#b91c1c}
+  .tag{font-size:12px;font-weight:600;color:var(--muted)}
+  ul.clean{list-style:none}
+  ul.clean li{position:relative;padding-left:22px;font-size:14.5px;line-height:1.55;color:var(--ink);margin-bottom:8px}
+  ul.clean li:before{content:"";position:absolute;left:0;top:8px;width:8px;height:8px;border-radius:3px;background:var(--indigo)}
+  ul.check li:before{content:"✓";background:none;color:var(--emerald);font-weight:800;left:0;top:0;font-size:15px}
+  ul.cross li:before{content:"✕";background:none;color:var(--rose);font-weight:800;left:0;top:0;font-size:14px}
+  /* stat */
+  .stat .n{font-size:40px;font-weight:800;letter-spacing:-.02em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .stat .l{font-size:13px;color:var(--muted);margin-top:2px}
+  /* table */
+  table{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line)}
+  th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+  td .pk{font-weight:800;font-size:16px}
+  tr.hl td{background:#eef2ff}
+  .num{font-weight:800;color:var(--indigo)}
+  /* cover */
+  .cover{background:var(--grad);color:#fff;padding:0}
+  .cover .inner{position:absolute;inset:0;padding:64px;display:flex;flex-direction:column;justify-content:space-between}
+  .cover .blob{position:absolute;border-radius:50%;filter:blur(8px);opacity:.35}
+  .cover h1{color:#fff;font-size:64px;line-height:1.02;max-width:880px}
+  .cover .wm{color:#fff;font-size:22px}
+  .cover .wm b{color:#c7d2fe}
+  .cover .lead{color:#e0e7ff;font-size:21px;max-width:760px}
+  .cover .foot{color:rgba(255,255,255,.7)}
+  .cover .foot .wm{color:#fff}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .chip{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);padding:7px 13px;border-radius:999px;font-size:13px;font-weight:600}
+  .kicker{font-size:14px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#c7d2fe}
+  .vs{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .coltitle{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+  .bigquote{font-size:30px;line-height:1.3;font-weight:700;letter-spacing:-.01em;max-width:900px}
+  .cta-band{background:var(--grad);color:#fff;border-radius:18px;padding:30px 36px;display:flex;justify-content:space-between;align-items:center;gap:24px}
+  .cta-band h2{color:#fff;font-size:30px}
+  .btn{display:inline-flex;align-items:center;gap:8px;background:#fff;color:var(--indigo3);font-weight:800;padding:13px 22px;border-radius:12px;font-size:15px}
+</style>
+</head>
+<body>
+
+<!-- 1. COVER -->
+<section class="slide cover">
+  <div class="blob" style="width:520px;height:520px;background:#a5b4fc;right:-120px;top:-140px"></div>
+  <div class="blob" style="width:360px;height:360px;background:#22d3ee;left:-100px;bottom:-120px;opacity:.25"></div>
+  <div class="inner">
+    <div class="row" style="justify-content:space-between">
+      <div class="wm">hive<b>POS</b></div>
+      <div class="chip">🧺 Kasir laundry, tinggal buka browser</div>
+    </div>
+    <div>
+      <div class="kicker" style="margin-bottom:18px">Product Knowledge Brief · Untuk Tim Marketing</div>
+      <h1>Segala yang Anda perlu tahu untuk menjual hivePOS.</h1>
+      <p class="lead" style="margin-top:22px">Posisi, target, fitur, harga, suara brand, dan jawaban atas keraguan pelanggan — semua dalam satu dek.</p>
+    </div>
+    <div class="row" style="justify-content:space-between;align-items:flex-end">
+      <div class="foot" style="position:static;color:rgba(255,255,255,.75)">
+        <span>v1 · 2026</span><span>hivePOS · Internal</span>
+      </div>
+      <div class="row"><span class="chip">15 slide</span><span class="chip">Bahasa Indonesia</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. APA ITU -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">01 · Apa itu hivePOS</div><h2>Satu kalimat untuk diingat.</h2></div>
+  <div class="grid g2" style="flex:1;align-items:center">
+    <div>
+      <div class="bigquote">"Kasir laundry ringan di <span class="grad">browser</span>, untuk UMKM Indonesia."</div>
+      <p class="lead" style="margin-top:18px"><b>Slogan:</b> "Kasir laundry, tinggal buka browser."</p>
+      <div class="row" style="margin-top:16px"><span class="pill">🌐 Browser-native</span><span class="pill em">Tanpa install</span><span class="pill am">2 menit jalan</span></div>
+    </div>
+    <div class="card tint" style="padding:26px">
+      <div class="eyebrow" style="margin-bottom:10px">Terjemahan praktisnya</div>
+      <p style="font-size:17px;line-height:1.6">Pelaku laundry membuka browser di HP/laptop, langsung jualan: catat order kiloan &amp; satuan, terima QRIS/cash, cetak struk thermal, kirim WhatsApp, dan pantau omzet — <b>tanpa install app, tanpa beli hardware khusus.</b></p>
+    </div>
+  </div>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Product Knowledge</span><span>02 / 15</span></div>
+</section>
+
+<!-- 3. UNTUK SIAPA -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">02 · Target</div><h2>Untuk siapa — dan untuk siapa <span class="grad">bukan</span>.</h2></div>
+  <div class="grid g2" style="flex:1">
+    <div class="card" style="border-color:#bbf7d0;background:#f0fdf4">
+      <div class="coltitle" style="color:#047857">✓ Ideal Customer Profile</div>
+      <ul class="clean check">
+        <li>UMKM laundry <b>1–5 outlet</b>, owner-operated.</li>
+        <li>Laundry <b>kiloan &amp; satuan</b> (garment, sepatu, bedcover).</li>
+        <li>Pemilik yang juga kasir / aktif operasional harian.</li>
+        <li>Punya HP Android/iPhone atau laptop — itu saja hardware-nya.</li>
+        <li>Mau upgrade dari catatan manual / Excel / POS mahal.</li>
+      </ul>
+    </div>
+    <div class="card" style="border-color:#fecaca;background:#fef2f2">
+      <div class="coltitle" style="color:#b91c1c">✕ Bukan target kami</div>
+      <ul class="clean cross">
+        <li>Chain laundry besar (50+ outlet, tim IT sendiri).</li>
+        <li>Yang wajib bundle hardware Android + drawer kasir.</li>
+        <li>Bisnis non-laundry yang butuh POS serbaguna kompleks.</li>
+        <li>Yang mau "all-in-one suite" (HRIS, accounting, inventory gudang berat).</li>
+      </ul>
+    </div>
+  </div>
+  <p class="tag" style="margin-top:14px">Prinsip produk: "Pas, tidak berlebihan." Tidak overengineered untuk laundry kecil, tidak underpowered untuk yang tumbuh.</p>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Product Knowledge</span><span>03 / 15</span></div>
+</section>
+
+<!-- 4. MASALAH -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">03 · Kenapa ada</div><h2>UMKM tau mereka perlu kasir digital. Tapi <span class="grad">enggan pindah</span>.</h2></div>
+  <div class="grid g4" style="flex:1">
+    <div class="card"><div class="ic">⬇️</div><h3 style="margin:8px 0 4px">Ribet install</h3><p>Harus download app, setting device, beli hardware. UMKM males.</p></div>
+    <div class="card"><div class="ic">📚</div><h3 style="margin:8px 0 4px">Belajar lagi</h3><p>POS baru = training ulang staff. Takut salah input, hang order.</p></div>
+    <div class="card"><div class="ic">💸</div><h3 style="margin:8px 0 4px">Mahal &amp; kontrak</h3><p>Per-user pricing, kontrak tahunan, terkunci vendor. Takut rugi.</p></div>
+    <div class="card"><div class="ic">📦</div><h3 style="margin:8px 0 4px">Data tersangkut</h3><p>Pindah = input ulang ratusan pelanggan. Makanya bertahan di yang lama.</p></div>
+  </div>
+  <div class="card tint" style="margin-top:16px"><b>hivePOS menjawab keempatnya:</b> buka browser langsung jalan · mirip chat jadi gampang dipelajari · gratis 1 outlet + per-outlet pricing tanpa kontrak · import pelanggan dari Excel.</div>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Product Knowledge</span><span>04 / 15</span></div>
+</section>
+
+<!-- 5. PEMOSISIAN -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">04 · Pemosisian</div><h2>Kami ini <span class="grad">Shopify-nya laundry UMKM</span>.</h2></div>
+  <div class="grid g2" style="flex:1">
+    <div class="card">
+      <div class="coltitle">Posisi kami</div>
+      <ul class="clean check">
+        <li><b>Browser-native</b> — tanpa install app, jalan di HP/tablet/laptop apapun.</li>
+        <li><b>Harga transparan per-outlet</b> — bukan per-user, no kontrak mahal.</li>
+        <li><b>Ringan &amp; cepat mulai</b> — live dalam 2 menit, gratis dicoba.</li>
+        <li><b>Fokus laundry</b> — bukan POS serbaguna yang jadi "lintang".</li>
+      </ul>
+      <p class="tag" style="margin-top:10px">Reference brand: <b>Shopify</b> — ringan, praktis-tapi-aspiratif, "siapapun bisa mulai".</p>
+    </div>
+    <div class="card soft">
+      <div class="coltitle">Anti-pattern yang kami hindari <span class="tag">(internal — jangan sebut nama di depan pelanggan)</span></div>
+      <ul class="clean cross">
+        <li><b>iPad-POS berat</b> (gaya Moka) — app tebal, wajib iPad, training lama.</li>
+        <li><b>All-in-one suite</b> (gaya Majoo) — HRIS+akuntansi+inventory berat, mahal, bloated.</li>
+        <li><b>Android-hardware bundle</b> (gaya Qasir) — harus beli mesin Android + drawer.</li>
+      </ul>
+      <p class="tag" style="margin-top:10px">Aturan brand: pelanggan tidak pernah diperlihatkan nama kompetitor. Kami menang dengan "tanpa ribet", bukan dengan menjatuhkan.</p>
+    </div>
+  </div>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Product Knowledge</span><span>05 / 15</span></div>
+</section>
+
+<!-- 6. DIFFERENTIATOR -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">05 · Differentiator</div><h2>6 alasan hivePOS <span class="grad">menang</span> di segmen ini.</h2></div>
+  <div class="grid g3" style="flex:1">
+    <div class="card feat"><div class="ic">🌐</div><h3>Browser-native</h3><p>HP Android, iPhone, tablet, laptop — semua jalan. Tanpa install app.</p></div>
+    <div class="card feat"><div class="ic">🏷️</div><h3>Harga per-outlet</h3><p>Bukan per-user. 1 outlet gratis selamanya. Tambah cabang Rp 49K/outlet.</p></div>
+    <div class="card feat"><div class="ic">🧺</div><h3>Dipakai sendiri</h3><p>Dibuat &amp; aktif dipakai di laundry kami. Tiap fitur dites operasional nyata.</p></div>
+    <div class="card feat"><div class="ic">🎯</div><h3>Fokus laundry</h3><p>Khusus kiloan &amp; satuan. Pas untuk 1–5 outlet, tidak bloated.</p></div>
+    <div class="card feat"><div class="ic">⚡</div><h3>Live 2 menit</h3><p>Daftar → isi layanan → buka kasir. Tanpa kartu kredit, tanpa approval.</p></div>
+    <div class="card feat"><div class="ic">🎁</div><h3>Free forever</h3><p>1 outlet selamanya, jujur 100 order/bln. Tidak ada "free" yang jebakan.</p></div>
+  </div>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Product Knowledge</span><span>06 / 15</span></div>
+</section>
+
+<!-- 7. FITUR INTI -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">06 · Fitur inti</div><h2>10 fitur andalan dari landing page.</h2></div>
+  <div class="grid g4" style="flex:1">
+    <div class="card feat"><div class="ic">📱</div><h3>Pantau dari HP</h3><p>Pendapatan, order hari ini, performa outlet — otomatis, di mana saja.</p></div>
+    <div class="card feat"><div class="ic">🏪</div><h3>Tumbuh ke cabang</h3><p>1 outlet → multi-outlet. Per-outlet stats &amp; staff, satu akun.</p></div>
+    <div class="card feat"><div class="ic">💳</div><h3>Bayar apa aja</h3><p>Cash, QRIS, GoPay, OVO, DANA, transfer, deposit — tanpa setup.</p></div>
+    <div class="card feat"><div class="ic">👥</div><h3>Kasir vs Owner</h3><p>Kontrol akses per peran: owner lihat semua, kasir cuma order.</p></div>
+    <div class="card feat"><div class="ic">🖨️</div><h3>Print struk langsung</h3><p>Thermal 58/80mm dari browser, auto-detect printer di jaringan.</p></div>
+    <div class="card feat"><div class="ic">💻</div><h3>Jalan di apa aja</h3><p>Android, iPhone, tablet, laptop. Browser apapun.</p></div>
+    <div class="card feat"><div class="ic">💬</div><h3>Order via WhatsApp</h3><p>Pelanggan pesan dari chat WA, tanpa app/biaya API tambahan.</p></div>
+    <div class="card feat"><div class="ic">🔒</div><h3>Data aman</h3><p>Password di-hash, transaksi terenkripsi, tenant terpisah — standar banking.</p></div>
+    <div class="card feat"><div class="ic">📊</div><h3>Lacak piutang</h3><p>Siapa masih hutang? Dashboard ingatkan, gabung laporan keuangan.</p></div>
+    <div class="card feat"><div class="ic">📸</div><h3>Bukti foto order</h3><p>Foto sebelum &amp; sesudah cucian — transparan, tampil di tracking. (Pro)</p></div>
+  </div>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Product Knowledge</span><span>07 / 15</span></div>
+</section>
+
+<!-- 8. ALUR PRODUK -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">07 · Alur produk</div><h2>Dari daftar ke order pertama — <span class="grad">3 langkah</span>.</h2></div>
+  <div class="grid g3" style="flex:1;align-items:stretch">
+    <div class="card tint"><div class="pill" style="margin-bottom:10px">01</div><h3 style="font-size:20px;margin-bottom:6px">Daftar di 2 menit</h3><p class="muted">Isi nama bisnis &amp; jenis usaha. Gratis, tanpa kartu kredit, langsung jalan. Layanan &amp; harga langsung ter-isi default.</p></div>
+    <div class="card tint"><div class="pill" style="margin-bottom:10px">02</div><h3 style="font-size:20px;margin-bottom:6px">Atur layanan &amp; harga</h3><p class="muted">Masukin layanan kiloan, satuan, express. Tambah harga, staff, dan import pelanggan lama dari Excel.</p></div>
+    <div class="card tint"><div class="pill" style="margin-bottom:10px">03</div><h3 style="font-size:20px;margin-bottom:6px">Buka kasir</h3><p class="muted">Tinggal buka browser, terima order &amp; pembayaran. Pilih speed (Reguler/Express), tap "Lunas QRIS", selesai.</p></div>
+  </div>
+  <div class="row" style="margin-top:16px;gap:10px">
+    <span class="tag">Modul:</span>
+    <span class="pill">🧺 Laundry</span><span class="pill">🍽️ F&amp;B</span><span class="pill">💇 Salon</span><span class="pill">🧽 Cleaning</span>
+    <span class="tag" style="margin-left:auto">Default: Laundry. Multi-outlet via satu akun.</span>
+  </div>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Product Knowledge</span><span>08 / 15</span></div>
+</section>
+
+<!-- 9. KAPABILITAS PENUH -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">08 · Kapabilitas penuh</div><h2>Seluruh kemampuan produk (di balik layar).</h2></div>
+  <div class="grid g4" style="flex:1;font-size:13px">
+    <div class="card soft"><div class="coltitle">Operasional</div>
+      <div class="tag">📊 Dashboard · 📦 Orders · 🧺 Services &amp; harga (default speed) · 🥫 Inventory + alert · 💸 Expenses · 🏦 Deposit wallet · 🚚 Pickup/antar-jemput</div>
+    </div>
+    <div class="card soft"><div class="coltitle">Pelanggan</div>
+      <div class="tag">👤 Customers + <b>CSV import</b> · 📈 Reports (omzet, arus kas, heatmap, SLA) + export Excel/PDF · 🌐 Halaman tracking pelanggan</div>
+    </div>
+    <div class="card soft"><div class="coltitle">Admin &amp; akses</div>
+      <div class="tag">🏪 Multi-outlet · 👥 Staff · 🔑 RBAC roles (Owner/Manager/Kasir/Staff) · 💳 Billing &amp; subscription · 🎟️ Referral program</div>
+    </div>
+    <div class="card soft"><div class="coltitle">Pertumbuhan &amp; hardware</div>
+      <div class="tag">🖨️ Printer thermal (BT/USB/WiFi) · 📴 Offline order create (PWA) · 📸 Bukti foto (Pro) · 🌍 Website laundry (Pro) · 💬 WA templates · 🧭 Onboarding wizard</div>
+    </div>
+  </div>
+  <p class="tag" style="margin-top:12px">Setiap kemampuan dikendalikan feature-flag — bisa di-flip per-tenant dari super-admin. Pembaruan terbaru: import pelanggan CSV, onboarding wizard, order-flow v2 (1-klik + "Lunas QRIS"), default speed per layanan.</p>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Product Knowledge</span><span>09 / 15</span></div>
+</section>
+
+<!-- 10. HARGA -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">09 · Harga &amp; paket</div><h2>Transparan, per-outlet, tanpa kontrak.</h2></div>
+  <table style="flex:1">
+    <thead><tr><th>Paket</th><th>Harga</th><th>Outlet</th><th>Yang didapat</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="pk">Free</span><br><span class="tag">Baru mulai</span></td>
+        <td><span class="num">Rp 0</span><br><span class="tag">selamanya</span></td>
+        <td>1 outlet<br><span class="tag">2 staff · 100 order/bln</span></td>
+        <td class="tag" style="font-size:12.5px">Kasir lengkap, QRIS/cash/transfer/deposit, struk thermal, pelanggan + deposit, dashboard, laporan dasar, WA order, pickup, tracking, PWA offline.</td>
+      </tr>
+      <tr class="hl">
+        <td><span class="pk">Growth</span> <span class="pill am">HEMAT 38%</span><br><span class="tag">Siap tumbuh</span></td>
+        <td><span class="num">Rp 49K</span><span class="tag">/outlet/bln</span><br><s class="tag" style="color:#94a3b8">Rp 79K</s><br><span class="tag">atau Rp 490K/thn</span></td>
+        <td>Unlimited<br><span class="tag">Staff &amp; order unlimited</span></td>
+        <td class="tag" style="font-size:12.5px">Semua Free + laporan lengkap (heatmap, SLA, arus kas), dashboard multi-outlet, inventory + alert, pengeluaran, custom branding, priority support.</td>
+      </tr>
+      <tr>
+        <td><span class="pk">Pro</span> <span class="pill em">Paling populer</span><br><span class="tag">Website + foto</span></td>
+        <td><span class="num">Rp 79K</span><span class="tag">/outlet/bln</span><br><span class="tag">atau Rp 790K/thn</span></td>
+        <td>Unlimited<br><span class="tag">Staff &amp; order unlimited</span></td>
+        <td class="tag" style="font-size:12.5px">Semua Growth + website laundry sendiri (slug.hivepos.id), SEO lokal (Google Maps, schema.org), tracking online, QRIS display, bukti foto order.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="tag" style="margin-top:10px">Semua berbayar dapat <b>trial gratis 14 hari</b>, aktif langsung tanpa approval admin.</p>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Product Knowledge</span><span>10 / 15</span></div>
+</section>
+
+<!-- 11. TRIAL & ONBOARDING -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">10 · Trial &amp; onboarding</div><h2>Didesain supaya <span class="grad">langsung pakai</span>, bukan mikir.</h2></div>
+  <div class="grid g3" style="flex:1">
+    <div class="card feat"><div class="ic">🎁</div><h3>Free 1 outlet selamanya</h3><p>Bukan trial 14 hari yang lalu berbayar. Outlet pertama gratis selamanya, tanpa kartu kredit.</p></div>
+    <div class="card feat"><div class="ic">⏱️</div><h3>Trial Pro 14 hari</h3><p>Daftar = langsung dapat Pro penuh 14 hari, aktif otomatis. Tanpa tunggu approval.</p></div>
+    <div class="card feat"><div class="ic">🧭</div><h3>Onboarding wizard</h3><p>Owner baru diarahkan: atur harga → detail outlet → tambah pelanggan → order pertama. Bisa skip.</p></div>
+  </div>
+  <div class="card tint" style="margin-top:16px">
+    <div class="coltitle" style="margin-bottom:6px">Logika trial (tim marketing wajib paham)</div>
+    <p class="tag" style="font-size:14px;line-height:1.55">Trial = Pro penuh 14 hari · setelahnya otomatis jatuh ke Free (bukan langsung ditagih!) · upgrade ke Growth/Pro kapan saja, per-outlet · pembayaran pertama = unlock penuh (referral reward juga baru aktif di first paid payment, anti-abuse).</p>
+  </div>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Product Knowledge</span><span>11 / 15</span></div>
+</section>
+
+<!-- 12. SOCIAL PROOF -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">11 · Bukti</div><h2>Bukan cuma janji — <span class="grad">dipakai di laundry nyata</span>.</h2></div>
+  <div class="grid g4" style="margin-bottom:18px">
+    <div class="card stat"><div class="n">443</div><div class="l">Pelanggan aktif</div></div>
+    <div class="card stat"><div class="n">199</div><div class="l">Order tercatat</div></div>
+    <div class="card stat"><div class="n">Okt '24</div><div class="l">Laundry berjalan</div></div>
+    <div class="card stat"><div class="n">Jun '26</div><div class="l">Di hivePOS</div></div>
+  </div>
+  <div class="grid g2" style="flex:1">
+    <div class="card tint" style="padding:24px">
+      <div class="bigquote" style="font-size:24px">"Dibuat di laundry kami, siap untuk laundry Anda."</div>
+      <p class="tag" style="margin-top:12px">hivePOS aktif dipakai di <b>Honey Bee Laundry</b> (laundry partner) sejak Juni 2026. Tiap fitur dites di operasional nyata sebelum dirilis.</p>
+    </div>
+    <div class="card">
+      <div class="coltitle">Cara pakai proof ini</div>
+      <ul class="clean check">
+        <li>Dogfooding = <b>badge pendukung</b>, bukan hero. Jangan dijadikan headline utama.</li>
+        <li>Pakai angka konkret (443/199), bukan "ribuan pelanggan".</li>
+        <li>Bisa kutip: "Data real dari laundry partner, aktif pakai hivePOS sejak Juni 2026."</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Product Knowledge</span><span>12 / 15</span></div>
+</section>
+
+<!-- 13. BRAND VOICE -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">12 · Suara brand</div><h2>Cara hivePOS <span class="grad">berbicara</span>.</h2></div>
+  <div class="vs" style="flex:1">
+    <div class="card" style="border-color:#bbf7d0;background:#f0fdf4">
+      <div class="coltitle" style="color:#047857">✓ Do — lakukan</div>
+      <ul class="clean check">
+        <li>Bahasa Indonesia, kasual-profesional. "Anda" untuk CTA.</li>
+        <li><b>Konkret &gt; abstrak:</b> "2 menit", "Rp 49K/outlet", "1 outlet gratis".</li>
+        <li>Frame "tanpa ribet / tanpa install / tanpa kontrak mahal".</li>
+        <li>Konteks Indonesia = default: pickup, kiloan, QRIS, e-wallet, WhatsApp.</li>
+        <li>Jujur soal batas (100 order/bln, 2 staff) — bukan "unlimited" samar.</li>
+      </ul>
+    </div>
+    <div class="card" style="border-color:#fecaca;background:#fef2f2">
+      <div class="coltitle" style="color:#b91c1c">✕ Don't — jangan</div>
+      <ul class="clean cross">
+        <li>Buzzword: "AI-powered", "revolusioner", "game-changer", "next-gen".</li>
+        <li>Jadi enterprise: "platform", "solution", "ecosystem".</li>
+        <li>Janji fitur yang belum ada (offline penuh, bundle hardware).</li>
+        <li>Sebut nama kompetitor di depan pelanggan.</li>
+        <li>Headline dengan dogfooding — itu badge pendukung, bukan hook.</li>
+      </ul>
+    </div>
+  </div>
+  <p class="tag" style="margin-top:12px">Ukuran: kalau penjelasan lebih panjang dari idenya, hapus penjelasannya. "Dashboard real-time" boleh. "AI-powered synergy" tidak.</p>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Product Knowledge</span><span>13 / 15</span></div>
+</section>
+
+<!-- 14. OBJECTION HANDLING -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">13 · Objection handling</div><h2>Jawaban untuk keraguan paling sering.</h2></div>
+  <div class="grid g2" style="flex:1;gap:14px">
+    <div class="card soft"><h3>"Gratis beneran?"</h3><p class="tag" style="margin-top:4px">Ya, 1 outlet selamanya tanpa kartu kredit. Growth/Pro dicoba gratis 14 hari, aktif langsung.</p></div>
+    <div class="card soft"><h3>"Bisa pindah dari kasir lama?"</h3><p class="tag" style="margin-top:4px">Kalau lama bisa export Excel → kami bantu import. Setup layanan+harga cuma 2 menit; pelanggan bisa diketik saat order pertama.</p></div>
+    <div class="card soft"><h3>"Butuh internet 24/7?"</h3><p class="tag" style="margin-top:4px">Cukup koneksi stabil saat transaksi. WA order &amp; tracking tetap jalan saat sinyal down; data sinkron otomatis begitu online.</p></div>
+    <div class="card soft"><h3>"Printer thermal?"</h3><p class="tag" style="margin-top:4px">Ya, 58/80mm, auto-detect di jaringan, tanpa driver. Logo &amp; footer bisa custom.</p></div>
+    <div class="card soft"><h3>"Cetak struk di iPhone?"</h3><p class="tag" style="margin-top:4px">Cetak via WiFi/LAN/browser-print tetap jalan. Bluetooth/USB pakai Chrome/Edge di Android/PC (Safari membatasi BT/USB).</p></div>
+    <div class="card soft"><h3>"Cocok untuk laundry kecil?"</h3><p class="tag" style="margin-top:4px">Banget. Didesain UMKM 1–5 outlet. Tidak overengineed, tidak underpowered.</p></div>
+  </div>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Product Knowledge</span><span>14 / 15</span></div>
+</section>
+
+<!-- 15. CTA -->
+<section class="slide cover">
+  <div class="blob" style="width:480px;height:480px;background:#a5b4fc;right:-140px;top:-120px"></div>
+  <div class="inner" style="justify-content:center">
+    <div class="kicker" style="margin-bottom:16px">Mulai hari ini, bukan bulan depan</div>
+    <h1 style="font-size:60px">Buka browser.<br>Kasir jalan.</h1>
+    <p class="lead" style="margin-top:20px;max-width:680px">Gratis 1 outlet selamanya, tanpa kartu kredit. Coba Growth/Pro 14 hari, aktif langsung.</p>
+    <div class="row" style="margin-top:28px;gap:14px">
+      <span class="btn">Daftar Sekarang →</span>
+      <span class="chip">💬 Chat WhatsApp · wa.me/6285121309381</span>
+    </div>
+    <div class="row" style="margin-top:34px;gap:10px">
+      <span class="chip">🌐 Browser-native</span><span class="chip">🎁 Free 1 outlet</span><span class="chip">⚡ 2 menit jalan</span>
+    </div>
+  </div>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Product Knowledge</span><span>15 / 15</span></div>
+</section>
+
+</body>
+</html>

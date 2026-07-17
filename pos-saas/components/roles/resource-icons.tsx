@@ -1,0 +1,35 @@
+import {
+  LayoutDashboard,
+  ShoppingCart,
+  Users,
+  Tag,
+  Boxes,
+  Receipt,
+  Wallet,
+  BarChart3,
+  CreditCard,
+  Store,
+  UserCog,
+  Shield,
+  Truck,
+  Clock,
+  type LucideIcon,
+} from "lucide-react";
+import type { Resource } from "@/lib/permissions/definitions";
+
+export const RESOURCE_ICONS: Record<Resource, LucideIcon> = {
+  dashboard: LayoutDashboard,
+  orders: ShoppingCart,
+  customers: Users,
+  services: Tag,
+  inventory: Boxes,
+  expenses: Receipt,
+  deposits: Wallet,
+  reports: BarChart3,
+  billing: CreditCard,
+  branches: Store,
+  users: UserCog,
+  roles: Shield,
+  pickupRequests: Truck,
+  attendance: Clock,
+};

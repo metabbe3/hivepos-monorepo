@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<title>Apa itu hivePOS?</title>
+<style>
+  :root{
+    --indigo:#4f46e5; --indigo2:#6366f1; --indigo3:#4338ca;
+    --ink:#0f172a; --muted:#64748b; --faint:#94a3b8;
+    --emerald:#10b981; --amber:#f59e0b; --rose:#ef4444;
+    --bg:#f8fafc; --card:#ffffff; --line:#e2e8f0; --slate:#f1f5f9;
+    --grad:linear-gradient(135deg,#6366f1 0%,#4338ca 100%);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#222;font-family:-apple-system,"Segoe UI",Roboto,Inter,system-ui,sans-serif;color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .slide{width:1280px;height:720px;background:#fff;position:relative;overflow:hidden;padding:60px 72px 56px;display:flex;flex-direction:column;page-break-after:always;break-after:page}
+  .slide:last-child{page-break-after:auto}
+  .foot{position:absolute;left:72px;right:72px;bottom:24px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--faint)}
+  .wm{font-weight:800;font-size:16px;color:var(--ink)}
+  .wm b{color:var(--indigo)}
+  .wm .d{margin:0 8px;color:var(--faint);font-weight:400}
+  .eyebrow{font-size:14px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--indigo)}
+  h1{font-size:52px;line-height:1.06;letter-spacing:-.02em;font-weight:800}
+  h2{font-size:38px;line-height:1.1;letter-spacing:-.015em;font-weight:800}
+  h3{font-size:19px;font-weight:700}
+  .lead{font-size:22px;line-height:1.5;color:var(--muted);max-width:900px}
+  .muted{color:var(--muted)}
+  .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .head{margin-bottom:24px}
+  .head .eyebrow{margin-bottom:12px}
+  .grid{display:grid;gap:18px}
+  .g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px 24px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  .card.soft{background:var(--slate);border-color:transparent}
+  .card.tint{background:#eef2ff;border-color:transparent}
+  .ic{font-size:30px;line-height:1}
+  .feat .ic{margin-bottom:10px}
+  .feat h3{margin-bottom:6px}
+  .feat p{font-size:15px;line-height:1.5;color:var(--muted)}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;padding:6px 13px;border-radius:999px;background:#eef2ff;color:var(--indigo)}
+  .pill.em{background:#dcfce7;color:#047857}.pill.am{background:#fef3c7;color:#b45309}
+  .tag{font-size:14px;font-weight:500;color:var(--muted)}
+  ul.clean{list-style:none}
+  ul.clean li{position:relative;padding-left:24px;font-size:16px;line-height:1.55;color:var(--ink);margin-bottom:10px}
+  ul.clean li:before{content:"";position:absolute;left:0;top:9px;width:9px;height:9px;border-radius:3px;background:var(--indigo)}
+  ul.check li:before{content:"✓";background:none;color:var(--emerald);font-weight:800;left:0;top:0;font-size:17px}
+  .stat .n{font-size:46px;font-weight:800;letter-spacing:-.02em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .stat .l{font-size:14px;color:var(--muted);margin-top:2px}
+  .step{n:0}
+  .stepnum{width:44px;height:44px;border-radius:12px;background:var(--grad);color:#fff;font-weight:800;font-size:20px;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+  .price{border-radius:18px;border:1px solid var(--line);padding:22px;background:#fff;display:flex;flex-direction:column;gap:6px}
+  .price.hl{border:2px solid var(--indigo);box-shadow:0 10px 30px rgba(79,70,229,.12)}
+  .price .pt{font-weight:800;font-size:20px}
+  .price .pp{font-size:30px;font-weight:800;color:var(--ink)}
+  .price .pp small{font-size:14px;font-weight:600;color:var(--muted)}
+  .price ul{list-style:none;margin-top:6px}
+  .price li{position:relative;padding-left:20px;font-size:13.5px;color:var(--muted);margin-bottom:5px;line-height:1.4}
+  .price li:before{content:"✓";position:absolute;left:0;color:var(--emerald);font-weight:800}
+  .cover{background:var(--grad);color:#fff;padding:0}
+  .cover .inner{position:absolute;inset:0;padding:72px;display:flex;flex-direction:column;justify-content:space-between}
+  .cover .blob{position:absolute;border-radius:50%;filter:blur(8px);opacity:.35}
+  .cover h1{color:#fff;font-size:68px;line-height:1.02;max-width:900px}
+  .cover .wm{color:#fff;font-size:24px}
+  .cover .wm b{color:#c7d2fe}
+  .cover .lead{color:#e0e7ff;font-size:23px;max-width:780px}
+  .cover .foot{color:rgba(255,255,255,.7)}
+  .cover .foot .wm{color:#fff}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .chip{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);padding:8px 15px;border-radius:999px;font-size:14px;font-weight:600}
+  .kicker{font-size:15px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#c7d2fe}
+  .bigquote{font-size:32px;line-height:1.3;font-weight:700;letter-spacing:-.01em}
+  .btn{display:inline-flex;align-items:center;gap:8px;background:#fff;color:var(--indigo3);font-weight:800;padding:15px 26px;border-radius:14px;font-size:17px}
+</style>
+</head>
+<body>
+
+<!-- 1. COVER -->
+<section class="slide cover">
+  <div class="blob" style="width:540px;height:540px;background:#a5b4fc;right:-130px;top:-150px"></div>
+  <div class="blob" style="width:380px;height:380px;background:#22d3ee;left:-110px;bottom:-130px;opacity:.25"></div>
+  <div class="inner">
+    <div class="row" style="justify-content:space-between">
+      <div class="wm">hive<b>POS</b></div>
+      <div class="chip">🧺 Untuk laundry Anda</div>
+    </div>
+    <div>
+      <div class="kicker" style="margin-bottom:20px">Apa itu hivePOS?</div>
+      <h1>Kasir laundry,<br>tinggal buka browser.</h1>
+      <p class="lead" style="margin-top:24px">Catat order, terima QRIS, cetak struk, dan pantau omzet laundry Anda — semua langsung dari browser HP atau laptop. Tanpa install, tanpa ribet.</p>
+    </div>
+    <div class="row" style="justify-content:space-between">
+      <div class="row"><span class="chip">🎁 Gratis 1 outlet</span><span class="chip">⚡ Live 2 menit</span></div>
+      <div class="foot" style="position:static;color:rgba(255,255,255,.75)">hivePOS · 2026</div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. MASALAH -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">Ngeluhnya pemilik laundry</div><h2>Kasir manual itu <span class="grad">capek &amp; berisiko</span>.</h2></div>
+  <div class="grid g2" style="flex:1;align-items:center">
+    <ul class="clean" style="font-size:18px">
+      <li><b>Buku tulis &amp; Excel</b> — susah cari data lama, gampang salah hitung.</li>
+      <li><b>Struk karatan</b> — tulisan hilang, pelanggan komplain.</li>
+      <li><b>Lupa piutang</b> — siapa belum bayar? Angka makin nggak cocok.</li>
+      <li><b>Pelanggan nanya status terus</b> — "cucian saya berapa kg? udah jadi?"</li>
+      <li><b>Susah kalau ada cabang</b> — omzet per outlet jadi tumpang tindih.</li>
+    </ul>
+    <div class="card tint" style="padding:30px">
+      <div class="ic" style="font-size:40px">😩</div>
+      <p style="font-size:20px;line-height:1.5;margin-top:10px">Akhirnya Anda malah sibuk <b>ngelola catatan</b>, bukan ngelayanan pelanggan &amp; nambah omzet.</p>
+    </div>
+  </div>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Apa itu hivePOS?</span><span>2 / 10</span></div>
+</section>
+
+<!-- 3. KENALAN -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">Kenalan singkat</div><h2>hivePOS = <span class="grad">kasir laundry di browser</span>.</h2></div>
+  <div class="grid g3" style="flex:1">
+    <div class="card feat"><div class="ic">🌐</div><h3>Tanpa install</h3><p>Buka di Chrome/Safari di HP, tablet, atau laptop. Langsung jalan. Tidak perlu download app.</p></div>
+    <div class="card feat"><div class="ic">⚡</div><h3>Live 2 menit</h3><p>Daftar, isi nama laundry &amp; harga, langsung terima order pertama. Gratis, tanpa kartu kredit.</p></div>
+    <div class="card feat"><div class="ic">💬</div><h3>Gampang dipelajari</h3><p>Sesimpel chat. Kasir baru bisa langsung pakai tanpa training berhari-hari.</p></div>
+  </div>
+  <div class="card tint" style="margin-top:18px;padding:24px">
+    <p style="font-size:19px;line-height:1.5"><b>Intinya:</b> semua yang Anda butuh buat jualan laundry — order, bayar, struk, laporan — ada di satu tempat, dibuka dari browser apapun.</p>
+  </div>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Apa itu hivePOS?</span><span>3 / 10</span></div>
+</section>
+
+<!-- 4. UNTUK SIAPA -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">Cocok untuk Anda?</div><h2>Dibuat khusus <span class="grad">laundry kiloan &amp; satuan</span>.</h2></div>
+  <div class="grid g2" style="flex:1;align-items:center">
+    <div>
+      <div class="bigquote">Dari 1 outlet sambil jalan, sampai 5 cabang tumbuh pesat.</div>
+      <p class="lead" style="margin-top:16px;font-size:19px">hivePOS pas untuk UMKM laundry — tidak kebanyakan fitur yang bikin bingung, tidak kekurangan saat Anda berkembang.</p>
+    </div>
+    <div class="grid" style="gap:14px">
+      <div class="card soft"><div class="ic">🧺</div><h3 style="margin:8px 0 2px">Laundry kiloan</h3><p class="tag">Cuci kering, setrika, cuci+setrika — harga per kg.</p></div>
+      <div class="card soft"><div class="ic">👟</div><h3 style="margin:8px 0 2px">Satuan &amp; garment</h3><p class="tag">Sepatu, bedcover, sprei, boneka — harga per pcs.</p></div>
+      <div class="card soft"><div class="ic">⚡</div><h3 style="margin:8px 0 2px">Express</h3><p class="tag">Reguler, Express 24 jam, Express 7 jam — sekali klik.</p></div>
+    </div>
+  </div>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Apa itu hivePOS?</span><span>4 / 10</span></div>
+</section>
+
+<!-- 5. FITUR UTAMA -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">Yang Anda dapat</div><h2>6 fitur yang dipakai tiap hari.</h2></div>
+  <div class="grid g3" style="flex:1">
+    <div class="card feat"><div class="ic">🧾</div><h3>Kasir kiloan &amp; satuan</h3><p>Catat order, pilih layanan &amp; speed, otomatis hitung harga. Pilih Reguler/Express sekali klik.</p></div>
+    <div class="card feat"><div class="ic">💳</div><h3>Terima bayar apa aja</h3><p>QRIS, cash, GoPay, OVO, DANA, transfer, deposit. Satu tombol "Lunas QRIS" untuk bayar cepat.</p></div>
+    <div class="card feat"><div class="ic">🖨️</div><h3>Struk thermal langsung</h3><p>Printer 58/80mm, cetak dari browser. Logo laundry Anda di kepala struk.</p></div>
+    <div class="card feat"><div class="ic">📱</div><h3>Pantau dari HP</h3><p>Omzet hari ini, order pending, piutang — kelihatan dari mana saja, real-time.</p></div>
+    <div class="card feat"><div class="ic">💬</div><h3>Order via WhatsApp</h3><p>Pelanggan pesan langsung dari chat WA. Struk &amp; status auto-update.</p></div>
+    <div class="card feat"><div class="ic">📊</div><h3>Lacak piutang &amp; laporan</h3><p>Siapa masih hutang, omzet per layanan, arus kas — siap export Excel/PDF.</p></div>
+  </div>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Apa itu hivePOS?</span><span>5 / 10</span></div>
+</section>
+
+<!-- 6. CARA MULAI -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">Cara mulai</div><h2>Dari daftar ke order pertama — <span class="grad">3 langkah</span>.</h2></div>
+  <div class="grid g3" style="flex:1;align-items:stretch">
+    <div class="card tint">
+      <div class="stepnum">1</div>
+      <h3 style="font-size:22px;margin-bottom:8px">Daftar 2 menit</h3>
+      <p class="muted" style="font-size:16px;line-height:1.5">Isi nama laundry &amp; jenis usaha. Gratis, tanpa kartu kredit. Layanan &amp; harga standar langsung terisi.</p>
+    </div>
+    <div class="card tint">
+      <div class="stepnum">2</div>
+      <h3 style="font-size:22px;margin-bottom:8px">Atur layanan &amp; harga</h3>
+      <p class="muted" style="font-size:16px;line-height:1.5">Masukin layanan kiloan/satuan/express + harga Anda. Import pelanggan lama dari Excel kalau ada.</p>
+    </div>
+    <div class="card tint">
+      <div class="stepnum">3</div>
+      <h3 style="font-size:22px;margin-bottom:8px">Buka kasir</h3>
+      <p class="muted" style="font-size:16px;line-height:1.5">Terima order &amp; pembayaran. Dashboard, laporan, dan fitur lainnya menyusul otomatis.</p>
+    </div>
+  </div>
+  <div class="row" style="margin-top:18px"><span class="pill em">✓ Tanpa install app</span><span class="pill em">✓ Tanpa beli hardware</span><span class="pill em">✓ Tanpa training berhari-hari</span></div>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Apa itu hivePOS?</span><span>6 / 10</span></div>
+</section>
+
+<!-- 7. HARGA -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">Berapa harganya?</div><h2>Mulai <span class="grad">gratis</span>. Tumbuh kalau sudah siap.</h2></div>
+  <div class="grid g3" style="flex:1;align-items:stretch">
+    <div class="price">
+      <div class="pt">Free</div>
+      <div class="pp">Rp 0 <small>/ selamanya</small></div>
+      <div class="tag">1 outlet · 2 staff · 100 order/bln</div>
+      <ul>
+        <li>Kasir lengkap + QRIS/cash/transfer</li>
+        <li>Struk thermal</li>
+        <li>Pelanggan + deposit</li>
+        <li>Dashboard &amp; laporan dasar</li>
+        <li>WhatsApp order + tracking</li>
+      </ul>
+    </div>
+    <div class="price hl">
+      <div class="row" style="justify-content:space-between"><span class="pt">Pro</span><span class="pill em">Paling populer</span></div>
+      <div class="pp">Rp 79K <small>/ outlet / bln</small></div>
+      <div class="tag">Unlimited outlet, staff &amp; order</div>
+      <ul>
+        <li>Semua di Growth + Free</li>
+        <li>Website laundry sendiri</li>
+        <li>SEO lokal (Google Maps)</li>
+        <li>Bukti foto order</li>
+        <li>QRIS display di website</li>
+      </ul>
+    </div>
+    <div class="price">
+      <div class="pt">Growth</div>
+      <div class="pp">Rp 49K <small>/ outlet / bln</small></div>
+      <div class="tag">Unlimited outlet, staff &amp; order</div>
+      <ul>
+        <li>Semua di Free</li>
+        <li>Laporan lengkap + multi-outlet</li>
+        <li>Inventory + alert stok</li>
+        <li>Catat pengeluaran</li>
+        <li>Custom branding</li>
+      </ul>
+    </div>
+  </div>
+  <p class="tag" style="margin-top:14px;font-size:15px">🎁 Semua paket berbayar bisa <b>dicoba gratis 14 hari</b>, aktif langsung tanpa kartu kredit. Outlet pertama selamanya gratis.</p>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Apa itu hivePOS?</span><span>7 / 10</span></div>
+</section>
+
+<!-- 8. BUKTI -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">Bukan cuma janji</div><h2>Dipakai di <span class="grad">laundry nyata</span>.</h2></div>
+  <div class="grid g4" style="margin-bottom:20px">
+    <div class="card stat"><div class="n">443</div><div class="l">Pelanggan aktif</div></div>
+    <div class="card stat"><div class="n">199</div><div class="l">Order tercatat</div></div>
+    <div class="card stat"><div class="n">2 menit</div><div class="l">Sampai jalan</div></div>
+    <div class="card stat"><div class="n">Jun '26</div><div class="l">Sudah aktif dipakai</div></div>
+  </div>
+  <div class="card tint" style="padding:30px;flex:1;display:flex;flex-direction:column;justify-content:center">
+    <div class="bigquote">"Dibuat di laundry kami, siap untuk laundry Anda."</div>
+    <p class="lead" style="margin-top:14px;font-size:19px">hivePOS dipakai langsung di laundry partner kami. Tiap fitur sudah dites di operasional nyata — jadi yang Anda pakai benar-benar work, bukan beta.</p>
+  </div>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Apa itu hivePOS?</span><span>8 / 10</span></div>
+</section>
+
+<!-- 9. FAQ -->
+<section class="slide">
+  <div class="head"><div class="eyebrow">Mungkin Anda bertanya</div><h2>Pertanyaan yang sering muncul.</h2></div>
+  <div class="grid g2" style="flex:1;gap:16px">
+    <div class="card soft"><h3>"Beneran gratis?"</h3><p class="tag" style="margin-top:6px;font-size:15px">Ya. 1 outlet selamanya tanpa kartu kredit. Growth/Pro dicoba gratis 14 hari, aktif langsung.</p></div>
+    <div class="card soft"><h3>"Bisa pindah dari Excel/kasir lama?"</h3><p class="tag" style="margin-top:6px;font-size:15px">Bisa. Import pelanggan langsung dari Excel/CSV. Setup layanan+harga cuma 2 menit.</p></div>
+    <div class="card soft"><h3>"Kalau internet down?"</h3><p class="tag" style="margin-top:6px;font-size:15px">Order tetap bisa dicatat (mode offline), data sinkron otomatis begitu online kembali.</p></div>
+    <div class="card soft"><h3>"Aman datanya?"</h3><p class="tag" style="margin-top:6px;font-size:15px">Password di-hash, transaksi terenkripsi, data tiap laundry terpisah — standar yang sama dengan layanan banking online.</p></div>
+  </div>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Apa itu hivePOS?</span><span>9 / 10</span></div>
+</section>
+
+<!-- 10. CTA -->
+<section class="slide cover">
+  <div class="blob" style="width:500px;height:500px;background:#a5b4fc;right:-140px;top:-120px"></div>
+  <div class="blob" style="width:340px;height:340px;background:#22d3ee;left:-100px;bottom:-120px;opacity:.22"></div>
+  <div class="inner" style="justify-content:center">
+    <div class="kicker" style="margin-bottom:18px">Mulai hari ini</div>
+    <h1 style="font-size:64px">Coba sekarang.<br>Gratis.</h1>
+    <p class="lead" style="margin-top:22px;max-width:720px">Buka browser, daftar 2 menit, langsung terima order pertama. Tanpa kartu kredit, tanpa kontrak, tanpa ribet.</p>
+    <div class="row" style="margin-top:32px;gap:16px">
+      <span class="btn">Mulai Gratis →</span>
+      <span class="chip">💬 Chat dulu? wa.me/6285121309381</span>
+    </div>
+    <div class="row" style="margin-top:30px;gap:12px">
+      <span class="chip">🎁 1 outlet gratis selamanya</span>
+      <span class="chip">⚡ Live 2 menit</span>
+      <span class="chip">🧺 Dipakai di laundry nyata</span>
+    </div>
+  </div>
+  <div class="foot"><span class="wm">hive<b>POS</b><span class="d">·</span>Apa itu hivePOS?</span><span>10 / 10</span></div>
+</section>
+
+</body>
+</html>

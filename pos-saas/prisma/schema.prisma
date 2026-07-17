@@ -1,0 +1,1023 @@
+// ═══════════════════════════════════════════════════════════════════
+// POS-SaaS — Multi-tenant SaaS POS Platform
+// PostgreSQL — Shared DB, tenant_id isolation on every table
+// ═══════════════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CORE: PLATFORM LEVEL (Super Admin)
+// ─────────────────────────────────────────────────────────────────
+
+/// Platform super admins — manage all tenants, plans, billing
+model SuperAdmin {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  passwordHash   String
+  name           String
+  role           SuperAdminRole @default(SUPER_ADMIN)
+  // ponytail: bumped by "revoke sessions" to invalidate outstanding JWTs.
+  sessionVersion Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  blogPosts      BlogPost[]
+}
+
+enum SuperAdminRole {
+  SUPER_ADMIN
+  SUPPORT
+}
+
+/// SEO/long-tail blog posts — authored in the super-admin CMS (Markdown),
+/// served on /blog with ISR so publishing needs no rebuild. docs/specs/blog-cms.md.
+model BlogPost {
+  id          String    @id @default(uuid())
+  slug        String    @unique
+  title       String
+  description String
+  keywords    String?
+  content     String    // Markdown source — rendered to HTML via lib/blog/render.ts
+  coverImage  String?   // external URL
+  published   Boolean   @default(false)
+  publishedAt DateTime?
+  authorId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  author      SuperAdmin @relation(fields: [authorId], references: [id])
+
+  @@index([published, publishedAt])
+}
+
+/// Immutable audit trail of super-admin actions (suspensions, refunds, flag toggles, …).
+/// One row per action. Never updated; only inserted + read.
+model AuditLog {
+  id          String   @id @default(uuid())
+  /// Dotted string: "tenant.suspend", "tenant.reactivate", "billing.refund", …
+  action      String
+  /// "Tenant" | "SaaSPayment" | "SuperAdmin" | …
+  targetType  String
+  targetId    String
+  /// Set when the target itself is a tenant; null for platform-level actions.
+  tenantId    String?
+  /// Denormalized actor snapshot — keep the row self-describing even if the SuperAdmin is later deleted.
+  actorId     String
+  actorEmail  String
+  /// Required for sensitive ops (suspend, refund, impersonation). Optional otherwise.
+  reason      String?
+  /// Before/after diff for field-level changes, e.g. { isActive: { from: true, to: false } }
+  diff        Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([targetType, targetId])
+  @@index([tenantId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+/// 5xx system errors captured by withErrorHandler. 4xx intentionally excluded.
+/// Written fire-and-forget — DB failure logged to Pino, never thrown.
+model ErrorLog {
+  id          String   @id @default(uuid())
+  requestId   String
+  method      String
+  url         String
+  httpStatus  Int
+  code        String
+  message     String
+  stack       String?
+  tenantId    String?
+  userId      String?
+  ipAddress   String?
+  userAgent   String?
+  resolved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([resolved])
+  @@index([code])
+  @@index([tenantId])
+  @@index([httpStatus])
+}
+
+enum SupportTicketCategory {
+  BILLING
+  TECHNICAL
+  ACCOUNT
+  OTHER
+}
+
+enum SupportTicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+/// Public-submitted support tickets. tenantId nullable for unauthed submitters.
+/// Not a FK — slug-resolution is best-effort and may fail.
+model SupportTicket {
+  id             String                 @id @default(uuid())
+  subject        String
+  description    String
+  category       SupportTicketCategory  @default(OTHER)
+  priority       SupportTicketPriority  @default(NORMAL)
+  status         SupportTicketStatus    @default(OPEN)
+  tenantId       String?
+  submitterName  String
+  submitterEmail String
+  submitterPhone String?
+  /// FK to User when submitted by a logged-in tenant user; null for public form.
+  submittedById  String?
+  ipAddress      String?
+  userAgent      String?
+  /// CSAT snapshot — set when status moves to RESOLVED.
+  csatRating     Int?
+  csatComment    String?
+  csatAt         DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  resolvedAt     DateTime?
+  closedAt       DateTime?
+
+  submittedBy User?            @relation(fields: [submittedById], references: [id], onDelete: SetNull)
+  comments    TicketComment[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([tenantId])
+  @@index([submittedById])
+  @@index([createdAt])
+}
+
+/// Threaded replies on a ticket — both tenant users and super-admins write rows here.
+model TicketComment {
+  id          String   @id @default(uuid())
+  ticketId    String
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorName  String
+  authorEmail String
+  /// "TENANT_USER" | "SUPER_ADMIN" | "SUPPORT"
+  authorRole  String
+  body        String
+  createdAt   DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+/// Subscription plans — what each tenant can access
+model Plan {
+  id            String   @id @default(uuid())
+  name          String   @unique // "Free", "Pro", "Enterprise"
+  description   String?
+  maxOutlets    Int      @default(1)
+  maxUsers      Int      @default(2)
+  maxOrders     Int      @default(100) // per month
+  priceMonthly  Decimal  @db.Decimal(12, 2) @default(0)
+  priceYearly   Decimal  @db.Decimal(12, 2) @default(0)
+  modules       String[] @default([]) // ["laundry", "salon", "cleaning", "fnb"]
+  features      Json?    // feature flags: { customBranding: true, api: false, ... }
+  isActive      Boolean  @default(true)
+  tier          PlanTier?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  subscriptions Subscription[]
+}
+
+/// Maps a Plan to a billing tier. Drives plan-driven unit pricing
+/// (getTierUnitPrice) + the downgrade guard. Null = infer from name (back-compat).
+enum PlanTier {
+  FREE
+  GROWTH
+  PRO
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CORE: TENANT LEVEL (Business)
+// ─────────────────────────────────────────────────────────────────
+
+/// A business on the platform (e.g. "Laundry Berkah", "Salon Cantik")
+model Tenant {
+  id            String   @id @default(uuid())
+  name          String   // "Laundry Berkah Jaya"
+  slug          String   @unique // subdomain: berkah.pos.id
+  ownerEmail    String
+  ownerName     String?
+  ownerPhone    String?
+  logoUrl       String?
+  /// Custom domain (e.g. pos.laundryberkah.com) — only for Enterprise
+  customDomain  String?  @unique
+  /// Module configuration: which business modules are active
+  activeModules String[] @default(["laundry"])
+  /// Per-tenant feature overrides
+  settings      Json?    // { theme: { primary: "#..." }, receiptFooter: "..." }
+  isActive      Boolean  @default(true)
+  /// ponytail: null = pending approval (just registered). Date = approved at that time.
+  /// Pair with isActive: (null,false)=pending, (date,true)=active, (date,false)=suspended.
+  /// Normal signups are auto-approved now (trial granted at registration), so the
+  /// manual /approve endpoint is only for edge cases a super-admin re-pends.
+  approvedAt    DateTime?
+  /// Null until the owner finishes/skips the onboarding wizard. Gates the
+  /// /dashboard → /onboarding redirect for OWNER sessions (see lib/auth.ts).
+  onboardingCompletedAt DateTime?
+  /// Sandbox demo tenant — isolated, pre-seeded, auto-expiring (see lib/demo/sandbox.ts).
+  isDemo        Boolean  @default(false)
+  demoExpiresAt DateTime?
+  trialEndsAt   DateTime?
+  /// Which tier a tenant trials during trialEndsAt: "GROWTH" | "PRO" | null.
+  /// Consulted by lib/billing.ts getTenantPlan while trialEndsAt > now; once it
+  /// passes, the plan recomputes from payment history (lazy revert to Free).
+  trialTier     String?
+  /// Pro-tier public laundry website gate. False unless tenant is on Pro plan.
+  websiteEnabled       Boolean  @default(false)
+  /// SEO age signal + go-live timestamp. Null until first published.
+  websitePublishedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  branches      Branch[]
+  users         User[]
+  roles         Role[]
+  subscription  Subscription?
+  promoRedemptions PromoRedemption[]
+  saaSPayments  SaaSPayment[]
+  pickupRequests PickupRequest[]
+  featureFlags  TenantFeatureFlag[]
+  orderPhotos   OrderPhoto[]
+  /// Unique shareable referral code, e.g. "K8X2PQ9A". /register?ref=CODE.
+  referralCode  String?  @unique
+  /// Referrals this tenant has given (as referrer) + received (as referred).
+  referralsGiven    Referral[] @relation("ReferralsGiven")
+  referralsReceived Referral[] @relation("ReferralReferredBy")
+
+  @@index([slug])
+  @@index([ownerEmail])
+}
+
+/// Referral ledger. One record per referred tenant (referredId unique).
+/// PENDING (signed up via a ref code) → REWARDED on the referred tenant's first
+/// PAID payment, or REJECTED (self-referral) / EXPIRED (over cap).
+model Referral {
+  id           String   @id @default(uuid())
+  referrerId   String   // Tenant who shared the code
+  referredId   String   @unique // new Tenant — one referrer per tenant
+  status       String   @default("PENDING") // PENDING | REWARDED | REJECTED | EXPIRED
+  rewardMonths Int      @default(1)
+  reason       String?  // e.g. "self_referral" | "over_cap"
+  createdAt    DateTime @default(now())
+  rewardedAt   DateTime?
+
+  referrer Tenant @relation("ReferralsGiven",    fields: [referrerId], references: [id], onDelete: Cascade)
+  referred Tenant @relation("ReferralReferredBy", fields: [referredId], references: [id], onDelete: Cascade)
+
+  @@index([referrerId, status])
+}
+
+/// Subscription linking a tenant to a plan
+model Subscription {
+  id                 String              @id @default(uuid())
+  tenantId           String              @unique
+  planId             String
+  status             SubscriptionStatus  @default(TRIAL)
+  currentPeriodEnd   DateTime?
+  paidOutletCount    Int                 @default(0)
+  currentPeriodStart DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan   Plan   @relation(fields: [planId], references: [id])
+}
+
+enum SubscriptionStatus {
+  TRIAL      // Free trial period
+  ACTIVE     // Paying
+  PAST_DUE   // Payment failed, grace period
+  CANCELED   // Subscription ended
+  EXPIRED    // Trial ended, no payment
+}
+
+/// Branch / Outlet — a tenant can have multiple
+model Branch {
+  id              String   @id @default(uuid())
+  name            String
+  address         String?
+  phone           String?
+  invoiceFooter   String?
+  isActive        Boolean  @default(true)
+  tenantId        String
+  latitude        Float?
+  longitude       Float?
+  operatingHours  Json?    // { mon: "08:00-21:00", ... }
+  whatsappLink    String?
+  googleMapsLink  String?
+  /// Thermal printer config (reuse from laundry-webapp)
+  printerHost      String?
+  printerPort      Int      @default(9100)
+  printerName      String?
+  printerEnabled   Boolean  @default(false)
+  printerLastSeen  DateTime?
+  printerPaperSize String   @default("58mm")
+
+  /// Per-outlet billing: coverage expiry date (null = locked unless isFreeTier)
+  coverageEnd      DateTime?
+  /// First outlet per tenant is always free with limited features
+  isFreeTier       Boolean  @default(false)
+
+  /// Public URL slug for the customer pickup form (/pickup/[slug]).
+  /// Nullable: only branches that opt into pickup set this.
+  slug             String?  @unique
+  /// Pickup scheduling config, e.g. [{day:"MON", slots:["10:00-12:00","14:00-16:00"]}]
+  pickupSlots      Json?
+  /// Attendance: expected work days (1=Mon…7=Sun) for the no-show heuristic.
+  workDays         Int[]    @default([1, 2, 3, 4, 5, 6])
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant            Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users             User[]
+  customers         Customer[]
+  services          Service[]
+  orders            Order[]
+  stockItems        StockItem[]
+  expenseCategories ExpenseCategory[]
+  expenses          Expense[]
+  depositTransactions DepositTransaction[]
+  serviceGroups     ServiceGroup[]
+  pickupRequests    PickupRequest[]
+  clockEvents       ClockEvent[]
+
+  @@unique([tenantId, name])
+  @@index([isActive])
+  @@index([tenantId])
+}
+
+/// Staff / Employee accounts within a tenant
+model User {
+  id              String   @id @default(uuid())
+  email           String   @unique
+  passwordHash    String
+  name            String
+  phone           String?
+  /// OAuth: if registered via Google
+  googleId        String?
+  /// Set by a future email-verification flow. Null until verified.
+  emailVerified   DateTime?
+  /// Last successful credential login. Gates Google OAuth auto-link so only
+  /// accounts that have actually been used by their real owner can link.
+  lastLoginAt     DateTime?
+  avatar          String?
+  /// LEGACY enum — kept for backward compat; superseded by roleId below
+  role            UserRole @default(EMPLOYEE)
+  /// RBAC: FK to Role. When null, legacy `role` enum is used as fallback.
+  roleId          String?
+  tenantId        String
+  branchId        String?
+  sessionVersion  Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  /// Ticket notification bell: timestamps of the last event the user has "seen".
+  /// Null = never opened the bell → all events appear unread.
+  lastTicketEventReadAt DateTime?
+  /// Attendance: bcrypt-hashed clock PIN (separate from login passwordHash).
+  pinHash         String?
+  /// Attendance: opaque random token for QR-based clock-in (null = QR disabled).
+  qrToken         String?  @unique
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch  Branch? @relation(fields: [branchId], references: [id])
+  roleRef Role?   @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  submittedTickets SupportTicket[]
+  clockEvents     ClockEvent[]
+
+  @@index([branchId])
+  @@index([tenantId])
+  @@index([roleId])
+}
+
+// ─────────────────────────────────────────────────────────────────
+// MODULE: ATTENDANCE (staff clock-in/out — no-login, PIN/QR identified)
+// ─────────────────────────────────────────────────────────────────
+
+model ClockEvent {
+  id        String    @id @default(uuid())
+  userId    String
+  tenantId  String   // plain scalar (scoped from session ctx.tenantId; no Tenant relation)
+  branchId  String
+  type      ClockType
+  timestamp DateTime  @default(now())
+  createdAt DateTime  @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@index([userId, timestamp])
+  @@index([tenantId, branchId, timestamp])
+}
+
+enum ClockType {
+  CLOCK_IN
+  CLOCK_OUT
+}
+
+// ─────────────────────────────────────────────────────────────────
+// MODULE: PICKUP REQUESTS (customer-initiated pickup workflow)
+// ─────────────────────────────────────────────────────────────────
+
+enum PickupRequestStatus {
+  PENDING       // customer just submitted
+  ACCEPTED      // staff acknowledged
+  SCHEDULED     // date + slot + optional driver assigned
+  CONVERTED     // turned into an Order
+  REJECTED      // staff declined
+  CANCELED      // customer/staff canceled
+}
+
+enum UserRole {
+  OWNER     // Full access, manage billing, add staff
+  MANAGER   // Manage branch, staff, pricing
+  EMPLOYEE  // Operate POS (create orders, update status)
+}
+
+/// Per-tenant role definitions with granular permissions (RBAC)
+model Role {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  /// System roles are seeded for every tenant. Cannot be deleted.
+  /// Permissions CAN be edited (except Owner = always wildcard "*").
+  isSystem    Boolean  @default(false)
+  /// Permission strings: ["orders:read", "customers:create", ...].
+  /// A single "*" means all permissions (Owner only).
+  permissions String[] @default([])
+  /// Badge color in UI (indigo, blue, emerald, amber, purple, ...)
+  color       String   @default("purple")
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+// ─────────────────────────────────────────────────────────────────
+// MODULE: GENERIC POS (shared by all business types)
+// ─────────────────────────────────────────────────────────────────
+
+/// Customers / Clients
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String?
+  email     String?
+  notes     String?
+  balance   Decimal  @db.Decimal(12, 2) @default(0) // prepaid deposit
+  branchId  String
+  // ponytail: optional client-side idempotency key for offline-created
+  // walk-in customers. Not unique — dedup happens via @@unique([branchId, phone])
+  // and the idempotent-create service checks for existing rows first.
+  clientId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branch             Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  orders             Order[]
+  depositTransactions DepositTransaction[]
+  pickups            PickupRequest[]
+
+  @@unique([branchId, phone])
+  @@index([branchId])
+  // List query sorts by createdAt (default) — composite covers branch + sort.
+  @@index([branchId, createdAt])
+}
+
+/// Service catalog — works for laundry, salon, cleaning, etc.
+/// For laundry: "Cuci Kering" (per kg), "Cuci Setrika" (per kg), "Cuci Sepatu" (per item)
+/// For salon: "Haircut" (per item), "Manicure" (per item)
+model Service {
+  id              String         @id @default(uuid())
+  name            String
+  description     String?
+  pricingType     PricingType
+  basePrice       Decimal        @db.Decimal(10, 2)
+  commissionType  CommissionType @default(NONE)
+  commissionValue Decimal        @default(0) @db.Decimal(12, 2)
+  module          BusinessModule @default(LAUNDRY)
+  isActive        Boolean        @default(true)
+  /// Owner-chosen default within a speed-variant group (see lib/service-transformer.ts).
+  isDefaultSpeed  Boolean        @default(false)
+  branchId        String
+  groupId         String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  branch     Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  group      ServiceGroup? @relation(fields: [groupId], references: [id])
+  orderItems OrderItem[]
+
+  @@unique([branchId, name])
+  @@index([isActive])
+  @@index([branchId])
+  @@index([module])
+}
+
+/// Group services together (e.g. "Kiloan", "Satuan", "Special")
+model ServiceGroup {
+  id          String         @id @default(uuid())
+  name        String
+  description String?
+  sortOrder   Int            @default(0)
+  module      BusinessModule @default(LAUNDRY)
+  branchId    String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  branch   Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  services Service[]
+
+  @@unique([branchId, name])
+  @@index([module])
+}
+
+enum PricingType {
+  PER_KG    // Laundry kiloan
+  PER_ITEM  // Satuan / fixed price per item
+  FLAT      // Fixed price for whole order
+}
+
+enum CommissionType {
+  NONE
+  FLAT
+  PERCENTAGE
+}
+
+/// Business module discriminator — scopes data per business type
+enum BusinessModule {
+  LAUNDRY
+  FNB
+  SALON
+  CLEANING
+}
+
+// ── Orders ──
+
+model Order {
+  id              String         @id @default(uuid())
+  orderNumber     String         @unique
+  customerId      String
+  status          OrderStatus    @default(RECEIVED)
+  totalAmount     Decimal        @db.Decimal(12, 2) @default(0)
+  discountAmount  Decimal        @db.Decimal(12, 2) @default(0)
+  discountType    String?
+  paidAmount      Decimal        @db.Decimal(12, 2) @default(0)
+  paymentStatus   PaymentStatus  @default(PENDING)
+  notes           String?
+  module          BusinessModule @default(LAUNDRY)
+  branchId        String
+  // ponytail: global unique — fine for v1, clientIds are random UUIDs so
+  // cross-tenant collision is astronomically unlikely. Upgrade to
+  // @@unique([tenantId, clientId]) only if a tenant somehow generates a
+  // collision (would indicate a UUID generation bug, not a real collision).
+  clientId        String?        @unique
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  receivedAt      DateTime?
+  inProgressAt    DateTime?
+  readyAt         DateTime?
+  deliveredAt     DateTime?
+
+  branch    Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  customer  Customer    @relation(fields: [customerId], references: [id])
+  orderItems OrderItem[]
+  payments   Payment[]
+  depositTransactions DepositTransaction[]
+  convertedFromPickup PickupRequest?
+  photos        OrderPhoto[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([createdAt])
+  @@index([branchId])
+  @@index([module])
+  // Composite indexes for the dashboard's branch+module+status counts and
+  // branch+module+date range scans (revenue/pipeline/sparkline).
+  @@index([branchId, module, status])
+  @@index([branchId, module, receivedAt])
+}
+
+/// Before/after/damage proof photo attached to an order ("foto bukti cucian").
+/// Stored compressed on local disk (PHOTO_UPLOAD_DIR); auto-deleted after
+/// PHOTO_TTL_DAYS via lib/photo-cleanup.ts. tenantId is denormalized so every
+/// query scopes without a branch join.
+model OrderPhoto {
+  id          String   @id @default(uuid())
+  tenantId    String
+  orderId     String
+  branchId    String?
+  /// "before" | "after" | "damage" — what the photo documents.
+  kind        String
+  /// Host-relative path under PHOTO_UPLOAD_DIR:
+  /// "{tenantId}/{orderNumber}/{kind}-{YYYYMMDDHHmmss}-{rand}.webp"
+  storagePath String
+  bytes       Int
+  width       Int?
+  height      Int?
+  mime        String
+  /// createdAt + PHOTO_TTL_DAYS. Cleanup unlinks the file + deletes the row once
+  /// this passes. Indexed with tenantId for the purge query.
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, expiresAt])
+  @@index([orderId])
+}
+
+model OrderItem {
+  id           String   @id @default(uuid())
+  orderId      String
+  serviceId    String
+  quantity     Decimal  @db.Decimal(10, 3)
+  weightKg     Decimal? @db.Decimal(10, 2)
+  pricePerUnit Decimal  @db.Decimal(10, 2)
+  subtotal     Decimal  @db.Decimal(12, 2)
+  notes             String?
+  garmentBreakdown  Json?
+  createdAt         DateTime @default(now())
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@index([orderId])
+  @@index([serviceId])
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  orderId       String
+  amount        Decimal       @db.Decimal(12, 2)
+  paymentMethod PaymentMethod
+  notes         String?
+  paidAt        DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([paidAt])
+}
+
+enum OrderStatus {
+  RECEIVED
+  IN_PROGRESS
+  READY
+  DELIVERED
+  CANCELED
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  QRIS
+  DEPOSIT
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  REFUNDED
+}
+
+// ── Pickup Requests (customer-initiated pickup workflow) ──
+
+model PickupRequest {
+  id              String             @id @default(cuid())
+  tenantId        String
+  branchId        String
+  module          BusinessModule     @default(LAUNDRY)
+
+  // Customer snapshot (denormalized — request stands alone if customer record changes)
+  customerName    String
+  customerPhone   String
+  customerEmail   String?
+  customerId      String?  // linked after conversion (find-or-create by phone)
+
+  // Location
+  latitude        Float?
+  longitude       Float?
+  addressText     String?   // optional manual address / landmark
+  mapsLink        String?   // computed: https://maps.google.com/?q=LAT,LNG
+
+  // Scheduling
+  requestedDate   DateTime?  // date-only (midnight UTC)
+  requestedSlot   String?    // e.g. "10:00-12:00"
+
+  // Lifecycle
+  status          PickupRequestStatus @default(PENDING)
+  notes           String?
+  assignedDriverId String?  // plain ID reference (no FK — driver concept not yet modeled)
+
+  // Conversion linkage (1:1 — a pickup converts to at most one order)
+  convertedOrderId String? @unique
+  convertedAt      DateTime?
+
+  // Audit trail
+  rejectedReason  String?
+  rejectedAt      DateTime?
+  rejectedById    String?
+  acceptedAt      DateTime?
+  acceptedById    String?
+  scheduledAt     DateTime?
+  scheduledById   String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch          Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  convertedOrder  Order?    @relation(fields: [convertedOrderId], references: [id])
+
+  @@index([tenantId, branchId, status])
+  @@index([branchId, module])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ── Deposits / Prepaid Balance ──
+
+model DepositTransaction {
+  id          String               @id @default(uuid())
+  customerId  String
+  branchId    String
+  type        DepositTransactionType
+  amount      Decimal              @db.Decimal(12, 2)
+  balanceAfter Decimal             @db.Decimal(12, 2)
+  orderId     String?
+  description String?
+  notes       String?
+  createdAt   DateTime             @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  branch   Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  order    Order?   @relation(fields: [orderId], references: [id])
+
+  @@index([customerId])
+  @@index([branchId])
+}
+
+enum DepositTransactionType {
+  TOP_UP
+  DEDUCTION
+  REFUND
+  ADJUSTMENT
+}
+
+// ─────────────────────────────────────────────────────────────────
+// MODULE: INVENTORY & EXPENSES
+// ─────────────────────────────────────────────────────────────────
+
+model StockItem {
+  id                    String   @id @default(uuid())
+  name                  String
+  unit                  String
+  currentQuantity       Decimal  @db.Decimal(12, 3) @default(0)
+  lowStockThreshold     Decimal  @db.Decimal(12, 3) @default(0)
+  purchasePricePerUnit  Decimal  @db.Decimal(12, 2) @default(0)
+  isActive              Boolean  @default(true)
+  branchId              String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  branch   Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  movements StockMovement[]
+
+  @@index([branchId])
+}
+
+model StockMovement {
+  id        String           @id @default(uuid())
+  stockItemId String
+  type      StockMovementType
+  quantity  Decimal          @db.Decimal(12, 3)
+  date      DateTime         @default(now())
+  notes     String?
+  createdAt DateTime         @default(now())
+
+  stockItem StockItem @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
+
+  @@index([stockItemId])
+}
+
+enum StockMovementType {
+  IN
+  OUT
+  ADJUSTMENT
+}
+
+model ExpenseCategory {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  branchId    String
+  createdAt   DateTime @default(now())
+
+  branch   Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+
+  @@unique([branchId, name])
+}
+
+model Expense {
+  id          String   @id @default(uuid())
+  amount      Decimal  @db.Decimal(12, 2)
+  description String?
+  date        DateTime @default(now())
+  branchId    String
+  categoryId  String?
+  createdAt   DateTime @default(now())
+
+  branch   Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  category ExpenseCategory? @relation(fields: [categoryId], references: [id])
+
+  @@index([branchId])
+  @@index([date])
+  // Dashboard + expenses page filter by branch + date range.
+  @@index([branchId, date])
+}
+
+// ─────────────────────────────────────────────────────────────────
+// BILLING: SaaS Subscription Payments + Promo Codes
+// ─────────────────────────────────────────────────────────────────
+
+enum PromoType {
+  FREE_MONTH       // value = number of free months granted
+  DISCOUNT_PERCENT // value = percent off (e.g. 50)
+  DISCOUNT_FIXED   // value = rupiah off (e.g. 25000)
+}
+
+enum SaaSPaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+/// Promo codes redeemable by tenants for free months or discounts
+model PromoCode {
+  id              String    @id @default(uuid())
+  code            String    @unique
+  description     String?
+  type            PromoType
+  value           Decimal   @db.Decimal(12, 2)
+  maxRedemptions  Int?      // null = unlimited
+  redemptionCount Int       @default(0)
+  validFrom       DateTime?
+  validUntil      DateTime?
+  isActive        Boolean   @default(true)
+  applicablePlan  String?   // "GROWTH" | "PRO"; null = applies to any plan tier
+  createdAt       DateTime  @default(now())
+
+  redemptions PromoRedemption[]
+  payments    SaaSPayment[]
+
+  @@index([isActive])
+}
+
+/// Tracks which tenant redeemed which promo code (one per tenant per code)
+model PromoRedemption {
+  id          String   @id @default(uuid())
+  promoCodeId String
+  tenantId    String
+  appliedAt   DateTime @default(now())
+
+  promoCode PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([promoCodeId, tenantId])
+  @@index([tenantId])
+}
+
+/// SaaS subscription payment records (separate from customer order Payment)
+model SaaSPayment {
+  id                String            @id @default(uuid())
+  tenantId          String
+  amount            Decimal           @db.Decimal(12, 2)
+  outletCount       Int                // snapshot of outlets at payment time
+  unitPrice         Decimal           @db.Decimal(12, 2) // snapshot of per-outlet price
+  monthsPurchased   Int               @default(1)
+  promoCodeId       String?
+  midtransOrderId   String?           @unique
+  midtransSnapToken String?
+  status            SaaSPaymentStatus @default(PENDING)
+  kind              String            @default("RENEWAL") // "RENEWAL" | "TOPUP" | "INITIAL"
+  proratedDays      Int?
+  coverageStart     DateTime?
+  coverageEnd       DateTime?
+  /// Per-outlet billing: which branch IDs are covered by this payment
+  branchIds         String[]          @default([])
+  createdAt         DateTime          @default(now())
+  paidAt            DateTime?
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  promoCode PromoCode? @relation(fields: [promoCodeId], references: [id])
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([tenantId, status, coverageStart, coverageEnd])
+}
+
+// ponytail: feature flag system. FeatureFlag = catalog row (global default).
+// TenantFeatureFlag = per-tenant override (wins over default when present).
+// Resolution: override ?? flag.enabled. One resolver in lib/feature-flags.ts.
+model FeatureFlag {
+  id          String   @id @default(uuid())
+  /// Stable key referenced in code: "website", "inventory", etc.
+  key         String   @unique
+  name        String
+  description String?
+  /// Global default. Per-tenant override (TenantFeatureFlag.enabled) wins if present.
+  enabled     Boolean  @default(true)
+  /// UI grouping: "general" | "operations" | "admin" | "growth"
+  category    String   @default("general")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  overrides   TenantFeatureFlag[]
+
+  @@index([enabled])
+  @@index([category])
+}
+
+model TenantFeatureFlag {
+  id        String   @id @default(uuid())
+  flagId    String
+  tenantId  String
+  /// true = force on (whitelist). false = force off (blacklist).
+  enabled   Boolean
+  reason    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  flag      FeatureFlag @relation(fields: [flagId], references: [id], onDelete: Cascade)
+  tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([flagId, tenantId])
+  @@index([tenantId])
+}
+
+/// Global key/value store for platform-level settings (force-update nonce,
+/// maintenance flags, etc). Key is the PK — one row per setting.
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+/// Telemetry events for the super-admin Peripherals dashboard.
+/// Payload shape varies by `kind` — see lib/telemetry.ts for typed contracts.
+/// ponytail: flexible Json payload over rigid columns — kinds are added in
+/// phases (print, query.slow, web_vitals) and each has different fields.
+/// Indexes cover the 3 access patterns: by kind+time, by tenant+time, by time.
+model TelemetryEvent {
+  id        String   @id @default(uuid())
+  tenantId  String?
+  userId    String?
+  kind      String
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([kind, createdAt])
+  @@index([tenantId, createdAt])
+  @@index([createdAt])
+}
+
+
