@@ -1,0 +1,79 @@
+# hivePOS — Monorepo
+
+hivePOS laundry SaaS. Three repos share one Postgres + one API contract.
+
+## Repos
+
+| Repo | Stack | Role | Port |
+|---|---|---|---|
+| `hivepos-api` | Go 1.25, chi, pgx, JWT, bcrypt | Backend (REST API) | :8099 |
+| `hivepos-web` | Next.js 16, React 19, TS, Tailwind 4 | Frontend (App Router) | :3008 |
+| `pos-saas` | Next.js 16, Prisma, NextAuth | Legacy fullstack (reference only — being replaced) | :3007 |
+
+**Shared DB:** `postgresql://posadmin:poslocal@localhost:5437/pos_saas` (Docker `pos-saas-db-1`).
+
+## Quick start
+
+```bash
+# Backend (loads .env via godotenv)
+cd hivepos-api && go run cmd/server/main.go   # :8099
+
+# Frontend (hot-reloads)
+cd hivepos-web && npm run dev -- -p 3008      # :3008
+```
+
+Each repo has its own `CLAUDE.md` with detailed conventions + non-negotiables. Read those first.
+
+## RAG code navigation (reduces token cost vs grep)
+
+Both repos ship a structural codebase index. **Query the RAG before grepping** — it returns the exact symbol + file:line + callers in one call:
+
+```bash
+# Backend (Go)
+cd hivepos-api && go run scripts/codebase-rag.go query "checkout"
+cd hivepos-api && go run scripts/codebase-rag.go symbol Checkout
+cd hivepos-api && go run scripts/codebase-rag.go callers CreatePayment
+cd hivepos-api && go run scripts/codebase-rag.go index   # rebuild after changes
+
+# Frontend (TS)
+cd hivepos-web && npx tsx scripts/codebase-rag.ts query "apiFetch"
+cd hivepos-web && npx tsx scripts/codebase-rag.ts symbol handleCheckout
+cd hivepos-web && npx tsx scripts/codebase-rag.ts index
+```
+
+Re-index after structural changes. The index lives in `.codebase-rag/index.json` (gitignored).
+
+## Symbol navigation
+
+- **Prefer the LSP tool** (`goToDefinition`, `findReferences`, `hover`, `documentSymbol`, `workspaceSymbol`) over grep for any symbol lookup, call-graph walk, or "where is X used" question. It is exact and type-aware.
+- **grep is for literal text only** — error strings, log lines, config keys, string literals. Not for symbol resolution.
+- **Trust the language server's results.** Do not re-read files to "confirm" what LSP returned — that burns tokens and re-derives what the server already gave you. Act on it. Only re-read if the result is ambiguous or clearly stale.
+
+## Git workflow
+
+- **One branch per goal/feature.** Before starting non-trivial work, branch off `main` (e.g. `feat/<thing>`, `fix/<thing>`).
+- **Merge to `main` only after everything works** — build passes, feature verified, no regressions. Don't merge broken WIP.
+- Small trivial fixes (typo, one-liner) can land directly on `main`.
+
+## Modes (global plugins — active across all repos)
+
+- **Caveman** (`/caveman`): terse output (~65% fewer tokens). Drop articles/filler.
+- **Ponytail** (`/ponytail`): lazy senior dev (~54% less code via YAGNI). Shortest diff wins.
+- Toggle: `/caveman full|lite`, `/ponytail full|lite`. Off: "stop caveman" / "stop ponytail".
+
+## Key lessons (full detail in each repo's `docs/lessons-learned.md`)
+
+- **apiFetch dedup**: FE paths may include `/api/`; the client normalizes (don't churn 58 call sites).
+- **Response shapes**: Go list endpoints return bare arrays (not `{key:[]}` wrappers like legacy); `writeRows` endpoints return `{rows,page,hasNext}`.
+- **FE↔BE field names**: must match exactly (e.g., `snapToken` not `token`) — verify by clicking the button, not just reading code.
+- **Never hardcode prices**: read from the Plan table (`priceMonthly`), not literals.
+- **`.env` loads via godotenv** (Go config reads .env + OS env).
+- **Server components + client stubs = crash**: convert to client components that use `apiFetch`.
+- **Transient fetch failure ≠ logout**: `reloadSession` clears the token only on a real 401/403 — never on an abort/429/5xx/network blip (else a valid session logs out on a navigation abort). See `hivepos-web/docs/lessons-learned.md` #11.
+- **Service-worker cache must version per build**: `hivepos-web/scripts/gen-sw-version.mjs` injects a build-unique `VERSION` into `public/sw.js` in `prebuild`. A constant `VERSION` = redeployed fixes never reach the browser (stale chunks). See `hivepos-web/docs/lessons-learned.md` #12.
+
+## Env vars (keys copied from legacy pos-saas/.env)
+
+- **Midtrans**: `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`, `MIDTRANS_ENV` (api) + `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY`, `NEXT_PUBLIC_MIDTRANS_ENV` (web).
+- **Google OAuth**: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` (api) + `NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED` (web).
+- **AI assistant** (optional): `AI_API_KEY`, `AI_MODEL`, `AI_BASE_URL` (api — OpenAI-compatible).

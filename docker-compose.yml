@@ -1,0 +1,74 @@
+# hivePOS — unified docker-compose (replaces pos-saas on :3007)
+# web (Next.js) + api (Go) + postgres + caddy (single origin on :3007)
+services:
+  web:
+    build:
+      context: ./hivepos-web
+      args:
+        NEXT_PUBLIC_API_BASE_URL: /api
+        NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: ${MIDTRANS_CLIENT_KEY}
+        NEXT_PUBLIC_MIDTRANS_ENV: ${MIDTRANS_ENV:-production}
+        NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED: "true"
+    image: hivepos-web:latest
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: /api
+      API_BASE_URL_SSR: http://api:8080/api
+      NODE_ENV: production
+    expose: ["3000"]
+    depends_on: [api]
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./hivepos-api
+      dockerfile: deployments/Dockerfile
+    image: hivepos-api:latest
+    environment:
+      DATABASE_URL: postgresql://posadmin:poslocal@postgres:5432/pos_saas?sslmode=disable
+      JWT_SECRET: ${AUTH_SECRET}
+      PORT: "8080"
+      MIDTRANS_SERVER_KEY: ${MIDTRANS_SERVER_KEY}
+      MIDTRANS_CLIENT_KEY: ${MIDTRANS_CLIENT_KEY}
+      MIDTRANS_ENV: ${MIDTRANS_ENV:-production}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: http://localhost:3007/api/auth/google/callback
+      WEB_ORIGIN: http://localhost:3007
+      APP_ENV: production
+      WHATSAPP_GATEWAY_URL: http://whatsapp-gateway:3001
+    expose: ["8080"]
+    depends_on: [postgres]
+    restart: unless-stopped
+
+  whatsapp-gateway:
+    build: ./whatsapp-gateway
+    image: hivepos-whatsapp-gateway:latest
+    ports: ["3001:3001"]
+    volumes:
+      - ./whatsapp-gateway/auth-states:/app/auth-states
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    ports: ["5437:5432"]
+    volumes:
+      - ./pos-saas/data/postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: posadmin
+      POSTGRES_PASSWORD: poslocal
+      POSTGRES_DB: pos_saas
+      TZ: Asia/Jakarta
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U posadmin -d pos_saas"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports: ["3007:80"]
+    volumes:
+      - ./hivepos-web/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on: [web, api]
+    restart: unless-stopped

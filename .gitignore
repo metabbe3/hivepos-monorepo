@@ -1,0 +1,24 @@
+# deps / build
+**/node_modules/
+**/.next/
+**/out/
+**/dist/
+**/build/
+
+# local codebase index
+**/.codebase-rag/
+
+# tooling artifacts
+.playwright-mcp/
+
+# secrets — never commit real env (keep .env.example)
+.env
+.env.*
+!.env.example
+
+# logs / OS
+*.log
+.DS_Store
+
+# large/unknown local data — review before keeping
+/data/
