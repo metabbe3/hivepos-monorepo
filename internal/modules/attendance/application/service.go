@@ -3,7 +3,9 @@ package application
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/hivepos/api/internal/auth"
 	"github.com/hivepos/api/internal/modules/attendance/domain"
 )
 
@@ -80,9 +82,27 @@ func (s *Service) Clock(ctx context.Context, tenantID, branchID, userID string) 
 		return nil, fmt.Errorf("reading last event: %w", err)
 	}
 
+	now := time.Now()
 	nextType := domain.ClockIn
 	if last != nil && last.Type == domain.ClockIn {
-		nextType = domain.ClockOut
+		if !sameDay(last.Timestamp, now) {
+			// Forgot to clock out on a previous day — auto-close the stale IN at the
+			// end of that day so the overnight span doesn't inflate worked-hours.
+			// (CreateEvent honors e.Timestamp when set; otherwise NOW().)
+			closeOut := &domain.ClockEvent{
+				UserID:    last.UserID,
+				TenantID:  last.TenantID,
+				BranchID:  last.BranchID,
+				Type:      domain.ClockOut,
+				Timestamp: endOfDay(last.Timestamp),
+			}
+			if err := s.Repo.CreateEvent(ctx, closeOut); err != nil {
+				return nil, fmt.Errorf("auto-closing stale clock-in: %w", err)
+			}
+			// nextType stays CLOCK_IN — start a fresh session today.
+		} else {
+			nextType = domain.ClockOut
+		}
 	}
 
 	e := &domain.ClockEvent{
@@ -95,6 +115,19 @@ func (s *Service) Clock(ctx context.Context, tenantID, branchID, userID string) 
 		return nil, fmt.Errorf("creating clock event: %w", err)
 	}
 	return e, nil
+}
+
+// sameDay reports whether two timestamps fall on the same calendar day.
+func sameDay(a, b time.Time) bool {
+	ay, am, ad := a.Date()
+	by, bm, bd := b.Date()
+	return ay == by && am == bm && ad == bd
+}
+
+// endOfDay returns 23:59:59 of the given timestamp's calendar day (same location).
+func endOfDay(t time.Time) time.Time {
+	y, m, d := t.Date()
+	return time.Date(y, m, d, 23, 59, 59, 0, t.Location())
 }
 
 // ListEvents returns paginated clock events.
@@ -143,7 +176,7 @@ func (s *Service) CreateQuickStaff(ctx context.Context, input QuickStaffInput, t
 	if len(input.Pin) < 4 {
 		return nil, fmt.Errorf("pin must be at least 4 digits")
 	}
-	hash, err := hashPIN(input.Pin)
+	hash, err := auth.HashPassword(input.Pin)
 	if err != nil {
 		return nil, fmt.Errorf("hashing pin: %w", err)
 	}
@@ -153,5 +186,5 @@ func (s *Service) CreateQuickStaff(ctx context.Context, input QuickStaffInput, t
 // VerifyPIN checks a plaintext PIN against the stored hash.
 // Returns nil on match, an error otherwise.
 func VerifyPIN(pin, hash string) error {
-	return comparePIN(pin, hash)
+	return auth.ComparePassword(hash, pin)
 }

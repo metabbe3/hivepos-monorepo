@@ -3,13 +3,14 @@ package users
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hivepos/api/internal/middleware"
 	"github.com/hivepos/api/internal/modules/users/application"
 	"github.com/hivepos/api/internal/modules/users/infrastructure"
+	"github.com/hivepos/api/internal/planlimits"
 	apphttp "github.com/hivepos/api/internal/shared/http"
 )
 
@@ -17,11 +18,12 @@ import (
 // Covers both /users and /roles endpoints.
 type Module struct {
 	svc *application.Service
+	db  *sql.DB
 }
 
 func NewModule(db *sql.DB) *Module {
 	repo := infrastructure.NewPgUserRepository(db)
-	return &Module{svc: application.NewService(repo)}
+	return &Module{svc: application.NewService(repo), db: db}
 }
 
 // Register mounts the users + roles sub-routers.
@@ -42,6 +44,7 @@ func (m *Module) RegisterUsers(r chi.Router) {
 		r.Patch("/", m.updateUser)
 		r.Delete("/", m.deleteUser)
 		r.Patch("/pin", m.setPIN)
+		r.With(middleware.RequirePermission("users", "edit")).Post("/reset-password", m.resetUserPassword)
 	})
 }
 
@@ -67,23 +70,16 @@ func (m *Module) listUsers(w http.ResponseWriter, req *http.Request) {
 		Search:   req.URL.Query().Get("search"),
 		Role:     req.URL.Query().Get("role"),
 	}
-	if p, err := strconv.Atoi(req.URL.Query().Get("page")); err == nil {
-		f.Page = p
-	}
-	if l, err := strconv.Atoi(req.URL.Query().Get("limit")); err == nil {
-		f.Limit = l
-	}
+	// Intentionally unpaginated (matches the original TS contract).
+	f.All = true
 
-	list, total, err := m.svc.ListUsers(req.Context(), tenantID, f)
+	// TS /api/users returns the curated DTO list unpaginated (no meta).
+	list, _, err := m.svc.ListUserItems(req.Context(), tenantID, f)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list, map[string]interface{}{
-		"total": total,
-		"page":  f.Page,
-		"limit": f.Limit,
-	})
+	apphttp.Success(w, list)
 }
 
 func (m *Module) createUser(w http.ResponseWriter, req *http.Request) {
@@ -95,6 +91,13 @@ func (m *Module) createUser(w http.ResponseWriter, req *http.Request) {
 	}
 	if input.BranchID == "" {
 		input.BranchID = middleware.GetBranchID(req)
+	}
+
+	if m.db != nil {
+		if r, _ := planlimits.Check(req.Context(), m.db, tenantID, planlimits.Users); r != nil && !r.Allowed {
+			apphttp.Error(w, http.StatusForbidden, fmt.Sprintf("%s limit reached (%d/%d) on the %s plan. Upgrade to add more.", r.Kind, r.Current, r.Max, r.PlanName))
+			return
+		}
 	}
 
 	u, err := m.svc.CreateUser(req.Context(), input, tenantID)
@@ -132,7 +135,13 @@ func (m *Module) updateUser(w http.ResponseWriter, req *http.Request) {
 }
 
 func (m *Module) deleteUser(w http.ResponseWriter, req *http.Request) {
-	if err := m.svc.DeleteUser(req.Context(), chi.URLParam(req, "id"), middleware.GetTenantID(req)); err != nil {
+	id := chi.URLParam(req, "id")
+	// Guard: a user cannot delete their own account (would orphan the session).
+	if id == middleware.GetUserID(req) {
+		apphttp.ValidationError(w, "cannot delete your own account")
+		return
+	}
+	if err := m.svc.DeleteUser(req.Context(), id, middleware.GetTenantID(req)); err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -156,6 +165,19 @@ func (m *Module) setPIN(w http.ResponseWriter, req *http.Request) {
 	apphttp.Success(w, map[string]interface{}{"ok": true})
 }
 
+// POST /{id}/reset-password — owner generates a one-time temp password for a staff
+// user. Tenant-scoped (RequireResource("users") on the mount) + users:edit. Returns
+// the plain temp once so the owner can hand it to the staff out-of-band. Bumps
+// sessionVersion so the staff's current session is invalidated.
+func (m *Module) resetUserPassword(w http.ResponseWriter, req *http.Request) {
+	temp, err := m.svc.ResetUserPassword(req.Context(), chi.URLParam(req, "id"), middleware.GetTenantID(req))
+	if err != nil {
+		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	apphttp.Success(w, map[string]string{"tempPassword": temp})
+}
+
 // ====================
 // Roles
 // ====================
@@ -163,23 +185,16 @@ func (m *Module) setPIN(w http.ResponseWriter, req *http.Request) {
 func (m *Module) listRoles(w http.ResponseWriter, req *http.Request) {
 	tenantID := middleware.GetTenantID(req)
 	f := application.ListFilter{Search: req.URL.Query().Get("search")}
-	if p, err := strconv.Atoi(req.URL.Query().Get("page")); err == nil {
-		f.Page = p
-	}
-	if l, err := strconv.Atoi(req.URL.Query().Get("limit")); err == nil {
-		f.Limit = l
-	}
+	// Intentionally unpaginated (matches the original TS contract).
+	f.All = true
 
-	list, total, err := m.svc.ListRoles(req.Context(), tenantID, f)
+	// TS /api/roles returns the curated DTO list unpaginated (no meta).
+	list, _, err := m.svc.ListRoleItems(req.Context(), tenantID, f)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list, map[string]interface{}{
-		"total": total,
-		"page":  f.Page,
-		"limit": f.Limit,
-	})
+	apphttp.Success(w, list)
 }
 
 func (m *Module) createRole(w http.ResponseWriter, req *http.Request) {

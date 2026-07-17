@@ -15,9 +15,9 @@ const (
 type CommissionType string
 
 const (
-	CommissionNone      CommissionType = "NONE"
-	CommissionFixed     CommissionType = "FIXED"
-	CommissionPercent   CommissionType = "PERCENT"
+	CommissionNone    CommissionType = "NONE"
+	CommissionFlat    CommissionType = "FLAT"
+	CommissionPercent CommissionType = "PERCENTAGE"
 )
 
 // Service is the priced service entity scoped to a branch + module.

@@ -3,6 +3,7 @@ package infrastructure
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 
 	"github.com/hivepos/api/internal/modules/public_api/domain"
@@ -24,7 +25,7 @@ func (r *PgPublicRepository) resolveTenantID(ctx context.Context, slug string) (
 	}
 	var id string
 	err := r.db.QueryRowContext(ctx, `
-		SELECT id FROM "Tenant" WHERE slug = $1 AND active = true`, slug,
+		SELECT id FROM "Tenant" WHERE slug = $1 AND "isActive" = true`, slug,
 	).Scan(&id)
 	if err == sql.ErrNoRows {
 		return "", nil
@@ -38,10 +39,11 @@ func (r *PgPublicRepository) resolveTenantID(ctx context.Context, slug string) (
 // FindBranchesByTenantSlug returns the public branch directory for an active tenant.
 func (r *PgPublicRepository) FindBranchesByTenantSlug(ctx context.Context, slug string) ([]*domain.PublicBranch, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT b.id, b.name, b.address, b.phone, b.hours, t.name
+		SELECT b.id, b.slug, b.name, b.address, b.phone, COALESCE(b."operatingHours"::text, ''),
+		       b.latitude, b.longitude, b."whatsappLink", b."googleMapsLink", t.name
 		FROM "Branch" b
 		JOIN "Tenant" t ON t.id = b."tenantId"
-		WHERE t.slug = $1 AND t.active = true AND b.active = true
+		WHERE t.slug = $1 AND t."isActive" = true AND b."isActive" = true
 		ORDER BY b.name`, slug,
 	)
 	if err != nil {
@@ -52,13 +54,23 @@ func (r *PgPublicRepository) FindBranchesByTenantSlug(ctx context.Context, slug 
 	var list []*domain.PublicBranch
 	for rows.Next() {
 		b := &domain.PublicBranch{}
-		var address, phone, hours sql.NullString
-		if err := rows.Scan(&b.ID, &b.Name, &address, &phone, &hours, &b.TenantName); err != nil {
+		var address, phone, whatsapp, maps sql.NullString
+		var lat, lng sql.NullFloat64
+		if err := rows.Scan(&b.ID, &b.Slug, &b.Name, &address, &phone, &b.OperatingHours, &lat, &lng, &whatsapp, &maps, &b.TenantName); err != nil {
 			return nil, fmt.Errorf("scanning public branch: %w", err)
 		}
 		b.Address = address.String
 		b.Phone = phone.String
-		b.Hours = hours.String
+		b.WhatsappLink = whatsapp.String
+		b.GoogleMapsLink = maps.String
+		if lat.Valid {
+			v := lat.Float64
+			b.Latitude = &v
+		}
+		if lng.Valid {
+			v := lng.Float64
+			b.Longitude = &v
+		}
 		list = append(list, b)
 	}
 	return list, rows.Err()
@@ -67,14 +79,14 @@ func (r *PgPublicRepository) FindBranchesByTenantSlug(ctx context.Context, slug 
 // FindServicesByTenantSlug returns the public service catalog for an active tenant.
 // branchID is optional — when empty, services across all of the tenant's branches are returned.
 func (r *PgPublicRepository) FindServicesByTenantSlug(ctx context.Context, slug, branchID string) ([]*domain.PublicService, error) {
-	// ponytail: low — public catalog assumes "duration" column exists on "Service"; create via prisma db push if missing.
-	// Falls back to NULL when the column is absent (NullableInt scan).
 	query := `
-		SELECT s.id, s.name, s.description, s."basePrice"::float AS price, s."pricingType", s."duration"
+		SELECT s.id, s.name, s.description, s."basePrice"::float AS price, s."pricingType",
+		       sg.id, sg.name
 		FROM "Service" s
 		JOIN "Branch" b ON b.id = s."branchId"
 		JOIN "Tenant" t ON t.id = b."tenantId"
-		WHERE t.slug = $1 AND t.active = true AND b.active = true AND s."isActive" = true`
+		LEFT JOIN "ServiceGroup" sg ON sg.id = s."groupId"
+		WHERE t.slug = $1 AND t."isActive" = true AND b."isActive" = true AND s."isActive" = true`
 	args := []interface{}{slug}
 	if branchID != "" {
 		query += ` AND s."branchId" = $2`
@@ -92,14 +104,13 @@ func (r *PgPublicRepository) FindServicesByTenantSlug(ctx context.Context, slug,
 	for rows.Next() {
 		s := &domain.PublicService{}
 		var description sql.NullString
-		var duration sql.NullInt64
-		if err := rows.Scan(&s.ID, &s.Name, &description, &s.Price, &s.PricingType, &duration); err != nil {
+		var sgID, sgName sql.NullString
+		if err := rows.Scan(&s.ID, &s.Name, &description, &s.Price, &s.PricingType, &sgID, &sgName); err != nil {
 			return nil, fmt.Errorf("scanning public service: %w", err)
 		}
 		s.Description = description.String
-		if duration.Valid {
-			d := int(duration.Int64)
-			s.Duration = &d
+		if sgID.Valid {
+			s.Group = &domain.PublicServiceGroup{ID: sgID.String, Name: sgName.String}
 		}
 		list = append(list, s)
 	}
@@ -195,15 +206,116 @@ func (r *PgPublicRepository) CreatePickupRequest(ctx context.Context, input doma
 	}
 
 	var id string
-	// ponytail: low — assumes "PickupRequest" table has these columns; create via prisma db push if missing.
+	// Public pickup has no branch picker — assign to the tenant's first active branch
+	// (PickupRequest.branchId is required). Map the FE payload onto the real columns:
+	// name→customerName, phone→customerPhone, address→addressText, preferredTime→requestedSlot.
+	var branchID string
+	if err := r.db.QueryRowContext(ctx,
+		`SELECT id FROM "Branch" WHERE "tenantId" = $1 AND "isActive" = true ORDER BY "createdAt" LIMIT 1`,
+		tenantID,
+	).Scan(&branchID); err != nil {
+		return "", fmt.Errorf("no active branch for tenant: %w", err)
+	}
+
+	var slotArg, notesArg, emailArg, mapsArg interface{}
+	if input.PreferredTime != "" {
+		slotArg = input.PreferredTime
+	}
+	if input.Notes != "" {
+		notesArg = input.Notes
+	}
+	if input.Email != "" {
+		emailArg = input.Email
+	}
+	if input.MapsLink != "" {
+		mapsArg = input.MapsLink
+	}
+	var latArg, lngArg interface{}
+	if input.Latitude != nil {
+		latArg = *input.Latitude
+	}
+	if input.Longitude != nil {
+		lngArg = *input.Longitude
+	}
+
 	err = r.db.QueryRowContext(ctx, `
-		INSERT INTO "PickupRequest" (name, phone, address, "preferredTime", notes, status, "tenantId", "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, $4, $5, 'PENDING', $6, NOW(), NOW())
+		INSERT INTO "PickupRequest" ("tenantId", "branchId", module, status, "customerName", "customerPhone",
+			"customerEmail", "addressText", "mapsLink", latitude, longitude, "requestedSlot", notes, "createdAt", "updatedAt")
+		VALUES ($1, $2, 'LAUNDRY', 'PENDING', $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
 		RETURNING id`,
-		input.Name, input.Phone, input.Address, input.PreferredTime, input.Notes, tenantID,
+		tenantID, branchID, input.Name, input.Phone, emailArg, input.Address, mapsArg, latArg, lngArg, slotArg, notesArg,
 	).Scan(&id)
 	if err != nil {
 		return "", fmt.Errorf("inserting pickup request: %w", err)
 	}
 	return id, nil
+}
+
+// FindPublicTenantBySlug loads the public website payload for an active tenant: identity +
+// settings jsonb (carries the dashboard `website` block) + the full branch directory
+// (geo/contact/links/hours) that the tenant-site renders.
+func (r *PgPublicRepository) FindPublicTenantBySlug(ctx context.Context, slug string) (*domain.PublicTenant, error) {
+	pt := &domain.PublicTenant{}
+	var logoURL sql.NullString
+	var settings []byte
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, name, slug, "logoUrl", COALESCE(settings, '{}'::jsonb)
+		FROM "Tenant"
+		WHERE slug = $1 AND "isActive" = true`, slug,
+	).Scan(&pt.ID, &pt.Name, &pt.Slug, &logoURL, &settings)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("finding public tenant: %w", err)
+	}
+	if logoURL.Valid {
+		l := logoURL.String
+		pt.LogoURL = &l
+	}
+	pt.Settings = json.RawMessage(settings)
+
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, name, address, phone, slug, latitude, longitude,
+		       "googleMapsLink", "whatsappLink", COALESCE("operatingHours", '{}'::jsonb)
+		FROM "Branch"
+		WHERE "tenantId" = $1 AND "isActive" = true
+		ORDER BY name`, pt.ID)
+	if err != nil {
+		return nil, fmt.Errorf("querying public tenant branches: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		b := domain.PublicTenantBranch{}
+		var addr, ph, sl, gmaps, wa sql.NullString
+		var lat, lng sql.NullFloat64
+		var hours []byte
+		if err := rows.Scan(&b.ID, &b.Name, &addr, &ph, &sl, &lat, &lng, &gmaps, &wa, &hours); err != nil {
+			return nil, fmt.Errorf("scanning public tenant branch: %w", err)
+		}
+		if addr.Valid {
+			b.Address = &addr.String
+		}
+		if ph.Valid {
+			b.Phone = &ph.String
+		}
+		if sl.Valid {
+			b.Slug = &sl.String
+		}
+		if gmaps.Valid {
+			b.GoogleMapsLink = &gmaps.String
+		}
+		if wa.Valid {
+			b.WhatsAppLink = &wa.String
+		}
+		if lat.Valid {
+			b.Latitude = &lat.Float64
+		}
+		if lng.Valid {
+			b.Longitude = &lng.Float64
+		}
+		b.OperatingHours = json.RawMessage(hours)
+		pt.Branches = append(pt.Branches, b)
+	}
+	return pt, rows.Err()
 }

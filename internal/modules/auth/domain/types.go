@@ -36,12 +36,17 @@ type RegisterInput struct {
 	Module     string  `json:"module"`
 	BranchName string  `json:"branchName"`
 	Phone      *string `json:"phone,omitempty"`
+	GoogleID   string  `json:"googleId,omitempty"`
 }
 
 // LoginInput is the body of POST /api/auth/login.
 type LoginInput struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	// Scope gates which table authenticates: "super-admin" → "SuperAdmin" table
+	// (platform staff), anything else → "User" table (tenant users). Mirrors the
+	// legacy pos-saas NextAuth authorize() scope gate.
+	Scope string `json:"scope"`
 }
 
 // UserInfo is the public projection of a user (no secrets).

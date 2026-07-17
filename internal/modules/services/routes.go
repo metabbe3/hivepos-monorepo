@@ -7,10 +7,11 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	apphttp "github.com/hivepos/api/internal/shared/http"
+	"github.com/hivepos/api/internal/middleware"
 	"github.com/hivepos/api/internal/modules/services/application"
 	"github.com/hivepos/api/internal/modules/services/infrastructure"
-	"github.com/hivepos/api/internal/middleware"
+	apphttp "github.com/hivepos/api/internal/shared/http"
+	"github.com/hivepos/api/internal/shared/pagination"
 )
 
 // Module wires the services domain: repository → service → HTTP handlers.
@@ -59,18 +60,17 @@ func (m *Module) list(w http.ResponseWriter, req *http.Request) {
 		Active:   req.URL.Query().Get("active"),
 		GroupID:  req.URL.Query().Get("groupId"),
 	}
-	if p, err := strconv.Atoi(req.URL.Query().Get("page")); err == nil {
-		filter.Page = p
-	}
-	if l, err := strconv.Atoi(req.URL.Query().Get("limit")); err == nil {
-		filter.Limit = l
-	}
-	list, total, err := m.svc.List(req.Context(), tenantID, filter)
+	// /api/services is intentionally unpaginated (matches the original TS contract):
+	// return every active/inactive row for the tenant. ponytail: add a hard cap
+	// (e.g. LIMIT 1000) only if a tenant's catalog ever grows past a few hundred.
+	filter.All = true
+	list, _, err := m.svc.ListItems(req.Context(), tenantID, filter)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list, map[string]interface{}{"total": total, "page": filter.Page, "limit": filter.Limit})
+	// TS /api/services returns the curated DTO list unpaginated (no meta).
+	apphttp.Success(w, list)
 }
 
 func (m *Module) create(w http.ResponseWriter, req *http.Request) {
@@ -112,10 +112,29 @@ func (m *Module) update(w http.ResponseWriter, req *http.Request) {
 		apphttp.NotFoundError(w, "Service not found")
 		return
 	}
-	if !decodeJSON(w, req, s) {
+	// Security: decode into a restricted input (NOT the full entity) to prevent
+	// mass assignment — a body like {"branchId":"<other-tenant-branch>"} must NOT
+	// move the service cross-tenant. Preserve the original ID + BranchID.
+	var input application.CreateServiceInput
+	if !decodeJSON(w, req, &input) {
 		return
 	}
+	s.Name = input.Name
+	s.Description = input.Description
+	s.PricingType = input.PricingType
+	s.BasePrice = input.BasePrice
+	s.CommissionType = input.CommissionType
+	s.CommissionValue = input.CommissionValue
+	s.Module = input.Module
+	s.GroupID = input.GroupID
+	if input.IsActive != nil {
+		s.IsActive = *input.IsActive
+	}
+	if input.IsDefaultSpeed != nil {
+		s.IsDefaultSpeed = *input.IsDefaultSpeed
+	}
 	s.ID = id
+	// BranchID preserved from the original Get (tenant-scoped) — never from the body.
 	if err := m.svc.Update(req.Context(), s); err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
@@ -149,12 +168,14 @@ func (m *Module) listGroups(w http.ResponseWriter, req *http.Request) {
 	if l, err := strconv.Atoi(req.URL.Query().Get("limit")); err == nil {
 		filter.Limit = l
 	}
-	list, total, err := m.svc.ListGroups(req.Context(), tenantID, filter)
+	filter.Page, filter.Limit, _ = pagination.Normalize(filter.Page, filter.Limit)
+	list, _, err := m.svc.ListGroups(req.Context(), tenantID, filter)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list, map[string]interface{}{"total": total, "page": filter.Page, "limit": filter.Limit})
+	// TS /api/service-groups returns the list unpaginated (no meta).
+	apphttp.Success(w, list)
 }
 
 func (m *Module) createGroup(w http.ResponseWriter, req *http.Request) {

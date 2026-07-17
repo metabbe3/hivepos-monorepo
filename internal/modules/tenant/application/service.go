@@ -14,17 +14,22 @@ type CompleteOnboardingInput struct {
 	Settings      map[string]interface{} `json:"settings"`
 }
 
-// WebsiteInput is the PATCH /api/tenant/website body.
+// WebsiteInput is the PATCH /api/tenant/website body. Keys match the dashboard
+// (hivepos-web/app/(dashboard)/website/page.tsx) exactly — stored under settings.website.
 type WebsiteInput struct {
-	Title        *string `json:"title"`
-	Description  *string `json:"description"`
-	LogoURL      *string `json:"logoUrl"`
-	HeroImage    *string `json:"heroImage"`
-	PrimaryColor *string `json:"primaryColor"`
-	ContactPhone *string `json:"contactPhone"`
-	ContactEmail *string `json:"contactEmail"`
-	Address      *string `json:"address"`
-	Enabled      *bool   `json:"enabled"`
+	Tagline              *string          `json:"tagline"`
+	HeroPhotoURL         *string          `json:"heroPhotoUrl"`
+	About                *string          `json:"about"`
+	Instagram            *string          `json:"instagram"`
+	QrisImageURL         *string          `json:"qrisImageUrl"`
+	GoogleRating         *float64         `json:"googleRating"`
+	GoogleReviewCount    *int             `json:"googleReviewCount"`
+	YearEstablished      *int             `json:"yearEstablished"`
+	AvgProcessingMinutes *int             `json:"avgProcessingMinutes"`
+	AreaServed           *json.RawMessage `json:"areaServed"`
+	Faqs                 *json.RawMessage `json:"faqs"`
+	Testimonials         *json.RawMessage `json:"testimonials"`
+	Enabled              *bool            `json:"enabled"`
 }
 
 // Repository defines the persistence contract for the tenant-management module.

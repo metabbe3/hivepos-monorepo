@@ -7,10 +7,11 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	apphttp "github.com/hivepos/api/internal/shared/http"
+	"github.com/hivepos/api/internal/middleware"
 	"github.com/hivepos/api/internal/modules/expenses/application"
 	"github.com/hivepos/api/internal/modules/expenses/infrastructure"
-	"github.com/hivepos/api/internal/middleware"
+	apphttp "github.com/hivepos/api/internal/shared/http"
+	"github.com/hivepos/api/internal/shared/pagination"
 )
 
 // Module wires the expenses domain: repository → service → HTTP handlers.
@@ -59,18 +60,15 @@ func (m *Module) list(w http.ResponseWriter, req *http.Request) {
 		To:         req.URL.Query().Get("to"),
 		Search:     req.URL.Query().Get("search"),
 	}
-	if p, err := strconv.Atoi(req.URL.Query().Get("page")); err == nil {
-		filter.Page = p
-	}
-	if l, err := strconv.Atoi(req.URL.Query().Get("limit")); err == nil {
-		filter.Limit = l
-	}
-	list, total, err := m.svc.ListExpenses(req.Context(), tenantID, filter)
+	// /api/expenses is intentionally unpaginated (matches the original TS contract).
+	filter.All = true
+	list, _, err := m.svc.ListExpenses(req.Context(), tenantID, filter)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list, map[string]interface{}{"total": total, "page": filter.Page, "limit": filter.Limit})
+	// TS /api/expenses returns the list unpaginated (no meta).
+	apphttp.Success(w, list)
 }
 
 func (m *Module) create(w http.ResponseWriter, req *http.Request) {
@@ -149,12 +147,14 @@ func (m *Module) listCategories(w http.ResponseWriter, req *http.Request) {
 	if l, err := strconv.Atoi(req.URL.Query().Get("limit")); err == nil {
 		filter.Limit = l
 	}
-	list, total, err := m.svc.ListCategories(req.Context(), tenantID, filter)
+	filter.Page, filter.Limit, _ = pagination.Normalize(filter.Page, filter.Limit)
+	list, _, err := m.svc.ListCategories(req.Context(), tenantID, filter)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list, map[string]interface{}{"total": total, "page": filter.Page, "limit": filter.Limit})
+	// TS /api/expense-categories returns the list unpaginated (no meta).
+	apphttp.Success(w, list)
 }
 
 func (m *Module) createCategory(w http.ResponseWriter, req *http.Request) {

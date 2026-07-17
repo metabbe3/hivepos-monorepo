@@ -4,13 +4,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	apphttp "github.com/hivepos/api/internal/shared/http"
+	"github.com/hivepos/api/internal/middleware"
 	"github.com/hivepos/api/internal/modules/inventory/application"
 	"github.com/hivepos/api/internal/modules/inventory/infrastructure"
-	"github.com/hivepos/api/internal/middleware"
+	apphttp "github.com/hivepos/api/internal/shared/http"
 )
 
 // Module wires the inventory domain: repository → service → HTTP handlers.
@@ -46,18 +45,15 @@ func (m *Module) list(w http.ResponseWriter, req *http.Request) {
 		Active:   req.URL.Query().Get("active"),
 		LowOnly:  req.URL.Query().Get("lowOnly"),
 	}
-	if p, err := strconv.Atoi(req.URL.Query().Get("page")); err == nil {
-		filter.Page = p
-	}
-	if l, err := strconv.Atoi(req.URL.Query().Get("limit")); err == nil {
-		filter.Limit = l
-	}
-	list, total, err := m.svc.List(req.Context(), tenantID, filter)
+	// /api/stock-items is intentionally unpaginated (matches the original TS contract).
+	filter.All = true
+	list, _, err := m.svc.List(req.Context(), tenantID, filter)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list, map[string]interface{}{"total": total, "page": filter.Page, "limit": filter.Limit})
+	// TS /api/stock-items returns the list unpaginated (no meta).
+	apphttp.Success(w, list)
 }
 
 func (m *Module) create(w http.ResponseWriter, req *http.Request) {

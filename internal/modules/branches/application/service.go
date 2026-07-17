@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hivepos/api/internal/modules/branches/domain"
 )
@@ -10,23 +11,23 @@ import (
 // CreateInput is the DTO for creating a branch. Branches are tenant-scoped via
 // the session, so TenantID is injected from the request context, not the body.
 type CreateInput struct {
-	Name             string  `json:"name"`
-	Address          *string `json:"address"`
-	Phone            *string `json:"phone"`
-	InvoiceFooter    *string `json:"invoiceFooter"`
-	IsActive         *bool   `json:"isActive"`
+	Name             string   `json:"name"`
+	Address          *string  `json:"address"`
+	Phone            *string  `json:"phone"`
+	InvoiceFooter    *string  `json:"invoiceFooter"`
+	IsActive         *bool    `json:"isActive"`
 	Latitude         *float64 `json:"latitude"`
 	Longitude        *float64 `json:"longitude"`
-	WhatsappLink     *string `json:"whatsappLink"`
-	GoogleMapsLink   *string `json:"googleMapsLink"`
-	PrinterHost      *string `json:"printerHost"`
-	PrinterPort      *int    `json:"printerPort"`
-	PrinterName      *string `json:"printerName"`
-	PrinterEnabled   *bool   `json:"printerEnabled"`
-	PrinterPaperSize *string `json:"printerPaperSize"`
-	CoverageEnd      *string `json:"coverageEnd"`
-	IsFreeTier       *bool   `json:"isFreeTier"`
-	Slug             *string `json:"slug"`
+	WhatsappLink     *string  `json:"whatsappLink"`
+	GoogleMapsLink   *string  `json:"googleMapsLink"`
+	PrinterHost      *string  `json:"printerHost"`
+	PrinterPort      *int     `json:"printerPort"`
+	PrinterName      *string  `json:"printerName"`
+	PrinterEnabled   *bool    `json:"printerEnabled"`
+	PrinterPaperSize *string  `json:"printerPaperSize"`
+	CoverageEnd      *string  `json:"coverageEnd"`
+	IsFreeTier       *bool    `json:"isFreeTier"`
+	Slug             *string  `json:"slug"`
 }
 
 // ListFilter holds the query params for listing branches.
@@ -37,11 +38,35 @@ type ListFilter struct {
 	Limit  int
 }
 
+// BranchCounts mirrors the TS BranchListItemDTO.counts aggregate.
+type BranchCounts struct {
+	Users     int64 `json:"users"`
+	Orders    int64 `json:"orders"`
+	Services  int64 `json:"services"`
+	Customers int64 `json:"customers"`
+}
+
+// BranchListItem mirrors the TS BranchListItemDTO — the curated list response
+// (a subset of the entity + per-branch counts). TS /api/branches is unpaginated.
+type BranchListItem struct {
+	ID            string       `json:"id"`
+	Name          string       `json:"name"`
+	Address       *string      `json:"address"`
+	Phone         *string      `json:"phone"`
+	InvoiceFooter *string      `json:"invoiceFooter"`
+	IsActive      bool         `json:"isActive"`
+	IsFreeTier    bool         `json:"isFreeTier"`
+	CoverageEnd   *time.Time   `json:"coverageEnd"`
+	CreatedAt     time.Time    `json:"createdAt"`
+	Counts        BranchCounts `json:"counts"`
+}
+
 // Repository is the persistence port for branches.
 type Repository interface {
 	Create(ctx context.Context, b *domain.Branch) error
 	FindByID(ctx context.Context, id, tenantID string) (*domain.Branch, error)
 	List(ctx context.Context, tenantID string, filter ListFilter) ([]*domain.Branch, int64, error)
+	ListItems(ctx context.Context, tenantID string, filter ListFilter) ([]*BranchListItem, error)
 	Update(ctx context.Context, b *domain.Branch) error
 	Delete(ctx context.Context, id, tenantID string) error
 }
@@ -112,6 +137,12 @@ func (s *Service) List(ctx context.Context, tenantID string, filter ListFilter) 
 		filter.Limit = 100
 	}
 	return s.Repo.List(ctx, tenantID, filter)
+}
+
+// ListItems returns the curated list DTO (matches TS BranchListItemDTO),
+// including per-branch counts. Not paginated — TS returns all outlets.
+func (s *Service) ListItems(ctx context.Context, tenantID string, filter ListFilter) ([]*BranchListItem, error) {
+	return s.Repo.ListItems(ctx, tenantID, filter)
 }
 
 func (s *Service) Update(ctx context.Context, b *domain.Branch) error {

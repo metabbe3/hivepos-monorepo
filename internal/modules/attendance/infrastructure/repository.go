@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/hivepos/api/internal/modules/attendance/application"
 	"github.com/hivepos/api/internal/modules/attendance/domain"
@@ -22,7 +23,7 @@ func (r *PgAttendanceRepository) ListStaff(ctx context.Context, tenantID string)
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT u.id, u.name, u."branchId", u."pinHash", u."qrToken", u."isActive", u."createdAt"
 		FROM "User" u
-		WHERE u."tenantId" = $1 AND u."isActive" = true
+		WHERE u."tenantId" = $1 AND u."isActive" = true AND u."pinHash" IS NOT NULL
 		ORDER BY u.name`, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("querying staff: %w", err)
@@ -32,8 +33,12 @@ func (r *PgAttendanceRepository) ListStaff(ctx context.Context, tenantID string)
 	var list []*domain.StaffMember
 	for rows.Next() {
 		s := &domain.StaffMember{}
-		if err := rows.Scan(&s.ID, &s.Name, &s.BranchID, &s.PinHash, &s.QrToken, &s.IsActive, &s.CreatedAt); err != nil {
+		var branchID sql.NullString
+		if err := rows.Scan(&s.ID, &s.Name, &branchID, &s.PinHash, &s.QrToken, &s.IsActive, &s.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scanning staff row: %w", err)
+		}
+		if branchID.Valid {
+			s.BranchID = branchID.String
 		}
 		list = append(list, s)
 	}
@@ -43,17 +48,20 @@ func (r *PgAttendanceRepository) ListStaff(ctx context.Context, tenantID string)
 // FindStaffByPIN loads a staff member by ID (for PIN verification).
 func (r *PgAttendanceRepository) FindStaffByPIN(ctx context.Context, tenantID, userID string) (*domain.StaffMember, error) {
 	s := &domain.StaffMember{}
-	var pinHash sql.NullString
+	var pinHash, branchID sql.NullString
 	err := r.db.QueryRowContext(ctx, `
 		SELECT u.id, u.name, u."branchId", u."pinHash", u."qrToken", u."isActive", u."createdAt"
 		FROM "User" u
 		WHERE u.id = $1 AND u."tenantId" = $2 AND u."isActive" = true`, userID, tenantID,
-	).Scan(&s.ID, &s.Name, &s.BranchID, &pinHash, &s.QrToken, &s.IsActive, &s.CreatedAt)
+	).Scan(&s.ID, &s.Name, &branchID, &pinHash, &s.QrToken, &s.IsActive, &s.CreatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("finding staff: %w", err)
+	}
+	if branchID.Valid {
+		s.BranchID = branchID.String
 	}
 	if pinHash.Valid {
 		v := pinHash.String
@@ -62,54 +70,90 @@ func (r *PgAttendanceRepository) FindStaffByPIN(ctx context.Context, tenantID, u
 	return s, nil
 }
 
-// ListStatus returns each staff member with their current clock state.
-// This joins the latest event per user via DISTINCT ON (Postgres extension).
+// ListStatus mirrors TS /api/attendance/status: for each PIN-enabled staff, today's
+// worked milliseconds + the open clock-in timestamp (since), or null if clocked out.
 func (r *PgAttendanceRepository) ListStatus(ctx context.Context, tenantID, branchID string) ([]*domain.StaffStatus, error) {
-	args := []interface{}{tenantID}
-	q := `
-		SELECT u.id, u.name,
-		       COALESCE(le.type, 'CLOCKED_OUT') AS status,
-		       le.id, le."userId", le."tenantId", le."branchId", le.type, le.timestamp
-		FROM "User" u
-		LEFT JOIN LATERAL (
-			SELECT * FROM "ClockEvent" ce
-			WHERE ce."userId" = u.id
-			ORDER BY ce.timestamp DESC LIMIT 1
-		) le ON true
-		WHERE u."tenantId" = $1 AND u."isActive" = true`
+	// 1. staff with PIN
+	staffArgs := []interface{}{tenantID}
+	staffQ := `SELECT u.id, u.name FROM "User" u WHERE u."tenantId" = $1 AND u."isActive" = true AND u."pinHash" IS NOT NULL`
 	if branchID != "" && branchID != "ALL" {
-		q += ` AND u."branchId" = $2`
-		args = append(args, branchID)
+		// include attendance-only staff with no branch assignment (NULL branchId)
+		staffQ += ` AND (u."branchId" = $2 OR u."branchId" IS NULL)`
+		staffArgs = append(staffArgs, branchID)
 	}
-	q += ` ORDER BY u.name`
-
-	rows, err := r.db.QueryContext(ctx, q, args...)
+	staffQ += ` ORDER BY u.name`
+	rows, err := r.db.QueryContext(ctx, staffQ, staffArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("querying staff status: %w", err)
 	}
-	defer rows.Close()
-
-	var list []*domain.StaffStatus
+	var order []string
+	nameByID := map[string]string{}
 	for rows.Next() {
-		st := &domain.StaffStatus{}
-		var evID, evUID, evTID, evBID, evType sql.NullString
-		var evTS sql.NullTime
-		if err := rows.Scan(&st.UserID, &st.Name, &st.Status, &evID, &evUID, &evTID, &evBID, &evType, &evTS); err != nil {
-			return nil, fmt.Errorf("scanning status row: %w", err)
+		var id, name string
+		if err := rows.Scan(&id, &name); err != nil {
+			rows.Close()
+			return nil, err
 		}
-		if evID.Valid {
-			st.LastEvent = &domain.ClockEvent{
-				ID:        evID.String,
-				UserID:    evUID.String,
-				TenantID:  evTID.String,
-				BranchID:  evBID.String,
-				Type:      domain.ClockEventType(evType.String),
-				Timestamp: evTS.Time,
+		nameByID[id] = name
+		order = append(order, id)
+	}
+	rows.Close()
+
+	// 2. today's clock events (in branch)
+	now := time.Now()
+	startToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	evArgs := []interface{}{startToday}
+	evQ := `SELECT "userId", type, timestamp FROM "ClockEvent" WHERE timestamp >= $1`
+	if branchID != "" && branchID != "ALL" {
+		evQ += ` AND "branchId" = $2`
+		evArgs = append(evArgs, branchID)
+	}
+	evQ += ` ORDER BY "userId", timestamp`
+	evRows, err := r.db.QueryContext(ctx, evQ, evArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("querying clock events: %w", err)
+	}
+	type evState struct {
+		openIn  *time.Time
+		todayMs int64
+	}
+	state := map[string]*evState{}
+	for evRows.Next() {
+		var uid, etype string
+		var ts time.Time
+		if err := evRows.Scan(&uid, &etype, &ts); err != nil {
+			evRows.Close()
+			return nil, err
+		}
+		st, ok := state[uid]
+		if !ok {
+			st = &evState{}
+			state[uid] = st
+		}
+		if etype == "CLOCK_IN" {
+			t := ts
+			st.openIn = &t
+		} else if etype == "CLOCK_OUT" && st.openIn != nil {
+			st.todayMs += ts.Sub(*st.openIn).Milliseconds()
+			st.openIn = nil
+		}
+	}
+	evRows.Close()
+
+	out := make([]*domain.StaffStatus, 0, len(order))
+	for _, id := range order {
+		st := &domain.StaffStatus{ID: id, Name: nameByID[id]}
+		if s, ok := state[id]; ok {
+			st.TodayMs = s.todayMs
+			if s.openIn != nil {
+				since := s.openIn.UTC().Format(time.RFC3339)
+				st.Since = &since
+				st.TodayMs += now.Sub(*s.openIn).Milliseconds()
 			}
 		}
-		list = append(list, st)
+		out = append(out, st)
 	}
-	return list, nil
+	return out, nil
 }
 
 // LastEvent returns the most recent clock event for a user.
@@ -132,8 +176,9 @@ func (r *PgAttendanceRepository) LastEvent(ctx context.Context, userID string) (
 func (r *PgAttendanceRepository) CreateEvent(ctx context.Context, e *domain.ClockEvent) error {
 	return r.db.QueryRowContext(ctx, `
 		INSERT INTO "ClockEvent" ("userId", "tenantId", "branchId", type, timestamp, "createdAt")
-		VALUES ($1, $2, $3, $4, NOW(), NOW()) RETURNING id, timestamp`,
-		e.UserID, e.TenantID, e.BranchID, e.Type,
+		VALUES ($1, $2, $3, $4, CASE WHEN $5 > '1900-01-01'::timestamptz THEN $5 ELSE NOW() END, NOW())
+		RETURNING id, timestamp`,
+		e.UserID, e.TenantID, e.BranchID, e.Type, e.Timestamp,
 	).Scan(&e.ID, &e.Timestamp)
 }
 
@@ -186,8 +231,11 @@ func (r *PgAttendanceRepository) ListEvents(ctx context.Context, tenantID string
 
 	offset := (f.Page - 1) * f.Limit
 	q := fmt.Sprintf(`
-		SELECT ce.id, ce."userId", ce."tenantId", ce."branchId", ce.type, ce.timestamp
-		FROM "ClockEvent" ce %s ORDER BY ce.timestamp DESC LIMIT $%d OFFSET $%d`, where, idx, idx+1)
+		SELECT ce.id, ce."userId", u.name, ce."tenantId", ce."branchId", b.name, ce.type, ce.timestamp
+		FROM "ClockEvent" ce
+		JOIN "User" u ON u.id = ce."userId"
+		JOIN "Branch" b ON b.id = ce."branchId"
+		%s ORDER BY ce.timestamp DESC LIMIT $%d OFFSET $%d`, where, idx, idx+1)
 	args = append(args, f.Limit, offset)
 
 	rows, err := r.db.QueryContext(ctx, q, args...)
@@ -199,7 +247,7 @@ func (r *PgAttendanceRepository) ListEvents(ctx context.Context, tenantID string
 	var list []*domain.ClockEvent
 	for rows.Next() {
 		e := &domain.ClockEvent{}
-		if err := rows.Scan(&e.ID, &e.UserID, &e.TenantID, &e.BranchID, &e.Type, &e.Timestamp); err != nil {
+		if err := rows.Scan(&e.ID, &e.UserID, &e.UserName, &e.TenantID, &e.BranchID, &e.BranchName, &e.Type, &e.Timestamp); err != nil {
 			return nil, 0, fmt.Errorf("scanning event: %w", err)
 		}
 		list = append(list, e)

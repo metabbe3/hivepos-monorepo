@@ -53,16 +53,23 @@ func (m *JWTManager) Generate(claims *Claims, duration time.Duration) (string, e
 	return token.SignedString(m.secret)
 }
 
-// Validate parses + validates a JWT string.
+// Validate parses + validates a JWT string. It accepts both:
+//   - plain HS256 signed JWTs (Go-issued), and
+//   - Auth.js v5 JWE-encrypted tokens (issued by the TS/NextAuth app), so tokens
+//     minted by the TS app authenticate against this Go backend.
 func (m *JWTManager) Validate(tokenStr string) (*Claims, error) {
 	claims := &Claims{}
 	_, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
 		return m.secret, nil
 	})
-	if err != nil {
-		return nil, err
+	if err == nil {
+		return claims, nil
 	}
-	return claims, nil
+	// Fall back: Auth.js v5 JWE token (TS/NextAuth-issued).
+	if nc, jerr := DecodeNextAuth(tokenStr, string(m.secret)); jerr == nil {
+		return nc, nil
+	}
+	return nil, err
 }
 
 // Middleware validates the JWT from the Authorization header (Bearer token)

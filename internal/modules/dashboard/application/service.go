@@ -18,8 +18,8 @@ type StatsFilter struct {
 // Repository is the port for dashboard aggregation queries (hexagonal).
 type Repository interface {
 	GetStats(ctx context.Context, tenantID string, f StatsFilter) (*domain.Stats, error)
-	GetKanban(ctx context.Context, tenantID, branchID, module string) ([]*domain.KanbanEntry, error)
-	GetHeatmap(ctx context.Context, tenantID, branchID string) ([]*domain.HeatmapPoint, error)
+	GetKanban(ctx context.Context, tenantID, branchID, module string) ([]map[string]interface{}, error)
+	GetHeatmap(ctx context.Context, tenantID, branchID string) (map[string]interface{}, error)
 }
 
 // Service implements the dashboard use cases (read-only).
@@ -47,10 +47,10 @@ func (s *Service) GetStats(ctx context.Context, tenantID string, f StatsFilter) 
 	return s.Repo.GetStats(ctx, tenantID, f)
 }
 
-func (s *Service) GetKanban(ctx context.Context, tenantID, branchID, module string) ([]*domain.KanbanEntry, error) {
+func (s *Service) GetKanban(ctx context.Context, tenantID, branchID, module string) ([]map[string]interface{}, error) {
 	return s.Repo.GetKanban(ctx, tenantID, branchID, module)
 }
 
-func (s *Service) GetHeatmap(ctx context.Context, tenantID, branchID string) ([]*domain.HeatmapPoint, error) {
+func (s *Service) GetHeatmap(ctx context.Context, tenantID, branchID string) (map[string]interface{}, error) {
 	return s.Repo.GetHeatmap(ctx, tenantID, branchID)
 }

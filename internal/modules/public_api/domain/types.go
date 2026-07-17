@@ -1,6 +1,36 @@
 package domain
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
+
+// PublicTenant is the public website payload: tenant identity + settings (which carries
+// the dashboard `website` block: tagline/about/hero/instagram/qris/google/…) + the branch
+// directory with geo/contact/link fields the public site renders.
+type PublicTenant struct {
+	ID           string          `json:"id"`
+	Name         string          `json:"name"`
+	Slug         string          `json:"slug"`
+	LogoURL      *string         `json:"logoUrl"`
+	Settings     json.RawMessage `json:"settings"`
+	Branches     []PublicTenantBranch `json:"branches"`
+}
+
+// PublicTenantBranch is the rich public branch view (geo + contact + links + hours) used by
+// the tenant-site primaryBranch render.
+type PublicTenantBranch struct {
+	ID              string          `json:"id"`
+	Name            string          `json:"name"`
+	Address         *string         `json:"address"`
+	Phone           *string         `json:"phone"`
+	Slug            *string         `json:"slug"`
+	Latitude        *float64        `json:"latitude"`
+	Longitude       *float64        `json:"longitude"`
+	GoogleMapsLink  *string         `json:"googleMapsLink"`
+	WhatsAppLink    *string         `json:"whatsappLink"`
+	OperatingHours  json.RawMessage `json:"operatingHours"`
+}
 
 // TicketStatus mirrors the Prisma enum.
 type TicketStatus string
@@ -32,22 +62,34 @@ const (
 
 // PublicBranch is the public-facing branch view (no internal IDs leaked beyond the row id).
 type PublicBranch struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	Address    string `json:"address"`
-	Phone      string `json:"phone"`
-	Hours      string `json:"hours"`
-	TenantName string `json:"tenantName"`
+	ID             string   `json:"id"`
+	Slug           string   `json:"slug"`
+	Name           string   `json:"name"`
+	Address        string   `json:"address"`
+	Phone          string   `json:"phone"`
+	OperatingHours string   `json:"operatingHours"`
+	Latitude       *float64 `json:"latitude,omitempty"`
+	Longitude      *float64 `json:"longitude,omitempty"`
+	WhatsappLink   string   `json:"whatsappLink"`
+	GoogleMapsLink string   `json:"googleMapsLink"`
+	TenantName     string   `json:"tenantName"`
 }
 
 // PublicService is the public-facing service catalog entry.
 type PublicService struct {
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	Description string  `json:"description"`
-	Price       float64 `json:"price"`
-	PricingType string  `json:"pricingType"`
-	Duration    *int    `json:"duration,omitempty"`
+	ID          string              `json:"id"`
+	Name        string              `json:"name"`
+	Description string              `json:"description"`
+	Price       float64             `json:"price"`
+	PricingType string              `json:"pricingType"`
+	Duration    *int                `json:"duration,omitempty"`
+	Group       *PublicServiceGroup `json:"group,omitempty"`
+}
+
+// PublicServiceGroup is the (optional) service-group category on a public catalog entry.
+type PublicServiceGroup struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // TicketInput is the DTO for creating a support ticket (tenantSlug optional).
@@ -91,11 +133,15 @@ type PublicOrderItem struct {
 type PickupInput struct {
 	Name          string   `json:"name"`
 	Phone         string   `json:"phone"`
+	Email         string   `json:"customerEmail,omitempty"`
 	Address       string   `json:"address"`
 	PreferredTime string   `json:"preferredTime"`
 	Notes         string   `json:"notes"`
 	TenantSlug    string   `json:"tenantSlug"`
 	ServiceIDs    []string `json:"serviceIds"`
+	Latitude      *float64 `json:"latitude,omitempty"`
+	Longitude     *float64 `json:"longitude,omitempty"`
+	MapsLink      string   `json:"mapsLink,omitempty"`
 }
 
 // PickupRequest is the persisted public pickup request.

@@ -109,12 +109,14 @@ func (r *PgServiceRepository) List(ctx context.Context, tenantID string, filter 
 	var total int64
 	r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "Service" s JOIN "Branch" b ON b.id = s."branchId" `+where, args...).Scan(&total)
 
-	offset := (filter.Page - 1) * filter.Limit
 	query := fmt.Sprintf(`
 		SELECT %s
 		FROM "Service" s JOIN "Branch" b ON b.id = s."branchId"
-		%s ORDER BY s."createdAt" DESC LIMIT $%d OFFSET $%d`, serviceColumns, where, idx, idx+1)
-	args = append(args, filter.Limit, offset)
+		%s ORDER BY s."createdAt" DESC`, serviceColumns, where)
+	if !filter.All {
+		query += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, idx, idx+1)
+		args = append(args, filter.Limit, (filter.Page-1)*filter.Limit)
+	}
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -131,6 +133,82 @@ func (r *PgServiceRepository) List(ctx context.Context, tenantID string, filter 
 		list = append(list, s)
 	}
 	return list, total, nil
+}
+
+// ListItems returns the curated ServiceListItem DTO with nested group (matches
+// TS /api/services). Shares List's WHERE build.
+func (r *PgServiceRepository) ListItems(ctx context.Context, tenantID string, filter application.ListFilter) ([]*application.ServiceListItem, int64, error) {
+	where := `WHERE b."tenantId" = $1`
+	args := []interface{}{tenantID}
+	idx := 2
+	if filter.BranchID != "" && filter.BranchID != "ALL" {
+		where += fmt.Sprintf(` AND s."branchId" = $%d`, idx)
+		args = append(args, filter.BranchID)
+		idx++
+	}
+	if filter.Module != "" {
+		where += fmt.Sprintf(` AND s.module = $%d`, idx)
+		args = append(args, filter.Module)
+		idx++
+	}
+	if filter.Search != "" {
+		where += fmt.Sprintf(` AND s.name ILIKE $%d`, idx)
+		args = append(args, "%"+filter.Search+"%")
+		idx++
+	}
+	if filter.Active != "" {
+		where += fmt.Sprintf(` AND s."isActive" = $%d`, idx)
+		args = append(args, filter.Active == "true")
+		idx++
+	}
+	if filter.GroupID != "" {
+		where += fmt.Sprintf(` AND s."groupId" = $%d`, idx)
+		args = append(args, filter.GroupID)
+		idx++
+	}
+
+	var total int64
+	r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "Service" s JOIN "Branch" b ON b.id = s."branchId" `+where, args...).Scan(&total)
+
+	query := fmt.Sprintf(`
+		SELECT s.id, s.name, s.description, s."pricingType", s."basePrice"::float, s."commissionType",
+		       s."commissionValue"::float, s.module, s."isActive", s."isDefaultSpeed", s."groupId",
+		       s."createdAt", s."updatedAt", sg.id, sg.name
+		FROM "Service" s JOIN "Branch" b ON b.id = s."branchId"
+		LEFT JOIN "ServiceGroup" sg ON sg.id = s."groupId"
+		%s ORDER BY s."createdAt" DESC`, where)
+	if !filter.All {
+		query += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, idx, idx+1)
+		args = append(args, filter.Limit, (filter.Page-1)*filter.Limit)
+	}
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("querying service items: %w", err)
+	}
+	defer rows.Close()
+
+	var out []*application.ServiceListItem
+	for rows.Next() {
+		it := &application.ServiceListItem{}
+		var groupID, sgID, sgName sql.NullString
+		if err := rows.Scan(
+			&it.ID, &it.Name, &it.Description, &it.PricingType, &it.BasePrice, &it.CommissionType,
+			&it.CommissionValue, &it.Module, &it.IsActive, &it.IsDefaultSpeed, &groupID,
+			&it.CreatedAt, &it.UpdatedAt, &sgID, &sgName,
+		); err != nil {
+			return nil, 0, fmt.Errorf("scanning service item: %w", err)
+		}
+		if groupID.Valid {
+			g := groupID.String
+			it.GroupID = &g
+		}
+		if sgID.Valid {
+			it.Group = &application.ServiceGroupRef{ID: sgID.String, Name: sgName.String}
+		}
+		out = append(out, it)
+	}
+	return out, total, nil
 }
 
 func (r *PgServiceRepository) Update(ctx context.Context, s *domain.Service) error {

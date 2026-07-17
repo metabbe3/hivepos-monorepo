@@ -4,44 +4,30 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-// PostgresConfig for connection pooling.
-type PostgresConfig struct {
-	MaxConns          int32
-	MinConns          int32
-	MaxConnLifetime   time.Duration
-	MaxConnIdleTime   time.Duration
-	ConnectTimeout    time.Duration
-}
-
-// DefaultConfig returns production-safe pool settings.
-func DefaultConfig() PostgresConfig {
-	return PostgresConfig{
-		MaxConns:        25,
-		MinConns:        5,
-		MaxConnLifetime: 1 * time.Hour,
-		MaxConnIdleTime: 30 * time.Minute,
-		ConnectTimeout:  10 * time.Second,
-	}
-}
-
 // New creates a *sql.DB connection pool (pgx driver).
-func New(databaseURL string, cfg PostgresConfig) (*sql.DB, error) {
-	db, err := sql.Open("pgx", databaseURL)
+func New(databaseURL string) (*sql.DB, error) {
+	// ponytail: append a 15s statement_timeout + 10s connect_timeout to the DSN so a runaway
+	// query can't pin a pooled conn until the HTTP WriteTimeout. Guard against duplicate params.
+	dsn := ensureDSNParam(databaseURL, "connect_timeout", "10")
+	dsn = ensureDSNParam(dsn, "statement_timeout", "15000")
+
+	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("opening db: %w", err)
 	}
 
-	db.SetMaxOpenConns(int(cfg.MaxConns))
-	db.SetMaxIdleConns(int(cfg.MinConns))
-	db.SetConnMaxLifetime(cfg.MaxConnLifetime)
-	db.SetConnMaxIdleTime(cfg.MaxConnIdleTime)
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(10) // ponytail: was 5 — 10 keeps more conns warm, less churn under burst
+	db.SetConnMaxLifetime(1 * time.Hour)
+	db.SetConnMaxIdleTime(30 * time.Minute)
 
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.ConnectTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := db.PingContext(ctx); err != nil {
@@ -49,4 +35,16 @@ func New(databaseURL string, cfg PostgresConfig) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+// ensureDSNParam appends key=value to the DSN (libpq-style) if not already present.
+func ensureDSNParam(dsn, key, value string) string {
+	if strings.Contains(dsn, key+"=") {
+		return dsn
+	}
+	sep := "?"
+	if strings.Contains(dsn, "?") {
+		sep = "&"
+	}
+	return dsn + sep + key + "=" + value
 }

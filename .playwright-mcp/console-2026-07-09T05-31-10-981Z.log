@@ -1,0 +1,1670 @@
+[     144ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[     196ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[     252ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[     256ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/dashboard:0
+[   60252ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[   90249ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[  120250ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[  180253ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[  180253ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[  240251ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[  270254ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[  300251ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[  360254ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[  360254ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[  420253ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[  441215ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  441228ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  441356ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[  441381ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/dashboard:0
+[  447374ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  447413ms] [LOG] [Fast Refresh] done in 139ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  448428ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  448437ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  448493ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[  448496ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/branches:0
+[  449787ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  449796ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  449834ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[  449863ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/users:0
+[  453013ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  453026ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  453093ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[  453113ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/dashboard:0
+[  478300ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  478393ms] [LOG] [Fast Refresh] done in 195ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  481517ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  481756ms] [LOG] [Fast Refresh] done in 341ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  513095ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[  543097ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[  573097ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[  633098ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[  633099ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[  693098ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[  723100ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[  753100ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[  813100ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[  813100ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[  873099ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[  876277ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  876294ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  876347ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[  876351ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/attendance/clock:0
+[  877360ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  877373ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  877439ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[  877442ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/attendance/manage:0
+[  878482ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  878491ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[  878549ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[  878573ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/dashboard:0
+[  938553ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[  968554ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[  998553ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 1058556ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[ 1058556ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 1118554ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 1148555ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[ 1178554ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 1238558ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 1238559ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[ 1298556ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 1328555ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[ 1358557ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 1418553ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[ 1418554ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 1478562ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 1508559ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[ 1538557ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 1598555ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 1598556ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/tickets/unread:0
+[ 1658550ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 1718552ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 1778551ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 1838409ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 1838430ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 1838524ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/dashboard:0
+[ 1898512ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 1958511ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 2018513ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 2078512ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 2138512ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 2198514ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 2258514ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 2318515ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 2378516ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 2438508ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 2498474ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 2558476ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 2618474ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 2678474ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 2738471ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 2798475ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 2858471ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 2918472ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 2941877ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 2941895ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 2941948ms] [ERROR] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <div data-slot="sidebar-wr..." style={{...}} className="group/side...">
+      ...
+        <div data-slot="sidebar-fo..." data-sidebar="footer" className="flex flex-...">
+          <div className="flex items...">
+            <LanguageToggle>
+              <DropdownMenu>
+                <MenuRoot data-slot="dropdown-menu">
+                  <FloatingTree externalTree={{nodesRef:{...}, ...}}>
+                    <DropdownMenuTrigger render={<Button>}>
+                      <MenuTrigger data-slot="dropdown-m..." render={<Button>}>
+                        <Button variant="ghost" size="sm" className="h-8 gap-1...." onClick={function} ...>
+                          <Button data-slot="dropdown-m..." className={"group/bu..."} disabled={false} onClick={function} ...>
+                            <button
+                              type="button"
+                              onClick={function}
+                              onMouseDown={function}
+                              onKeyDown={function}
+                              onKeyUp={function}
+                              onPointerDown={function}
+                              tabIndex={0}
+                              disabled={false}
+                              data-slot="dropdown-menu-trigger"
+                              aria-haspopup="menu"
+                              aria-controls={undefined}
++                             id="base-ui-_R_6uf5rlb_"
+-                             id="base-ui-_R_rpt5rlb_"
+                              ref={function}
+                              className={"group/button inline-flex shrink-0 items-center justify-center border border..."}
+                            >
+                    ...
+            ...
+      <SidebarInset>
+        <main data-slot="sidebar-inset" className="relative f...">
+          <OfflineBanner>
+          <ImpersonationBanner>
+          <DemoBanner>
+          <Header>
+            <header className="flex h-13 ...">
+              <SidebarTrigger>
+              <Separator>
+              <span>
+              <div>
+              <div>
+              ...
+                <MenuRoot data-slot="dropdown-menu" open={false} onOpenChange={function onOpenChange}>
+                  <FloatingTree externalTree={{nodesRef:{...}, ...}}>
+                    <DropdownMenuTrigger render={<Button>}>
+                      <MenuTrigger data-slot="dropdown-m..." render={<Button>}>
+                        <Button variant="ghost" size="icon" className="relative h..." onClick={function} ...>
+                          <Button data-slot="dropdown-m..." className={"group/bu..."} disabled={false} onClick={function} ...>
+                            <button
+                              type="button"
+                              onClick={function}
+                              onMouseDown={function}
+                              onKeyDown={function}
+                              onKeyUp={function}
+                              onPointerDown={function}
+                              tabIndex={0}
+                              disabled={false}
+                              data-slot="dropdown-menu-trigger"
+                              aria-haspopup="menu"
+                              aria-controls={undefined}
++                             id="base-ui-_R_dkn5rlb_"
+-                             id="base-ui-_R_1mit5rlb_"
+                              ref={function}
+                              className={"group/button inline-flex shrink-0 items-center justify-center border border..."}
+                            >
+                    ...
+              <InstallAppButton>
+              <DropdownMenu>
+                <MenuRoot data-slot="dropdown-menu">
+                  <FloatingTree externalTree={{nodesRef:{...}, ...}}>
+                    <DropdownMenuTrigger render={<Button>}>
+                      <MenuTrigger data-slot="dropdown-m..." render={<Button>}>
+                        <Button variant="ghost" size="sm" className="h-8 gap-2 ..." onClick={function} ...>
+                          <Button data-slot="dropdown-m..." className={"group/bu..."} disabled={false} onClick={function} ...>
+                            <button
+                              type="button"
+                              onClick={function}
+                              onMouseDown={function}
+                              onKeyDown={function}
+                              onKeyUp={function}
+                              onPointerDown={function}
+                              tabIndex={0}
+                              disabled={false}
+                              data-slot="dropdown-menu-trigger"
+                              aria-haspopup="menu"
+                              aria-controls={undefined}
++                             id="base-ui-_R_e4n5rlb_"
+-                             id="base-ui-_R_1oit5rlb_"
+                              ref={function}
+                              className={"group/button inline-flex shrink-0 items-center justify-center border border..."}
+                            >
+                    ...
+          ...
+            <SegmentViewNode type="page" pagePath="(dashboard...">
+              <SegmentTrieNode>
+              <ClientPageRoot Component={function PickupRequestsPage} serverProvidedParams={{...}}>
+                <PickupRequestsPage params={Promise} searchParams={Promise}>
+                  <div className="space-y-6">
+                    <PageHeader>
+                    <div className="flex flex-...">
+                      <div>
+                      <div className="relative w...">
+                        <Search>
+                        <Input placeholder="Cari nama ..." value="" onChange={function onChange} ...>
+                          <Input type={undefined} data-slot="input" data-size={undefined} className="h-8 w-full..." ...>
+                            <FieldControl ref={null} type={undefined} data-slot="input" data-size={undefined} ...>
+                              <input
++                               id="base-ui-_R_kklritpetn5rlb_"
+-                               id="base-ui-_R_2iinebn5rmt5rlb_"
+                                disabled={false}
+                                name={undefined}
+                                ref={function}
+                                aria-labelledby={undefined}
+                                autoFocus={false}
+                                value=""
+                                onChange={function}
+                                onFocus={function}
+                                onBlur={function}
+                                onKeyDown={function}
+                                type={undefined}
+                                data-slot="input"
+                                data-size={undefined}
+                                placeholder="Cari nama / telepon..."
+                                className="h-8 w-full min-w-0 rounded-lg border bg-transparent px-2.5 py-1 text-base t..."
+                              >
+                    ...
+            ...
+ @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 2941965ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/laundry/pickup-requests:0
+[ 2947296ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 2947307ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 2947400ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/dashboard:0
+[ 3007376ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 3067377ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 3127377ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 3187375ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 3247375ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 3307377ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 3367403ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 3427406ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 3487408ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 3547405ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 3572719ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3572728ms] [LOG] [Fast Refresh] done in 110ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3575396ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3575628ms] [LOG] [Fast Refresh] done in 332ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3578253ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3578338ms] [LOG] [Fast Refresh] done in 187ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3580935ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3581133ms] [LOG] [Fast Refresh] done in 299ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3581295ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3581326ms] [LOG] [Fast Refresh] done in 133ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3583767ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3583835ms] [LOG] [Fast Refresh] done in 169ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3586498ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3586652ms] [LOG] [Fast Refresh] done in 255ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3590004ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3590162ms] [LOG] [Fast Refresh] done in 260ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3593034ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3593257ms] [LOG] [Fast Refresh] done in 326ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3595890ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3596009ms] [LOG] [Fast Refresh] done in 220ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3598629ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3598870ms] [LOG] [Fast Refresh] done in 342ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3601505ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3601774ms] [LOG] [Fast Refresh] done in 371ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3604403ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3604572ms] [LOG] [Fast Refresh] done in 270ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3607204ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3607404ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 3607408ms] [LOG] [Fast Refresh] done in 306ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3610052ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3610206ms] [LOG] [Fast Refresh] done in 256ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3612836ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3613025ms] [LOG] [Fast Refresh] done in 290ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3615651ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3616265ms] [LOG] [Fast Refresh] done in 716ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3618979ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3619412ms] [LOG] [Fast Refresh] done in 534ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3619676ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3619717ms] [LOG] [Fast Refresh] done in 143ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3622097ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3622363ms] [LOG] [Fast Refresh] done in 366ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3625067ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3625311ms] [LOG] [Fast Refresh] done in 345ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3627946ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3628159ms] [LOG] [Fast Refresh] done in 315ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3630791ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3630971ms] [LOG] [Fast Refresh] done in 281ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3633613ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3633806ms] [LOG] [Fast Refresh] done in 295ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3636462ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3636604ms] [LOG] [Fast Refresh] done in 243ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3639244ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3639523ms] [LOG] [Fast Refresh] done in 380ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3667412ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 3727408ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 3787408ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 3847410ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 3858429ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3858448ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3858533ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/dashboard:0
+[ 3867367ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3867376ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3867417ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/attendance/manage:0
+[ 3869145ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3869160ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3869266ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/customers:0
+[ 3879352ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/customers:0
+[ 3884948ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/customers:0
+[ 3929251ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 3986573ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3986593ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3986645ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/reporting:0
+[ 3988360ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 3988598ms] [LOG] [Fast Refresh] done in 338ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 4007223ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 4007236ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 4007281ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/user:0
+[ 4007297ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/printer-settings:0
+[ 4008033ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 4008045ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 4008136ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/laundry/orders:0
+[ 4008335ms] Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+      <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+        <LoadingBoundary name="orders/" loading={[...]}>
+          <Suspense name="orders/" fallback={<Fragment>}>
+            <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <InnerLayoutRouter url="/laundry/o..." tree={[...]} params={{}} cacheNode={{rsc:<Fragment>, ...}} ...>
+                    <SegmentViewNode type="page" pagePath="(dashboard...">
+                      <SegmentTrieNode>
+                      <ClientPageRoot Component={function OrdersPage} serverProvidedParams={{...}}>
+                        <OrdersPage params={Promise} searchParams={Promise}>
+                          <div className="space-y-6">
+                            <PageHeader>
+                            <PendingOrdersSection>
+                            <div>
+                            <div
++                             className="bg-muted/30 border border-border/60 rounded-xl p-3"
+-                             className="rounded-xl border border-border/40 bg-card animate-in fade-in duration-300"
+                            >
+                              <div
++                               className="flex flex-wrap items-center gap-2"
+-                               className="px-4 py-3 border-b border-border/30 flex items-center justify-between"
+                              >
+                                <div
++                                 className="relative"
+-                                 className="animate-pulse rounded-md bg-muted h-5 w-32"
+-                                 data-slot="skeleton"
+                                >
+                                  <ArrowUpDown className="absolute l...">
++                                   <svg
++                                     ref={null}
++                                     xmlns="http://www.w3.org/2000/svg"
++                                     width={24}
++                                     height={24}
++                                     viewBox="0 0 24 24"
++                                     fill="none"
++                                     stroke="currentColor"
++                                     strokeWidth={2}
++                                     strokeLinecap="round"
++                                     strokeLinejoin="round"
++                                     className="lucide lucide-arrow-up-down absolute left-2.5 top-1/2 h-3.5 w-3.5 -tr..."
++                                     aria-hidden="true"
++                                   >
+                                  ...
+                                ...
+                            ...
+                    ...
+                  ...
+      ...
+
+    at throwOnHydrationMismatch (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:3348:56)
+    at beginWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6775:918)
+    at runWithFiberInDEV (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
+    at performUnitOfWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9562:97)
+    at workLoopConcurrentByScheduler (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9558:58)
+    at renderRootConcurrent (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9541:71)
+    at performWorkOnRoot (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9068:150)
+    at performWorkOnRootViaSchedulerTask (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10230:9)
+    at MessagePort.performWorkUntilDeadline (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:2647:64)
+[ 4008501ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/laundry/orders:0
+[ 4011863ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/orders/01330609-8570-4768-b5ab-e3b9bb50b7fb/status:0
+[ 4013312ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/orders/01330609-8570-4768-b5ab-e3b9bb50b7fb/status:0
+[ 4068115ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 4128121ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 4188119ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 4248116ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 4308116ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 4368118ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 4428118ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 4488118ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 4548123ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 4608120ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 4668119ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 4728121ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 4788119ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 4848121ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 4884550ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 4884568ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 4884640ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/laundry/orders:0
+[ 4884833ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/laundry/orders:0
+[ 4886238ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/orders/01330609-8570-4768-b5ab-e3b9bb50b7fb/status:0
+[ 4887102ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/orders/01330609-8570-4768-b5ab-e3b9bb50b7fb/status:0
+[ 4888066ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/orders/c6a8cc21-8432-400e-acc2-3924fe72bc06/status:0
+[ 4890304ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/orders/c6a8cc21-8432-400e-acc2-3924fe72bc06/payments:0
+[ 4891248ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/orders/c6a8cc21-8432-400e-acc2-3924fe72bc06/payments:0
+[ 4891734ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/orders/c6a8cc21-8432-400e-acc2-3924fe72bc06/payments:0
+[ 4894762ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/laundry/orders?status=DELIVERED:0
+[ 4894771ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/laundry/orders?status=DELIVERED:0
+[ 4896617ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 4896627ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 4896707ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/dashboard:0
+[ 4926768ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8099/api/dashboard/kanban:0
+[ 4926769ms] TypeError: Failed to fetch
+    at apiFetch (http://localhost:3008/_next/static/chunks/_f6a77caf._.js:3338:23)
+    at fetchOnce (http://localhost:3008/_next/static/chunks/_b29147d0._.js:2789:167)
+    at useKanbanOrders.useEffect (http://localhost:3008/_next/static/chunks/_b29147d0._.js:2818:59)
+[ 4956707ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 5016707ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 5076710ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 5136708ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 5196678ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 5256677ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 5311076ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5311098ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5311151ms] [ERROR] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <div data-slot="sidebar-wr..." style={{...}} className="group/side...">
+      ...
+        <div data-slot="sidebar-fo..." data-sidebar="footer" className="flex flex-...">
+          <div className="flex items...">
+            <LanguageToggle>
+              <DropdownMenu>
+                <MenuRoot data-slot="dropdown-menu">
+                  <FloatingTree externalTree={{nodesRef:{...}, ...}}>
+                    <DropdownMenuTrigger render={<Button>}>
+                      <MenuTrigger data-slot="dropdown-m..." render={<Button>}>
+                        <Button variant="ghost" size="sm" className="h-8 gap-1...." onClick={function} ...>
+                          <Button data-slot="dropdown-m..." className={"group/bu..."} disabled={false} onClick={function} ...>
+                            <button
+                              type="button"
+                              onClick={function}
+                              onMouseDown={function}
+                              onKeyDown={function}
+                              onKeyUp={function}
+                              onPointerDown={function}
+                              tabIndex={0}
+                              disabled={false}
+                              data-slot="dropdown-menu-trigger"
+                              aria-haspopup="menu"
+                              aria-controls={undefined}
++                             id="base-ui-_R_6uf5rlb_"
+-                             id="base-ui-_R_rpt5rlb_"
+                              ref={function}
+                              className={"group/button inline-flex shrink-0 items-center justify-center border border..."}
+                            >
+                    ...
+            ...
+      <SidebarInset>
+        <main data-slot="sidebar-inset" className="relative f...">
+          <OfflineBanner>
+          <ImpersonationBanner>
+          <DemoBanner>
+          <Header>
+            <header className="flex h-13 ...">
+              <SidebarTrigger>
+              <Separator>
+              <span>
+              <div>
+              <div>
+              ...
+                <MenuRoot data-slot="dropdown-menu" open={false} onOpenChange={function onOpenChange}>
+                  <FloatingTree externalTree={{nodesRef:{...}, ...}}>
+                    <DropdownMenuTrigger render={<Button>}>
+                      <MenuTrigger data-slot="dropdown-m..." render={<Button>}>
+                        <Button variant="ghost" size="icon" className="relative h..." onClick={function} ...>
+                          <Button data-slot="dropdown-m..." className={"group/bu..."} disabled={false} onClick={function} ...>
+                            <button
+                              type="button"
+                              onClick={function}
+                              onMouseDown={function}
+                              onKeyDown={function}
+                              onKeyUp={function}
+                              onPointerDown={function}
+                              tabIndex={0}
+                              disabled={false}
+                              data-slot="dropdown-menu-trigger"
+                              aria-haspopup="menu"
+                              aria-controls={undefined}
++                             id="base-ui-_R_dkn5rlb_"
+-                             id="base-ui-_R_1mit5rlb_"
+                              ref={function}
+                              className={"group/button inline-flex shrink-0 items-center justify-center border border..."}
+                            >
+                    ...
+              <InstallAppButton>
+              <DropdownMenu>
+                <MenuRoot data-slot="dropdown-menu">
+                  <FloatingTree externalTree={{nodesRef:{...}, ...}}>
+                    <DropdownMenuTrigger render={<Button>}>
+                      <MenuTrigger data-slot="dropdown-m..." render={<Button>}>
+                        <Button variant="ghost" size="sm" className="h-8 gap-2 ..." onClick={function} ...>
+                          <Button data-slot="dropdown-m..." className={"group/bu..."} disabled={false} onClick={function} ...>
+                            <button
+                              type="button"
+                              onClick={function}
+                              onMouseDown={function}
+                              onKeyDown={function}
+                              onKeyUp={function}
+                              onPointerDown={function}
+                              tabIndex={0}
+                              disabled={false}
+                              data-slot="dropdown-menu-trigger"
+                              aria-haspopup="menu"
+                              aria-controls={undefined}
++                             id="base-ui-_R_e4n5rlb_"
+-                             id="base-ui-_R_1oit5rlb_"
+                              ref={function}
+                              className={"group/button inline-flex shrink-0 items-center justify-center border border..."}
+                            >
+                    ...
+          ...
+ @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 5311167ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/laundry/orders:0
+[ 5311341ms] Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+      <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+        <LoadingBoundary name="orders/" loading={[...]}>
+          <Suspense name="orders/" fallback={<Fragment>}>
+            <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <InnerLayoutRouter url="/laundry/o..." tree={[...]} params={{}} cacheNode={{rsc:<Fragment>, ...}} ...>
+                    <SegmentViewNode type="page" pagePath="(dashboard...">
+                      <SegmentTrieNode>
+                      <ClientPageRoot Component={function OrdersPage} serverProvidedParams={{...}}>
+                        <OrdersPage params={Promise} searchParams={Promise}>
+                          <div className="space-y-6">
+                            <PageHeader>
+                            <PendingOrdersSection>
+                            ...
+                              <Input placeholder="Search ord..." value="" onChange={function onChange} ...>
+                                <Input type={undefined} data-slot="input" data-size={undefined} className="h-8 w-full..." ...>
+                                  <FieldControl ref={null} type={undefined} data-slot="input" data-size={undefined} ...>
+                                    <input
++                                     id="base-ui-_R_kslritpetn5rlb_"
+-                                     id="base-ui-_R_2jinebn5rmt5rlb_"
+                                      disabled={false}
+                                      name={undefined}
+                                      ref={function}
+                                      aria-labelledby={undefined}
+                                      autoFocus={false}
+                                      value=""
+                                      onChange={function}
+                                      onFocus={function}
+                                      onBlur={function}
+                                      onKeyDown={function}
+                                      type={undefined}
+                                      data-slot="input"
+                                      data-size={undefined}
+                                      placeholder="Search orders..."
+                                      className="h-8 w-full min-w-0 rounded-lg border px-2.5 py-1 text-base transition..."
+                                    >
+                            <div
++                             className="bg-muted/30 border border-border/60 rounded-xl p-3"
+-                             className="rounded-xl border border-border/40 bg-card animate-in fade-in duration-300"
+                            >
+                              <div
++                               className="flex flex-wrap items-center gap-2"
+-                               className="px-4 py-3 border-b border-border/30 flex items-center justify-between"
+                              >
+                                <div
++                                 className="relative"
+-                                 className="animate-pulse rounded-md bg-muted h-5 w-32"
+-                                 data-slot="skeleton"
+                                >
+                                  <ArrowUpDown className="absolute l...">
++                                   <svg
++                                     ref={null}
++                                     xmlns="http://www.w3.org/2000/svg"
++                                     width={24}
++                                     height={24}
++                                     viewBox="0 0 24 24"
++                                     fill="none"
++                                     stroke="currentColor"
++                                     strokeWidth={2}
++                                     strokeLinecap="round"
++                                     strokeLinejoin="round"
++                                     className="lucide lucide-arrow-up-down absolute left-2.5 top-1/2 h-3.5 w-3.5 -tr..."
++                                     aria-hidden="true"
++                                   >
+                                  ...
+                                ...
+                            ...
+                    ...
+                  ...
+      ...
+
+    at throwOnHydrationMismatch (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:3348:56)
+    at beginWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6775:918)
+    at runWithFiberInDEV (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
+    at performUnitOfWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9562:97)
+    at workLoopConcurrentByScheduler (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9558:58)
+    at renderRootConcurrent (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9541:71)
+    at performWorkOnRoot (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9068:150)
+    at performWorkOnRootViaSchedulerTask (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10230:9)
+    at MessagePort.performWorkUntilDeadline (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:2647:64)
+[ 5311530ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/laundry/orders:0
+[ 5337773ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/laundry/orders/new:0
+[ 5357840ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/orders/9e9d8333-a75c-4667-9af8-a3a60f8b0743/photos:0
+[ 5357841ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/orders/9e9d8333-a75c-4667-9af8-a3a60f8b0743/photos:0
+[ 5366095ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5366105ms] [LOG] [Fast Refresh] done in 110ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5366403ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/orders/9e9d8333-a75c-4667-9af8-a3a60f8b0743/photos:0
+[ 5366410ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/orders/9e9d8333-a75c-4667-9af8-a3a60f8b0743/photos:0
+[ 5366413ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/laundry/orders/9e9d8333-a75c-4667-9af8-a3a60f8b0743:0
+[ 5371162ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 5378321ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5378338ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5378380ms] [ERROR] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <div data-slot="sidebar-wr..." style={{...}} className="group/side...">
+      ...
+        <div data-slot="sidebar-fo..." data-sidebar="footer" className="flex flex-...">
+          <div className="flex items...">
+            <LanguageToggle>
+              <DropdownMenu>
+                <MenuRoot data-slot="dropdown-menu">
+                  <FloatingTree externalTree={{nodesRef:{...}, ...}}>
+                    <DropdownMenuTrigger render={<Button>}>
+                      <MenuTrigger data-slot="dropdown-m..." render={<Button>}>
+                        <Button variant="ghost" size="sm" className="h-8 gap-1...." onClick={function} ...>
+                          <Button data-slot="dropdown-m..." className={"group/bu..."} disabled={false} onClick={function} ...>
+                            <button
+                              type="button"
+                              onClick={function}
+                              onMouseDown={function}
+                              onKeyDown={function}
+                              onKeyUp={function}
+                              onPointerDown={function}
+                              tabIndex={0}
+                              disabled={false}
+                              data-slot="dropdown-menu-trigger"
+                              aria-haspopup="menu"
+                              aria-controls={undefined}
++                             id="base-ui-_R_6uf5rlb_"
+-                             id="base-ui-_R_rpt5rlb_"
+                              ref={function}
+                              className={"group/button inline-flex shrink-0 items-center justify-center border border..."}
+                            >
+                    ...
+            ...
+      <SidebarInset>
+        <main data-slot="sidebar-inset" className="relative f...">
+          <OfflineBanner>
+          <ImpersonationBanner>
+          <DemoBanner>
+          <Header>
+            <header className="flex h-13 ...">
+              <SidebarTrigger>
+              <Separator>
+              <span>
+              <div>
+              <div>
+              ...
+                <MenuRoot data-slot="dropdown-menu" open={false} onOpenChange={function onOpenChange}>
+                  <FloatingTree externalTree={{nodesRef:{...}, ...}}>
+                    <DropdownMenuTrigger render={<Button>}>
+                      <MenuTrigger data-slot="dropdown-m..." render={<Button>}>
+                        <Button variant="ghost" size="icon" className="relative h..." onClick={function} ...>
+                          <Button data-slot="dropdown-m..." className={"group/bu..."} disabled={false} onClick={function} ...>
+                            <button
+                              type="button"
+                              onClick={function}
+                              onMouseDown={function}
+                              onKeyDown={function}
+                              onKeyUp={function}
+                              onPointerDown={function}
+                              tabIndex={0}
+                              disabled={false}
+                              data-slot="dropdown-menu-trigger"
+                              aria-haspopup="menu"
+                              aria-controls={undefined}
++                             id="base-ui-_R_dkn5rlb_"
+-                             id="base-ui-_R_1mit5rlb_"
+                              ref={function}
+                              className={"group/button inline-flex shrink-0 items-center justify-center border border..."}
+                            >
+                    ...
+              <InstallAppButton>
+              <DropdownMenu>
+                <MenuRoot data-slot="dropdown-menu">
+                  <FloatingTree externalTree={{nodesRef:{...}, ...}}>
+                    <DropdownMenuTrigger render={<Button>}>
+                      <MenuTrigger data-slot="dropdown-m..." render={<Button>}>
+                        <Button variant="ghost" size="sm" className="h-8 gap-2 ..." onClick={function} ...>
+                          <Button data-slot="dropdown-m..." className={"group/bu..."} disabled={false} onClick={function} ...>
+                            <button
+                              type="button"
+                              onClick={function}
+                              onMouseDown={function}
+                              onKeyDown={function}
+                              onKeyUp={function}
+                              onPointerDown={function}
+                              tabIndex={0}
+                              disabled={false}
+                              data-slot="dropdown-menu-trigger"
+                              aria-haspopup="menu"
+                              aria-controls={undefined}
++                             id="base-ui-_R_e4n5rlb_"
+-                             id="base-ui-_R_1oit5rlb_"
+                              ref={function}
+                              className={"group/button inline-flex shrink-0 items-center justify-center border border..."}
+                            >
+                    ...
+          ...
+ @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 5378392ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/laundry/orders:0
+[ 5378606ms] Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+      <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+        <LoadingBoundary name="orders/" loading={[...]}>
+          <Suspense name="orders/" fallback={<Fragment>}>
+            <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <InnerLayoutRouter url="/laundry/o..." tree={[...]} params={{}} cacheNode={{rsc:<Fragment>, ...}} ...>
+                    <SegmentViewNode type="page" pagePath="(dashboard...">
+                      <SegmentTrieNode>
+                      <ClientPageRoot Component={function OrdersPage} serverProvidedParams={{...}}>
+                        <OrdersPage params={Promise} searchParams={Promise}>
+                          <div className="space-y-6">
+                            <PageHeader>
+                            <PendingOrdersSection>
+                            ...
+                              <Input placeholder="Search ord..." value="" onChange={function onChange} ...>
+                                <Input type={undefined} data-slot="input" data-size={undefined} className="h-8 w-full..." ...>
+                                  <FieldControl ref={null} type={undefined} data-slot="input" data-size={undefined} ...>
+                                    <input
++                                     id="base-ui-_R_kslritpetn5rlb_"
+-                                     id="base-ui-_R_2jinebn5rmt5rlb_"
+                                      disabled={false}
+                                      name={undefined}
+                                      ref={function}
+                                      aria-labelledby={undefined}
+                                      autoFocus={false}
+                                      value=""
+                                      onChange={function}
+                                      onFocus={function}
+                                      onBlur={function}
+                                      onKeyDown={function}
+                                      type={undefined}
+                                      data-slot="input"
+                                      data-size={undefined}
+                                      placeholder="Search orders..."
+                                      className="h-8 w-full min-w-0 rounded-lg border px-2.5 py-1 text-base transition..."
+                                    >
+                            <div
++                             className="bg-muted/30 border border-border/60 rounded-xl p-3"
+-                             className="rounded-xl border border-border/40 bg-card animate-in fade-in duration-300"
+                            >
+                              <div
++                               className="flex flex-wrap items-center gap-2"
+-                               className="px-4 py-3 border-b border-border/30 flex items-center justify-between"
+                              >
+                                <div
++                                 className="relative"
+-                                 className="animate-pulse rounded-md bg-muted h-5 w-32"
+-                                 data-slot="skeleton"
+                                >
+                                  <ArrowUpDown className="absolute l...">
++                                   <svg
++                                     ref={null}
++                                     xmlns="http://www.w3.org/2000/svg"
++                                     width={24}
++                                     height={24}
++                                     viewBox="0 0 24 24"
++                                     fill="none"
++                                     stroke="currentColor"
++                                     strokeWidth={2}
++                                     strokeLinecap="round"
++                                     strokeLinejoin="round"
++                                     className="lucide lucide-arrow-up-down absolute left-2.5 top-1/2 h-3.5 w-3.5 -tr..."
++                                     aria-hidden="true"
++                                   >
+                                  ...
+                                ...
+                            ...
+                    ...
+                  ...
+      ...
+
+    at throwOnHydrationMismatch (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:3348:56)
+    at beginWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6775:918)
+    at runWithFiberInDEV (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
+    at performUnitOfWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9562:97)
+    at workLoopConcurrentByScheduler (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9558:58)
+    at renderRootConcurrent (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9541:71)
+    at performWorkOnRoot (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9068:150)
+    at performWorkOnRootViaSchedulerTask (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10230:9)
+    at MessagePort.performWorkUntilDeadline (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:2647:64)
+[ 5378801ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/laundry/orders:0
+[ 5385536ms] TypeError: e.preventDefault is not a function
+    at deleteOrder (http://localhost:3008/_next/static/chunks/_f4c40635._.js:3610:11)
+    at onClick (http://localhost:3008/_next/static/chunks/_f4c40635._.js:3790:58)
+    at http://localhost:3008/_next/static/chunks/node_modules_c14d6247._.js:478:28
+    at http://localhost:3008/_next/static/chunks/node_modules_c14d6247._.js:478:28
+    at onClick (http://localhost:3008/_next/static/chunks/node_modules_c14d6247._.js:693:38)
+    at http://localhost:3008/_next/static/chunks/node_modules_c14d6247._.js:498:16
+    at executeDispatch (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10314:13)
+    at runWithFiberInDEV (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
+    at processDispatchQueue (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10340:41)
+    at http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10615:13
+    at batchedUpdates$1 (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:2253:44)
+    at dispatchEventForPluginEventSystem (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10416:9)
+    at dispatchEvent (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:12935:37)
+    at dispatchDiscreteEvent (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:12917:64)
+[ 5388537ms] TypeError: e.preventDefault is not a function
+    at deleteOrder (http://localhost:3008/_next/static/chunks/_f4c40635._.js:3610:11)
+    at onClick (http://localhost:3008/_next/static/chunks/_f4c40635._.js:3790:58)
+    at http://localhost:3008/_next/static/chunks/node_modules_c14d6247._.js:478:28
+    at http://localhost:3008/_next/static/chunks/node_modules_c14d6247._.js:478:28
+    at onClick (http://localhost:3008/_next/static/chunks/node_modules_c14d6247._.js:693:38)
+    at http://localhost:3008/_next/static/chunks/node_modules_c14d6247._.js:498:16
+    at executeDispatch (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10314:13)
+    at runWithFiberInDEV (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
+    at processDispatchQueue (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10340:41)
+    at http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10615:13
+    at batchedUpdates$1 (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:2253:44)
+    at dispatchEventForPluginEventSystem (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10416:9)
+    at dispatchEvent (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:12935:37)
+    at dispatchDiscreteEvent (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:12917:64)
+[ 5398701ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/orders/4e1bc8d3-c36b-456e-bcf7-11f1fd1e939c/photos:0
+[ 5398701ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/orders/4e1bc8d3-c36b-456e-bcf7-11f1fd1e939c/photos:0
+[ 5398714ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/laundry/orders/4e1bc8d3-c36b-456e-bcf7-11f1fd1e939c?edit=true:0
+[ 5404271ms] [ERROR] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'reduce')
+    at OrderDetailPage (http://localhost:3008/_next/static/chunks/_085d1f1c._.js:8348:44)
+    at Object.react_stack_bottom_frame (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:14826:24)
+    at renderWithHooks (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:4651:24)
+    at updateFunctionComponent (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6112:21)
+    at beginWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6708:24)
+    at runWithFiberInDEV (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
+    at performUnitOfWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9562:97)
+    at workLoopSync (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9456:40)
+    at renderRootSync (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9440:13)
+    at performWorkOnRoot (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9105:47)
+    at performWorkOnRootViaSchedulerTask (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10230:9)
+    at MessagePort.performWorkUntilDeadline (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:2647:64) The above error occurred in the <OrderDetailPage> component. It was handled by the <ErrorBoundaryHandler> error boundary. @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1342
+[ 5404272ms] [ERROR] Base UI: A component that acts as a button expected a native <button> because the `nativeButton` prop is true. Rendering a non-<button> removes native button semantics, which can impact forms and accessibility. Use a real <button> in the `render` prop, or set `nativeButton` to `false`.
+    at Button (http://localhost:3008/_next/static/chunks/_61974c5d._.js:67:214)
+    at Error (http://localhost:3008/_next/static/chunks/_61974c5d._.js:316:227)
+    at ErrorBoundaryHandler.render (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1086:55)
+    at ErrorBoundary (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1103:50)
+    at OuterLayoutRouter (http://localhost:3008/_next/static/chunks/node_modules_next_dist_be32b49c._.js:598:55) @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 5404273ms] [ERROR] App error: undefined Cannot read properties of undefined (reading 'reduce') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 5404273ms] [ERROR] App error: undefined Cannot read properties of undefined (reading 'reduce') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 5405897ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/orders/4e1bc8d3-c36b-456e-bcf7-11f1fd1e939c/photos:0
+[ 5405897ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/orders/4e1bc8d3-c36b-456e-bcf7-11f1fd1e939c/photos:0
+[ 5411872ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5411885ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5411970ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/laundry/orders:0
+[ 5412181ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/laundry/orders:0
+[ 5471938ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 5531939ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 5591936ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 5651937ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 5706544ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/orders/01330609-8570-4768-b5ab-e3b9bb50b7fb/photos:0
+[ 5706544ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8099/api/orders/01330609-8570-4768-b5ab-e3b9bb50b7fb/photos:0
+[ 5706560ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/laundry/orders/01330609-8570-4768-b5ab-e3b9bb50b7fb?edit=true:0
+[ 5708680ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/laundry/orders:0
+[ 5708713ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/laundry/orders:0
+[ 5710782ms] TypeError: e.preventDefault is not a function
+    at deleteOrder (http://localhost:3008/_next/static/chunks/_f4c40635._.js:3610:11)
+    at onClick (http://localhost:3008/_next/static/chunks/_f4c40635._.js:3790:58)
+    at http://localhost:3008/_next/static/chunks/node_modules_c14d6247._.js:478:28
+    at http://localhost:3008/_next/static/chunks/node_modules_c14d6247._.js:478:28
+    at onClick (http://localhost:3008/_next/static/chunks/node_modules_c14d6247._.js:693:38)
+    at http://localhost:3008/_next/static/chunks/node_modules_c14d6247._.js:498:16
+    at executeDispatch (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10314:13)
+    at runWithFiberInDEV (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
+    at processDispatchQueue (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10340:41)
+    at http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10615:13
+    at batchedUpdates$1 (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:2253:44)
+    at dispatchEventForPluginEventSystem (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10416:9)
+    at dispatchEvent (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:12935:37)
+    at dispatchDiscreteEvent (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:12917:64)
+[ 5711936ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 5715891ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5716474ms] [LOG] [Fast Refresh] done in 685ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5716958ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5716965ms] [LOG] [Fast Refresh] done in 108ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5723373ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5723381ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5723466ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/dashboard:0
+[ 5731939ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5731949ms] [LOG] [Fast Refresh] done in 110ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5783463ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 5843466ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 5903467ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 5923541ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5923554ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5923626ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/dashboard:0
+[ 5926025ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5926038ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5926103ms] Error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <div data-slot="sidebar-wr..." style={{...}} className="group/side...">
+      ...
+        <div data-slot="sidebar-fo..." data-sidebar="footer" className="flex flex-...">
+          <div className="flex items...">
+            <LanguageToggle>
+              <DropdownMenu>
+                <MenuRoot data-slot="dropdown-menu">
+                  <FloatingTree externalTree={{nodesRef:{...}, ...}}>
+                    <DropdownMenuTrigger render={<Button>}>
+                      <MenuTrigger data-slot="dropdown-m..." render={<Button>}>
+                        <Button variant="ghost" size="sm" className="h-8 gap-1...." onClick={function} ...>
+                          <Button data-slot="dropdown-m..." className={"group/bu..."} disabled={false} onClick={function} ...>
+                            <button
+                              type="button"
+                              onClick={function}
+                              onMouseDown={function}
+                              onKeyDown={function}
+                              onKeyUp={function}
+                              onPointerDown={function}
+                              tabIndex={0}
+                              disabled={false}
+                              data-slot="dropdown-menu-trigger"
+                              aria-haspopup="menu"
+                              aria-controls={undefined}
++                             id="base-ui-_R_6uf5rlb_"
+-                             id="base-ui-_R_rpt5rlb_"
+                              ref={function}
+                              className={"group/button inline-flex shrink-0 items-center justify-center border border..."}
+                            >
+                    ...
+            ...
+      <SidebarInset>
+        <main data-slot="sidebar-inset" className="relative f...">
+          <OfflineBanner>
+          <ImpersonationBanner>
+          <DemoBanner>
+          <Header>
+            <header className="flex h-13 ...">
+              <SidebarTrigger>
+              <Separator>
+              <div>
+              <div>
+              ...
+                <MenuRoot data-slot="dropdown-menu" open={false} onOpenChange={function onOpenChange}>
+                  <FloatingTree externalTree={{nodesRef:{...}, ...}}>
+                    <DropdownMenuTrigger render={<Button>}>
+                      <MenuTrigger data-slot="dropdown-m..." render={<Button>}>
+                        <Button variant="ghost" size="icon" className="relative h..." onClick={function} ...>
+                          <Button data-slot="dropdown-m..." className={"group/bu..."} disabled={false} onClick={function} ...>
+                            <button
+                              type="button"
+                              onClick={function}
+                              onMouseDown={function}
+                              onKeyDown={function}
+                              onKeyUp={function}
+                              onPointerDown={function}
+                              tabIndex={0}
+                              disabled={false}
+                              data-slot="dropdown-menu-trigger"
+                              aria-haspopup="menu"
+                              aria-controls={undefined}
++                             id="base-ui-_R_dkn5rlb_"
+-                             id="base-ui-_R_1mit5rlb_"
+                              ref={function}
+                              className={"group/button inline-flex shrink-0 items-center justify-center border border..."}
+                            >
+                    ...
+              <InstallAppButton>
+              <DropdownMenu>
+                <MenuRoot data-slot="dropdown-menu">
+                  <FloatingTree externalTree={{nodesRef:{...}, ...}}>
+                    <DropdownMenuTrigger render={<Button>}>
+                      <MenuTrigger data-slot="dropdown-m..." render={<Button>}>
+                        <Button variant="ghost" size="sm" className="h-8 gap-2 ..." onClick={function} ...>
+                          <Button data-slot="dropdown-m..." className={"group/bu..."} disabled={false} onClick={function} ...>
+                            <button
+                              type="button"
+                              onClick={function}
+                              onMouseDown={function}
+                              onKeyDown={function}
+                              onKeyUp={function}
+                              onPointerDown={function}
+                              tabIndex={0}
+                              disabled={false}
+                              data-slot="dropdown-menu-trigger"
+                              aria-haspopup="menu"
+                              aria-controls={undefined}
++                             id="base-ui-_R_e4n5rlb_"
+-                             id="base-ui-_R_1oit5rlb_"
+                              ref={function}
+                              className={"group/button inline-flex shrink-0 items-center justify-center border border..."}
+                            >
+                    ...
+          ...
+            <RedirectBoundary>
+              <RedirectErrorBoundary router={{...}}>
+                <InnerLayoutRouter url="/attendanc..." tree={[...]} params={{}} cacheNode={{rsc:<Fragment>, ...}} ...>
+                  <SegmentViewNode type="page" pagePath="(dashboard...">
+                    <SegmentTrieNode>
+                    <ClientPageRoot Component={function AttendanceClockPage} serverProvidedParams={{...}}>
+                      <AttendanceClockPage params={Promise} searchParams={Promise}>
+                        <div className="space-y-6">
+                          <div className="relative o..." style={{...}}>
+                            <div className="relative f...">
+                              <div>
+                              <p
+                                className="sa-tnum font-mono text-4xl font-bold tracking-wider tabular-nums sm:text-5xl"
+                              >
++                               02:09:57 PM
+-                               02:09:56 PM
+                          ...
+                  ...
+                ...
+
+    at throwOnHydrationMismatch (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:3348:56)
+    at prepareToHydrateHostInstance (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:3402:23)
+    at completeWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6934:60)
+    at runWithFiberInDEV (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
+    at completeUnitOfWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9627:23)
+    at performUnitOfWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9564:28)
+    at workLoopConcurrentByScheduler (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9558:58)
+    at renderRootConcurrent (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9541:71)
+    at performWorkOnRoot (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9068:150)
+    at performWorkOnRootViaSchedulerTask (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10230:9)
+    at MessagePort.performWorkUntilDeadline (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:2647:64)
+[ 5926148ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/attendance/clock:0
+[ 5928020ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5928030ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5928086ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/attendance/manage:0
+[ 5934006ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5934014ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5934097ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/branches:0
+[ 5934937ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5934948ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5935030ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/users:0
+[ 5936491ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5936500ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5936564ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/users:0
+[ 5937648ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5937657ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5937726ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/branches:0
+[ 5946051ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/branches:0
+[ 5951691ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/branches:0
+[ 5956009ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5956326ms] [LOG] [Fast Refresh] done in 417ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 5956671ms] [ERROR] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'orders')
+    at BranchDetailPage (http://localhost:3008/_next/static/chunks/_36d67297._.js:1248:61)
+    at Object.react_stack_bottom_frame (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:14826:24)
+    at renderWithHooks (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:4651:24)
+    at updateFunctionComponent (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6112:21)
+    at beginWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6708:24)
+    at runWithFiberInDEV (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
+    at performUnitOfWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9562:97)
+    at workLoopSync (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9456:40)
+    at renderRootSync (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9440:13)
+    at performWorkOnRoot (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9105:47)
+    at performWorkOnRootViaSchedulerTask (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10230:9)
+    at MessagePort.performWorkUntilDeadline (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:2647:64) The above error occurred in the <BranchDetailPage> component. It was handled by the <ErrorBoundaryHandler> error boundary. @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1342
+[ 5956672ms] [ERROR] Base UI: A component that acts as a button expected a native <button> because the `nativeButton` prop is true. Rendering a non-<button> removes native button semantics, which can impact forms and accessibility. Use a real <button> in the `render` prop, or set `nativeButton` to `false`.
+    at Button (http://localhost:3008/_next/static/chunks/_61974c5d._.js:67:214)
+    at Error (http://localhost:3008/_next/static/chunks/_61974c5d._.js:316:227)
+    at ErrorBoundaryHandler.render (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1086:55)
+    at ErrorBoundary (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1103:50)
+    at OuterLayoutRouter (http://localhost:3008/_next/static/chunks/node_modules_next_dist_be32b49c._.js:598:55) @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 5956672ms] [ERROR] App error: undefined Cannot read properties of undefined (reading 'orders') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 5956672ms] [ERROR] App error: undefined Cannot read properties of undefined (reading 'orders') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 5958339ms] [ERROR] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'orders')
+    at BranchDetailPage (http://localhost:3008/_next/static/chunks/_36d67297._.js:1248:61)
+    at Object.react_stack_bottom_frame (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:14826:24)
+    at renderWithHooks (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:4651:24)
+    at updateFunctionComponent (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6112:21)
+    at beginWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6708:24)
+    at runWithFiberInDEV (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
+    at performUnitOfWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9562:97)
+    at workLoopSync (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9456:40)
+    at renderRootSync (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9440:13)
+    at performWorkOnRoot (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9105:47)
+    at performWorkOnRootViaSchedulerTask (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10230:9)
+    at MessagePort.performWorkUntilDeadline (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:2647:64) The above error occurred in the <BranchDetailPage> component. It was handled by the <ErrorBoundaryHandler> error boundary. @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1342
+[ 5958340ms] [ERROR] App error: undefined Cannot read properties of undefined (reading 'orders') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 5958340ms] [ERROR] App error: undefined Cannot read properties of undefined (reading 'orders') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 6128276ms] [ERROR] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'orders')
+    at BranchDetailPage (http://localhost:3008/_next/static/chunks/_36d67297._.js:1248:61)
+    at Object.react_stack_bottom_frame (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:14826:24)
+    at renderWithHooks (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:4651:24)
+    at updateFunctionComponent (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6112:21)
+    at beginWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6708:24)
+    at runWithFiberInDEV (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
+    at performUnitOfWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9562:97)
+    at workLoopSync (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9456:40)
+    at renderRootSync (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9440:13)
+    at performWorkOnRoot (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9105:47)
+    at performWorkOnRootViaSchedulerTask (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10230:9)
+    at MessagePort.performWorkUntilDeadline (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:2647:64) The above error occurred in the <BranchDetailPage> component. It was handled by the <ErrorBoundaryHandler> error boundary. @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1342
+[ 6128278ms] [ERROR] App error: undefined Cannot read properties of undefined (reading 'orders') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 6128278ms] [ERROR] App error: undefined Cannot read properties of undefined (reading 'orders') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 6128885ms] [ERROR] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'orders')
+    at BranchDetailPage (http://localhost:3008/_next/static/chunks/_36d67297._.js:1248:61)
+    at Object.react_stack_bottom_frame (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:14826:24)
+    at renderWithHooks (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:4651:24)
+    at updateFunctionComponent (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6112:21)
+    at beginWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6708:24)
+    at runWithFiberInDEV (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
+    at performUnitOfWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9562:97)
+    at workLoopSync (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9456:40)
+    at renderRootSync (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9440:13)
+    at performWorkOnRoot (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9105:47)
+    at performWorkOnRootViaSchedulerTask (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10230:9)
+    at MessagePort.performWorkUntilDeadline (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:2647:64) The above error occurred in the <BranchDetailPage> component. It was handled by the <ErrorBoundaryHandler> error boundary. @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1342
+[ 6128886ms] [ERROR] App error: undefined Cannot read properties of undefined (reading 'orders') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 6128886ms] [ERROR] App error: undefined Cannot read properties of undefined (reading 'orders') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 6130464ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 6130474ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 6130573ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/branches/f6db5284-5aa3-4cdc-9a3c-53d498738386:0
+[ 6130582ms] [ERROR] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'orders')
+    at BranchDetailPage (http://localhost:3008/_next/static/chunks/_36d67297._.js:1248:61)
+    at Object.react_stack_bottom_frame (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:14826:24)
+    at renderWithHooks (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:4651:24)
+    at updateFunctionComponent (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6112:21)
+    at beginWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6708:24)
+    at runWithFiberInDEV (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
+    at performUnitOfWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9562:97)
+    at workLoopSync (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9456:40)
+    at renderRootSync (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9440:13)
+    at performWorkOnRoot (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9105:47)
+    at performWorkOnRootViaSchedulerTask (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10230:9)
+    at MessagePort.performWorkUntilDeadline (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:2647:64) The above error occurred in the <BranchDetailPage> component. It was handled by the <ErrorBoundaryHandler> error boundary. @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1342
+[ 6130583ms] [ERROR] Base UI: A component that acts as a button expected a native <button> because the `nativeButton` prop is true. Rendering a non-<button> removes native button semantics, which can impact forms and accessibility. Use a real <button> in the `render` prop, or set `nativeButton` to `false`.
+    at Button (http://localhost:3008/_next/static/chunks/_61974c5d._.js:67:214)
+    at Error (http://localhost:3008/_next/static/chunks/_61974c5d._.js:316:227)
+    at ErrorBoundaryHandler.render (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1086:55)
+    at ErrorBoundary (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1103:50)
+    at OuterLayoutRouter (http://localhost:3008/_next/static/chunks/node_modules_next_dist_be32b49c._.js:598:55) @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 6130583ms] [ERROR] App error: undefined Cannot read properties of undefined (reading 'orders') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 6130583ms] [ERROR] App error: undefined Cannot read properties of undefined (reading 'orders') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 6216134ms] [ERROR] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'orders')
+    at BranchDetailPage (http://localhost:3008/_next/static/chunks/_36d67297._.js:1248:61)
+    at Object.react_stack_bottom_frame (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:14826:24)
+    at renderWithHooks (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:4651:24)
+    at updateFunctionComponent (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6112:21)
+    at beginWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6708:24)
+    at runWithFiberInDEV (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
+    at performUnitOfWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9562:97)
+    at workLoopSync (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9456:40)
+    at renderRootSync (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9440:13)
+    at performWorkOnRoot (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9105:47)
+    at performWorkOnRootViaSchedulerTask (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10230:9)
+    at MessagePort.performWorkUntilDeadline (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:2647:64) The above error occurred in the <BranchDetailPage> component. It was handled by the <ErrorBoundaryHandler> error boundary. @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1342
+[ 6216135ms] [ERROR] App error: undefined Cannot read properties of undefined (reading 'orders') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 6216135ms] [ERROR] App error: undefined Cannot read properties of undefined (reading 'orders') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 6300591ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 6300965ms] [LOG] [Fast Refresh] done in 465ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 6415990ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 6416021ms] [LOG] [Fast Refresh] done in 134ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 6416273ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 6416287ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 6416344ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/branches/f6db5284-5aa3-4cdc-9a3c-53d498738386:0
+[ 6416395ms] [ERROR] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'length')
+    at BranchDetailPage (http://localhost:3008/_next/static/chunks/_36d67297._.js:2745:46)
+    at Object.react_stack_bottom_frame (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:14826:24)
+    at renderWithHooks (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:4651:24)
+    at updateFunctionComponent (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6112:21)
+    at beginWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6708:24)
+    at runWithFiberInDEV (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
+    at performUnitOfWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9562:97)
+    at workLoopSync (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9456:40)
+    at renderRootSync (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9440:13)
+    at performWorkOnRoot (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9105:47)
+    at performWorkOnRootViaSchedulerTask (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10230:9)
+    at MessagePort.performWorkUntilDeadline (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:2647:64) The above error occurred in the <BranchDetailPage> component. It was handled by the <ErrorBoundaryHandler> error boundary. @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1342
+[ 6416396ms] [ERROR] Base UI: A component that acts as a button expected a native <button> because the `nativeButton` prop is true. Rendering a non-<button> removes native button semantics, which can impact forms and accessibility. Use a real <button> in the `render` prop, or set `nativeButton` to `false`.
+    at Button (http://localhost:3008/_next/static/chunks/_61974c5d._.js:67:214)
+    at Error (http://localhost:3008/_next/static/chunks/_61974c5d._.js:316:227)
+    at ErrorBoundaryHandler.render (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1086:55)
+    at ErrorBoundary (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1103:50)
+    at OuterLayoutRouter (http://localhost:3008/_next/static/chunks/node_modules_next_dist_be32b49c._.js:598:55) @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 6416396ms] [ERROR] App error: undefined Cannot read properties of undefined (reading 'length') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 6416396ms] [ERROR] App error: undefined Cannot read properties of undefined (reading 'length') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 6973972ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 6974000ms] [LOG] [Fast Refresh] done in 130ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7049495ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7049592ms] [LOG] [Fast Refresh] done in 199ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7232659ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7232672ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7232734ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/branches/f6db5284-5aa3-4cdc-9a3c-53d498738386:0
+[ 7232772ms] [ERROR] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'length')
+    at BranchDetailPage (http://localhost:3008/_next/static/chunks/_36d67297._.js:2745:46)
+    at Object.react_stack_bottom_frame (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:14826:24)
+    at renderWithHooks (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:4651:24)
+    at updateFunctionComponent (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6112:21)
+    at beginWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6708:24)
+    at runWithFiberInDEV (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
+    at performUnitOfWork (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9562:97)
+    at workLoopSync (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9456:40)
+    at renderRootSync (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9440:13)
+    at performWorkOnRoot (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9105:47)
+    at performWorkOnRootViaSchedulerTask (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10230:9)
+    at MessagePort.performWorkUntilDeadline (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:2647:64) The above error occurred in the <BranchDetailPage> component. It was handled by the <ErrorBoundaryHandler> error boundary. @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1342
+[ 7232773ms] [ERROR] Base UI: A component that acts as a button expected a native <button> because the `nativeButton` prop is true. Rendering a non-<button> removes native button semantics, which can impact forms and accessibility. Use a real <button> in the `render` prop, or set `nativeButton` to `false`.
+    at Button (http://localhost:3008/_next/static/chunks/_61974c5d._.js:67:214)
+    at Error (http://localhost:3008/_next/static/chunks/_61974c5d._.js:316:227)
+    at ErrorBoundaryHandler.render (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1086:55)
+    at ErrorBoundary (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1103:50)
+    at OuterLayoutRouter (http://localhost:3008/_next/static/chunks/node_modules_next_dist_be32b49c._.js:598:55) @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 7232773ms] [ERROR] App error: undefined Cannot read properties of undefined (reading 'length') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 7232773ms] [ERROR] App error: undefined Cannot read properties of undefined (reading 'length') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 7234144ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/branches:0
+[ 7236038ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7236049ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7236110ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/branches:0
+[ 7238134ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7238146ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7238297ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/dashboard:0
+[ 7239830ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7239840ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7239901ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/attendance/clock:0
+[ 7242725ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7242738ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7242820ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/whatsapp-templates:0
+[ 7244195ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7244206ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7244274ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/website:0
+[ 7250514ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7250524ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7250608ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/billing:0
+[ 7250675ms] [LOG] Please add `data-client-key` attribute in the script tag <script type="text/javascript" src="...snap.js" data-client-key="CLIENT-KEY"></script>, Otherwise custom UI confirguration will not take effect @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7250852ms] [ERROR] Executing inline script violates the following Content Security Policy directive 'script-src 'self' https://snap-assets.sandbox.midtrans.com https://api.sandbox.midtrans.com https://pay.google.com https://gwk.gopayapi.com/sdk/stable/gp-container.min.js https://www.googletagmanager.com'. Either the 'unsafe-inline' keyword, a hash ('sha256-DueWcbxgRVJl6J5x2OBGlMjJ0RI9aTrwDoqaA4GHDhs='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked. @ https://app.sandbox.midtrans.com/snap/v4/popup?origin_host=http://localhost:3008#/:0
+[ 7266567ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:8099/api/billing/checkout:0
+[ 7267958ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:8099/api/billing/checkout:0
+[ 7268522ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:8099/api/billing/checkout:0
+[ 7268801ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:8099/api/billing/checkout:0
+[ 7269032ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:8099/api/billing/checkout:0
+[ 7269269ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:8099/api/billing/checkout:0
+[ 7270613ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7270624ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7270765ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/dashboard:0
+[ 7274616ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7274626ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7274700ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/dashboard:0
+[ 7276216ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7276226ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7276313ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:3008/dashboard:0
+[ 7336291ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 7396289ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 7456291ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:8099/api/auth/session-version:0
+[ 7518371ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7518383ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7522407ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7522422ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7522537ms] [ERROR] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <div data-slot="sidebar-wr..." style={{...}} className="group/side...">
+      ...
+        <div data-slot="sidebar-fo..." data-sidebar="footer" className="flex flex-...">
+          <div className="flex items...">
+            <LanguageToggle>
+              <DropdownMenu>
+                <MenuRoot data-slot="dropdown-menu">
+                  <FloatingTree externalTree={{nodesRef:{...}, ...}}>
+                    <DropdownMenuTrigger render={<Button>}>
+                      <MenuTrigger data-slot="dropdown-m..." render={<Button>}>
+                        <Button variant="ghost" size="sm" className="h-8 gap-1...." onClick={function} ...>
+                          <Button data-slot="dropdown-m..." className={"group/bu..."} disabled={false} onClick={function} ...>
+                            <button
+                              type="button"
+                              onClick={function}
+                              onMouseDown={function}
+                              onKeyDown={function}
+                              onKeyUp={function}
+                              onPointerDown={function}
+                              tabIndex={0}
+                              disabled={false}
+                              data-slot="dropdown-menu-trigger"
+                              aria-haspopup="menu"
+                              aria-controls={undefined}
++                             id="base-ui-_R_3f6bn5rlb_"
+-                             id="base-ui-_R_dsqbn5rlb_"
+                              ref={function}
+                              className={"group/button inline-flex shrink-0 items-center justify-center border border..."}
+                            >
+                    ...
+            ...
+      <SidebarInset>
+        <main data-slot="sidebar-inset" className="relative f...">
+          <SuperAdminHeader>
+            <header className="sticky top...">
+              <SidebarTrigger>
+              <Separator>
+              <nav>
+              <div>
+              <ThemeToggle>
+              <DropdownMenu>
+                <MenuRoot data-slot="dropdown-menu">
+                  <FloatingTree externalTree={{nodesRef:{...}, ...}}>
+                    <DropdownMenuTrigger render={<Button>}>
+                      <MenuTrigger data-slot="dropdown-m..." render={<Button>}>
+                        <Button variant="ghost" size="sm" className="h-9 gap-2 ..." onClick={function} ...>
+                          <Button data-slot="dropdown-m..." className={"group/bu..."} disabled={false} onClick={function} ...>
+                            <button
+                              type="button"
+                              onClick={function}
+                              onMouseDown={function}
+                              onKeyDown={function}
+                              onKeyUp={function}
+                              onPointerDown={function}
+                              tabIndex={0}
+                              disabled={false}
+                              data-slot="dropdown-menu-trigger"
+                              aria-haspopup="menu"
+                              aria-controls={undefined}
++                             id="base-ui-_R_1sqbn5rlb_"
+-                             id="base-ui-_R_7jabn5rlb_"
+                              ref={function}
+                              className={"group/button inline-flex shrink-0 items-center justify-center border border..."}
+                            >
+                    ...
+          ...
+ @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 7522556ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:8099/api/super-admin/stats:0
+[ 7526663ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3008/super-admin/performance:0
+[ 7526712ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7526727ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7526816ms] [ERROR] %o
+
+%s TypeError: Cannot read properties of null (reading 'reduce')
+    at PerformancePage (about://React/Server/file:///Users/nicholasandriansurjadi/Documents/hivepos-web/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__95913e8f._.js?22:1484:30)
+    at resolveErrorDev (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:1894:148)
+    at processFullStringRow (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2402:29)
+    at processFullBinaryRow (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2361:9)
+    at processBinaryChunk (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2470:221)
+    at progress (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2640:13) The above error occurred in the <PerformancePage> component. It was handled by the <ErrorBoundaryHandler> error boundary. @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1342
+[ 7526817ms] [ERROR] Base UI: A component that acts as a button expected a native <button> because the `nativeButton` prop is true. Rendering a non-<button> removes native button semantics, which can impact forms and accessibility. Use a real <button> in the `render` prop, or set `nativeButton` to `false`.
+    at Button (http://localhost:3008/_next/static/chunks/_61974c5d._.js:67:214)
+    at Error (http://localhost:3008/_next/static/chunks/_61974c5d._.js:316:227)
+    at ErrorBoundaryHandler.render (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1086:55)
+    at ErrorBoundary (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1103:50)
+    at OuterLayoutRouter (http://localhost:3008/_next/static/chunks/node_modules_next_dist_be32b49c._.js:598:55) @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 7526818ms] [ERROR] App error: 1659821136 Cannot read properties of null (reading 'reduce') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 7528394ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7528408ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7528480ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:8099/api/super-admin/stats:0
+[ 7529424ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7529961ms] [LOG] [Fast Refresh] done in 638ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7530062ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7530101ms] [LOG] [Fast Refresh] done in 139ms @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7530184ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7530196ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7532414ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3008/super-admin/pickup-insights:0
+[ 7532461ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7532474ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7532545ms] [ERROR] %o
+
+%s TypeError: Cannot read properties of null (reading 'totalRejected')
+    at PickupInsightsPage (about://React/Server/file:///Users/nicholasandriansurjadi/Documents/hivepos-web/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__9ee57ef2._.js?22:1308:48)
+    at resolveErrorDev (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:1894:148)
+    at processFullStringRow (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2402:29)
+    at processFullBinaryRow (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2361:9)
+    at processBinaryChunk (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2470:221)
+    at progress (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2640:13) The above error occurred in the <PickupInsightsPage> component. It was handled by the <ErrorBoundaryHandler> error boundary. @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1342
+[ 7532546ms] [ERROR] Base UI: A component that acts as a button expected a native <button> because the `nativeButton` prop is true. Rendering a non-<button> removes native button semantics, which can impact forms and accessibility. Use a real <button> in the `render` prop, or set `nativeButton` to `false`.
+    at Button (http://localhost:3008/_next/static/chunks/_61974c5d._.js:67:214)
+    at Error (http://localhost:3008/_next/static/chunks/_61974c5d._.js:316:227)
+    at ErrorBoundaryHandler.render (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1086:55)
+    at ErrorBoundary (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1103:50)
+    at OuterLayoutRouter (http://localhost:3008/_next/static/chunks/node_modules_next_dist_be32b49c._.js:598:55) @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 7532546ms] [ERROR] App error: 497774915 Cannot read properties of null (reading 'totalRejected') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 7535762ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7535779ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7535853ms] [ERROR] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <div data-slot="sidebar-wr..." style={{...}} className="group/side...">
+      ...
+        <div data-slot="sidebar-fo..." data-sidebar="footer" className="flex flex-...">
+          <div className="flex items...">
+            <LanguageToggle>
+              <DropdownMenu>
+                <MenuRoot data-slot="dropdown-menu">
+                  <FloatingTree externalTree={{nodesRef:{...}, ...}}>
+                    <DropdownMenuTrigger render={<Button>}>
+                      <MenuTrigger data-slot="dropdown-m..." render={<Button>}>
+                        <Button variant="ghost" size="sm" className="h-8 gap-1...." onClick={function} ...>
+                          <Button data-slot="dropdown-m..." className={"group/bu..."} disabled={false} onClick={function} ...>
+                            <button
+                              type="button"
+                              onClick={function}
+                              onMouseDown={function}
+                              onKeyDown={function}
+                              onKeyUp={function}
+                              onPointerDown={function}
+                              tabIndex={0}
+                              disabled={false}
+                              data-slot="dropdown-menu-trigger"
+                              aria-haspopup="menu"
+                              aria-controls={undefined}
++                             id="base-ui-_R_3f6bn5rlb_"
+-                             id="base-ui-_R_dsqbn5rlb_"
+                              ref={function}
+                              className={"group/button inline-flex shrink-0 items-center justify-center border border..."}
+                            >
+                    ...
+            ...
+      <SidebarInset>
+        <main data-slot="sidebar-inset" className="relative f...">
+          <SuperAdminHeader>
+            <header className="sticky top...">
+              <SidebarTrigger>
+              <Separator>
+              <nav>
+              <div>
+              <ThemeToggle>
+              <DropdownMenu>
+                <MenuRoot data-slot="dropdown-menu">
+                  <FloatingTree externalTree={{nodesRef:{...}, ...}}>
+                    <DropdownMenuTrigger render={<Button>}>
+                      <MenuTrigger data-slot="dropdown-m..." render={<Button>}>
+                        <Button variant="ghost" size="sm" className="h-9 gap-2 ..." onClick={function} ...>
+                          <Button data-slot="dropdown-m..." className={"group/bu..."} disabled={false} onClick={function} ...>
+                            <button
+                              type="button"
+                              onClick={function}
+                              onMouseDown={function}
+                              onKeyDown={function}
+                              onKeyUp={function}
+                              onPointerDown={function}
+                              tabIndex={0}
+                              disabled={false}
+                              data-slot="dropdown-menu-trigger"
+                              aria-haspopup="menu"
+                              aria-controls={undefined}
++                             id="base-ui-_R_1sqbn5rlb_"
+-                             id="base-ui-_R_7jabn5rlb_"
+                              ref={function}
+                              className={"group/button inline-flex shrink-0 items-center justify-center border border..."}
+                            >
+                    ...
+          ...
+ @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 7536882ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3008/super-admin/peripherals:0
+[ 7536935ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7536949ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7537029ms] [ERROR] %o
+
+%s TypeError: Cannot read properties of null (reading 'total')
+    at PeripheralsPage (about://React/Server/file:///Users/nicholasandriansurjadi/Documents/hivepos-web/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__bc891ae0._.js?20:1779:38)
+    at resolveErrorDev (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:1894:148)
+    at processFullStringRow (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2402:29)
+    at processFullBinaryRow (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2361:9)
+    at processBinaryChunk (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2470:221)
+    at progress (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2640:13) The above error occurred in the <PeripheralsPage> component. It was handled by the <ErrorBoundaryHandler> error boundary. @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1342
+[ 7537030ms] [ERROR] Base UI: A component that acts as a button expected a native <button> because the `nativeButton` prop is true. Rendering a non-<button> removes native button semantics, which can impact forms and accessibility. Use a real <button> in the `render` prop, or set `nativeButton` to `false`.
+    at Button (http://localhost:3008/_next/static/chunks/_61974c5d._.js:67:214)
+    at Error (http://localhost:3008/_next/static/chunks/_61974c5d._.js:316:227)
+    at ErrorBoundaryHandler.render (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1086:55)
+    at ErrorBoundary (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1103:50)
+    at OuterLayoutRouter (http://localhost:3008/_next/static/chunks/node_modules_next_dist_be32b49c._.js:598:55) @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 7537030ms] [ERROR] App error: 3374762777 Cannot read properties of null (reading 'total') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 7538976ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7538993ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7540030ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3008/super-admin/performance:0
+[ 7540084ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7540097ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7540172ms] [ERROR] %o
+
+%s TypeError: Cannot read properties of null (reading 'reduce')
+    at PerformancePage (about://React/Server/file:///Users/nicholasandriansurjadi/Documents/hivepos-web/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__95913e8f._.js?22:1484:30)
+    at resolveErrorDev (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:1894:148)
+    at processFullStringRow (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2402:29)
+    at processFullBinaryRow (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2361:9)
+    at processBinaryChunk (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2470:221)
+    at progress (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2640:13) The above error occurred in the <PerformancePage> component. It was handled by the <ErrorBoundaryHandler> error boundary. @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1342
+[ 7540176ms] [ERROR] Base UI: A component that acts as a button expected a native <button> because the `nativeButton` prop is true. Rendering a non-<button> removes native button semantics, which can impact forms and accessibility. Use a real <button> in the `render` prop, or set `nativeButton` to `false`.
+    at Button (http://localhost:3008/_next/static/chunks/_61974c5d._.js:67:214)
+    at Error (http://localhost:3008/_next/static/chunks/_61974c5d._.js:316:227)
+    at ErrorBoundaryHandler.render (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1086:55)
+    at ErrorBoundary (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1103:50)
+    at OuterLayoutRouter (http://localhost:3008/_next/static/chunks/node_modules_next_dist_be32b49c._.js:598:55) @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 7540176ms] [ERROR] App error: 1659821136 Cannot read properties of null (reading 'reduce') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 7541486ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7541498ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7638156ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3008/super-admin/peripherals:0
+[ 7638221ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7638238ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7638334ms] [ERROR] %o
+
+%s TypeError: Cannot read properties of null (reading 'total')
+    at PeripheralsPage (about://React/Server/file:///Users/nicholasandriansurjadi/Documents/hivepos-web/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__bc891ae0._.js?20:1779:38)
+    at resolveErrorDev (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:1894:148)
+    at processFullStringRow (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2402:29)
+    at processFullBinaryRow (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2361:9)
+    at processBinaryChunk (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2470:221)
+    at progress (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2640:13) The above error occurred in the <PeripheralsPage> component. It was handled by the <ErrorBoundaryHandler> error boundary. @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1342
+[ 7638338ms] [ERROR] Base UI: A component that acts as a button expected a native <button> because the `nativeButton` prop is true. Rendering a non-<button> removes native button semantics, which can impact forms and accessibility. Use a real <button> in the `render` prop, or set `nativeButton` to `false`.
+    at Button (http://localhost:3008/_next/static/chunks/_61974c5d._.js:67:214)
+    at Error (http://localhost:3008/_next/static/chunks/_61974c5d._.js:316:227)
+    at ErrorBoundaryHandler.render (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1086:55)
+    at ErrorBoundary (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1103:50)
+    at OuterLayoutRouter (http://localhost:3008/_next/static/chunks/node_modules_next_dist_be32b49c._.js:598:55) @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 7638338ms] [ERROR] App error: 3374762777 Cannot read properties of null (reading 'total') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 7639862ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7639876ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7640967ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3008/super-admin/billing:0
+[ 7641011ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7641027ms] [LOG] [HMR] connected @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[ 7641108ms] [ERROR] %o
+
+%s TypeError: Cannot read properties of null (reading 'mrr')
+    at SuperAdminBillingPage (about://React/Server/file:///Users/nicholasandriansurjadi/Documents/hivepos-web/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__77442774._.js?22:1746:174)
+    at resolveErrorDev (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:1894:148)
+    at processFullStringRow (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2402:29)
+    at processFullBinaryRow (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2361:9)
+    at processBinaryChunk (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2470:221)
+    at progress (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2640:13) The above error occurred in the <SuperAdminBillingPage> component. It was handled by the <ErrorBoundaryHandler> error boundary. @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1342
+[ 7641112ms] [ERROR] Base UI: A component that acts as a button expected a native <button> because the `nativeButton` prop is true. Rendering a non-<button> removes native button semantics, which can impact forms and accessibility. Use a real <button> in the `render` prop, or set `nativeButton` to `false`.
+    at Button (http://localhost:3008/_next/static/chunks/_61974c5d._.js:67:214)
+    at Error (http://localhost:3008/_next/static/chunks/_61974c5d._.js:316:227)
+    at ErrorBoundaryHandler.render (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1086:55)
+    at ErrorBoundary (http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1103:50)
+    at OuterLayoutRouter (http://localhost:3008/_next/static/chunks/node_modules_next_dist_be32b49c._.js:598:55) @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 7641112ms] [ERROR] App error: 3373272283 Cannot read properties of null (reading 'mrr') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 7642345ms] [ERROR] %o
+
+%s TypeError: Cannot read properties of null (reading 'mrr')
+    at SuperAdminBillingPage (about://React/Server/file:///Users/nicholasandriansurjadi/Documents/hivepos-web/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__77442774._.js?22:1746:174)
+    at resolveErrorDev (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:1894:148)
+    at processFullStringRow (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2402:29)
+    at processFullBinaryRow (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2361:9)
+    at processBinaryChunk (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2470:221)
+    at progress (http://localhost:3008/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_9212ccad._.js:2640:13) The above error occurred in the <SuperAdminBillingPage> component. It was handled by the <ErrorBoundaryHandler> error boundary. @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1342
+[ 7642346ms] [ERROR] App error: 3373272283 Cannot read properties of null (reading 'mrr') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 7642346ms] [ERROR] App error: 3373272283 Cannot read properties of null (reading 'mrr') @ http://localhost:3008/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127

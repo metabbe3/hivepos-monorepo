@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/hivepos/api/internal/modules/inventory/application"
 	"github.com/hivepos/api/internal/modules/inventory/domain"
@@ -78,8 +79,11 @@ func (r *PgStockItemRepository) List(ctx context.Context, tenantID string, filte
 	query := fmt.Sprintf(`
 		SELECT %s
 		FROM "StockItem" s JOIN "Branch" b ON b.id = s."branchId"
-		%s ORDER BY s."createdAt" DESC LIMIT $%d OFFSET $%d`, stockItemColumns, where, idx, idx+1)
-	args = append(args, filter.Limit, offset)
+		%s ORDER BY s."createdAt" DESC`, stockItemColumns, where)
+	if !filter.All {
+		query += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, idx, idx+1)
+		args = append(args, filter.Limit, offset)
+	}
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -150,6 +154,17 @@ func (r *PgStockItemRepository) AddMovement(ctx context.Context, stockItemID, te
 	if input.Type == domain.MovementOut {
 		delta = -input.Quantity
 	}
+	// OUT guard: block if the movement would drive quantity negative. Re-fetch inside the tx
+	// (FOR UPDATE) so concurrent movements can't both pass the check.
+	if input.Type == domain.MovementOut {
+		var current float64
+		if err := tx.QueryRowContext(ctx, `SELECT "currentQuantity"::float FROM "StockItem" WHERE id = $1 FOR UPDATE`, stockItemID).Scan(&current); err != nil {
+			return nil, fmt.Errorf("locking stock item: %w", err)
+		}
+		if current-input.Quantity < -1e-9 {
+			return nil, fmt.Errorf("insufficient stock: have %.2f, need %.2f", current, input.Quantity)
+		}
+	}
 	_, err = tx.ExecContext(ctx, `UPDATE "StockItem" SET "currentQuantity" = "currentQuantity" + $1, "updatedAt" = NOW() WHERE id = $2`, delta, stockItemID)
 	if err != nil {
 		return nil, fmt.Errorf("updating stock quantity: %w", err)
@@ -160,10 +175,19 @@ func (r *PgStockItemRepository) AddMovement(ctx context.Context, stockItemID, te
 	if input.Notes != nil {
 		notesVal = input.Notes
 	}
+	// Honor a caller-supplied movement date (backdating); default to NOW().
+	var dateVal interface{}
+	if input.Date != nil && *input.Date != "" {
+		if t, perr := time.Parse("2006-01-02", *input.Date); perr == nil {
+			dateVal = t
+		} else if t, perr := time.Parse(time.RFC3339, *input.Date); perr == nil {
+			dateVal = t
+		}
+	}
 	err = tx.QueryRowContext(ctx, `
 		INSERT INTO "StockMovement" ("stockItemId", type, quantity, date, notes, "createdAt")
-		VALUES ($1, $2, $3, NOW(), $4, NOW()) RETURNING id, date, "createdAt"`,
-		stockItemID, input.Type, input.Quantity, notesVal).Scan(&m.ID, &m.Date, &m.CreatedAt)
+		VALUES ($1, $2, $3, COALESCE($4, NOW()), $5, NOW()) RETURNING id, date, "createdAt"`,
+		stockItemID, input.Type, input.Quantity, dateVal, notesVal).Scan(&m.ID, &m.Date, &m.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("inserting stock movement: %w", err)
 	}

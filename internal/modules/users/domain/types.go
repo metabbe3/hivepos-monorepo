@@ -28,7 +28,7 @@ type Role struct {
 	Description *string   `json:"description,omitempty"`
 	IsSystem    bool      `json:"isSystem"`
 	Color       *string   `json:"color,omitempty"`
-	Permissions string    `json:"permissions"` // JSON string of permission array
+	Permissions []string  `json:"permissions"` // stored as _text array; serialized as JSON array
 	TenantID    string    `json:"tenantId"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`

@@ -1,0 +1,45 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - generic [ref=f1e5]:
+      - generic [ref=f1e7]:
+        - img [ref=f1e9]
+        - generic [ref=f1e11]:
+          - generic [ref=f1e12]: hivePOS
+          - generic [ref=f1e14]:
+            - generic [ref=f1e15]: 🧺
+            - generic [ref=f1e16]: Laundry
+      - generic [ref=f1e17]:
+        - generic [ref=f1e18]:
+          - generic [ref=f1e19]: General
+          - generic:
+            - list
+        - list [ref=f1e22]:
+          - listitem [ref=f1e23]:
+            - link "Help" [ref=f1e24] [cursor=pointer]:
+              - /url: /tickets
+              - img [ref=f1e25]
+              - generic [ref=f1e32]: Help
+      - generic [ref=f1e34]:
+        - button "EN" [ref=f1e35]:
+          - img
+          - generic [ref=f1e36]: EN
+        - button "Switch to dark mode" [ref=f1e37]:
+          - img
+    - main [ref=f1e38]:
+      - generic [ref=f1e39]:
+        - button "Toggle Sidebar" [ref=f1e40]:
+          - img
+          - generic [ref=f1e41]: Toggle Sidebar
+        - separator
+        - generic [ref=f1e42]: Dashboard
+        - button [ref=f1e43]:
+          - img
+        - button "User Staff" [ref=f1e44]:
+          - generic [ref=f1e45]:
+            - img
+          - generic [ref=f1e46]: User
+          - generic [ref=f1e47]: Staff
+      - main [ref=f1e48]
+  - button "Open Next.js Dev Tools" [ref=f1e54] [cursor=pointer]:
+    - img [ref=f1e55]
+  - alert [ref=f1e58]

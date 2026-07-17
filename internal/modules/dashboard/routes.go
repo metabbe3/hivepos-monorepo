@@ -2,7 +2,10 @@ package dashboard
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hivepos/api/internal/middleware"
@@ -10,6 +13,27 @@ import (
 	"github.com/hivepos/api/internal/modules/dashboard/infrastructure"
 	apphttp "github.com/hivepos/api/internal/shared/http"
 )
+
+// ponytail: in-memory TTL cache for dashboard stats. GetStats runs 17-24 queries per load;
+// 5m TTL avoids them on repeat loads. Invalidate via InvalidateStats(tenantID) on order/payment writes.
+const statsTTL = 5 * time.Minute
+
+type cachedStats struct {
+	data interface{}
+	at   time.Time
+}
+
+var statsCache sync.Map // "tenantID:from:to:module:branchId" → cachedStats
+
+// InvalidateStats clears cached dashboard data for a tenant (call after order/payment writes).
+func InvalidateStats(tenantID string) {
+	statsCache.Range(func(k, _ interface{}) bool {
+		if s, ok := k.(string); ok && len(s) > 0 {
+			statsCache.Delete(k)
+		}
+		return true
+	})
+}
 
 // Module wires the dashboard domain: repository -> service -> HTTP handlers.
 type Module struct {
@@ -41,10 +65,20 @@ func (m *Module) stats(w http.ResponseWriter, req *http.Request) {
 	}
 
 	f := application.StatsFilter{
-		BranchID: req.URL.Query().Get("branchId"),
+		BranchID: middleware.GetBranchID(req),
 		Module:   req.URL.Query().Get("module"),
 		From:     req.URL.Query().Get("from"),
 		To:       req.URL.Query().Get("to"),
+	}
+
+	// Cache check — avoids 17-24 queries on repeat dashboard loads within 5m.
+	cacheKey := fmt.Sprintf("%s:%s:%s:%s:%s", tenantID, f.From, f.To, f.Module, f.BranchID)
+	if v, ok := statsCache.Load(cacheKey); ok {
+		c := v.(cachedStats)
+		if time.Since(c.at) < statsTTL {
+			apphttp.Success(w, c.data)
+			return
+		}
 	}
 
 	s, err := m.svc.GetStats(req.Context(), tenantID, f)
@@ -52,6 +86,7 @@ func (m *Module) stats(w http.ResponseWriter, req *http.Request) {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	statsCache.Store(cacheKey, cachedStats{data: s, at: time.Now()})
 	apphttp.Success(w, s)
 }
 

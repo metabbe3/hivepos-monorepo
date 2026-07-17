@@ -11,6 +11,7 @@ import (
 	"github.com/hivepos/api/internal/modules/pickup/application"
 	"github.com/hivepos/api/internal/modules/pickup/infrastructure"
 	apphttp "github.com/hivepos/api/internal/shared/http"
+	"github.com/hivepos/api/internal/shared/pagination"
 )
 
 // Module wires the pickup domain: repository -> service -> HTTP handlers.
@@ -53,17 +54,15 @@ func (m *Module) list(w http.ResponseWriter, req *http.Request) {
 	if l, err := strconv.Atoi(req.URL.Query().Get("limit")); err == nil {
 		f.Limit = l
 	}
+	f.Page, f.Limit, _ = pagination.Normalize(f.Page, f.Limit)
 
 	list, total, err := m.svc.List(req.Context(), tenantID, f)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list, map[string]interface{}{
-		"total": total,
-		"page":  f.Page,
-		"limit": f.Limit,
-	})
+	// TS /api/pickup-requests meta = { total, page, totalPages } (no limit).
+	apphttp.Success(w, list, pagination.MetaNoLimit(int(total), f.Page, f.Limit))
 }
 
 func (m *Module) create(w http.ResponseWriter, req *http.Request) {

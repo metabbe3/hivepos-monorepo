@@ -1,22 +1,15 @@
+// Package rbac holds the permission catalog, mirroring pos-saas
+// lib/permissions/definitions.ts so Go enforces the same resource:action strings.
+// Re-added (it was cut as dead in the ponytail pass) because the HTTP layer now
+// consumes it via middleware.RequireResource.
 package rbac
 
-// RBAC constants mirroring lib/permissions/definitions.ts.
-// Resources + actions are strings in the form "resource:action".
+import "net/http"
 
 type Resource string
 type Action string
 
-const (
-	// Actions
-	Read    Action = "read"
-	Create  Action = "create"
-	Edit    Action = "edit"
-	Delete  Action = "delete"
-	Export  Action = "export"
-	Discount Action = "discount"
-)
-
-// Resources matching the TS RESOURCES array.
+// Resources — must match RESOURCES in pos-saas lib/permissions/definitions.ts.
 const (
 	Dashboard      Resource = "dashboard"
 	Orders         Resource = "orders"
@@ -31,17 +24,33 @@ const (
 	Roles          Resource = "roles"
 	Billing        Resource = "billing"
 	PickupRequests Resource = "pickupRequests"
-	Attendance      Resource = "attendance"
+	Attendance     Resource = "attendance"
 )
 
-// HasPermission checks if the given permissions list grants a specific resource:action.
-// Super-admin bypass + wildcard "*" are handled by the middleware layer.
-func HasPermission(perms []string, resource Resource, action Action) bool {
-	target := string(resource) + ":" + string(action)
-	for _, p := range perms {
-		if p == "*" || p == target {
-			return true
-		}
+// Actions — must match ACTIONS in pos-saas.
+const (
+	Read     Action = "read"
+	Create   Action = "create"
+	Edit     Action = "edit"
+	Delete   Action = "delete"
+	Export   Action = "export"
+	Discount Action = "discount"
+)
+
+// ActionForMethod maps an HTTP method to the default RBAC action. Endpoint-
+// specific actions (export, discount) need a per-route override; the CRUD default
+// covers list/get/create/edit/delete.
+func ActionForMethod(method string) Action {
+	switch method {
+	case http.MethodGet, http.MethodHead:
+		return Read
+	case http.MethodPost:
+		return Create
+	case http.MethodPatch, http.MethodPut:
+		return Edit
+	case http.MethodDelete:
+		return Delete
+	default:
+		return Read
 	}
-	return false
 }

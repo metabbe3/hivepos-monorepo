@@ -18,17 +18,17 @@ type ReportFilter struct {
 type Repository interface {
 	GetOrdersReport(ctx context.Context, tenantID string, filter ReportFilter) (*domain.OrdersReport, error)
 	GetRevenueReport(ctx context.Context, tenantID string, filter ReportFilter) (*domain.RevenueReport, error)
-	GetServicesReport(ctx context.Context, tenantID string, filter ReportFilter) ([]domain.ServiceUsage, error)
+	GetServicesReport(ctx context.Context, tenantID string, filter ReportFilter) (*domain.ServicesReport, error)
 	GetCustomersReport(ctx context.Context, tenantID string, filter ReportFilter) (*domain.CustomersReport, error)
 	GetExpensesReport(ctx context.Context, tenantID string, filter ReportFilter) (*domain.ExpensesReport, error)
-	GetMonthlyPnL(ctx context.Context, tenantID string) ([]domain.MonthlyPnL, error)
+	GetMonthlyPnL(ctx context.Context, tenantID string, month, year int) (*domain.MonthlyPnL, error)
 	GetProfitReport(ctx context.Context, tenantID string, filter ReportFilter) (*domain.ProfitReport, error)
 	GetOutstandingReport(ctx context.Context, tenantID string, filter ReportFilter) (*domain.OutstandingReport, error)
-	GetPaymentCollection(ctx context.Context, tenantID string) ([]domain.PaymentCollection, error)
-	GetCommissionReport(ctx context.Context, tenantID string, filter ReportFilter) ([]domain.CommissionRow, error)
+	GetPaymentCollection(ctx context.Context, tenantID string) (*domain.PaymentCollection, error)
+	GetCommissionReport(ctx context.Context, tenantID string, filter ReportFilter) (*domain.CommissionReport, error)
 	GetAttendanceReport(ctx context.Context, tenantID string, filter ReportFilter) ([]domain.AttendanceRow, error)
-	GetInventoryReport(ctx context.Context, tenantID string) ([]domain.InventoryItem, error)
-	GetPiutangReport(ctx context.Context, tenantID string, filter ReportFilter) ([]domain.PiutangRow, error)
+	GetInventoryReport(ctx context.Context, tenantID string) (*domain.InventoryReport, error)
+	GetPiutangReport(ctx context.Context, tenantID string, filter ReportFilter) (*domain.PiutangReport, error)
 	GetFinancialStatement(ctx context.Context, tenantID string, filter ReportFilter) (*domain.FinancialStatement, error)
 }
 
@@ -57,7 +57,7 @@ func (s *Service) Revenue(ctx context.Context, tenantID string, f ReportFilter) 
 	return r, nil
 }
 
-func (s *Service) Services(ctx context.Context, tenantID string, f ReportFilter) ([]domain.ServiceUsage, error) {
+func (s *Service) Services(ctx context.Context, tenantID string, f ReportFilter) (*domain.ServicesReport, error) {
 	r, err := s.Repo.GetServicesReport(ctx, tenantID, f)
 	if err != nil {
 		return nil, fmt.Errorf("services report: %w", err)
@@ -81,8 +81,8 @@ func (s *Service) Expenses(ctx context.Context, tenantID string, f ReportFilter)
 	return r, nil
 }
 
-func (s *Service) MonthlyPnL(ctx context.Context, tenantID string) ([]domain.MonthlyPnL, error) {
-	r, err := s.Repo.GetMonthlyPnL(ctx, tenantID)
+func (s *Service) MonthlyPnL(ctx context.Context, tenantID string, month, year int) (*domain.MonthlyPnL, error) {
+	r, err := s.Repo.GetMonthlyPnL(ctx, tenantID, month, year)
 	if err != nil {
 		return nil, fmt.Errorf("monthly pnl: %w", err)
 	}
@@ -105,7 +105,7 @@ func (s *Service) Outstanding(ctx context.Context, tenantID string, f ReportFilt
 	return r, nil
 }
 
-func (s *Service) PaymentCollection(ctx context.Context, tenantID string) ([]domain.PaymentCollection, error) {
+func (s *Service) PaymentCollection(ctx context.Context, tenantID string) (*domain.PaymentCollection, error) {
 	r, err := s.Repo.GetPaymentCollection(ctx, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("payment collection: %w", err)
@@ -113,7 +113,7 @@ func (s *Service) PaymentCollection(ctx context.Context, tenantID string) ([]dom
 	return r, nil
 }
 
-func (s *Service) Commission(ctx context.Context, tenantID string, f ReportFilter) ([]domain.CommissionRow, error) {
+func (s *Service) Commission(ctx context.Context, tenantID string, f ReportFilter) (*domain.CommissionReport, error) {
 	r, err := s.Repo.GetCommissionReport(ctx, tenantID, f)
 	if err != nil {
 		return nil, fmt.Errorf("commission report: %w", err)
@@ -129,7 +129,7 @@ func (s *Service) Attendance(ctx context.Context, tenantID string, f ReportFilte
 	return r, nil
 }
 
-func (s *Service) Inventory(ctx context.Context, tenantID string) ([]domain.InventoryItem, error) {
+func (s *Service) Inventory(ctx context.Context, tenantID string) (*domain.InventoryReport, error) {
 	r, err := s.Repo.GetInventoryReport(ctx, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("inventory report: %w", err)
@@ -137,7 +137,7 @@ func (s *Service) Inventory(ctx context.Context, tenantID string) ([]domain.Inve
 	return r, nil
 }
 
-func (s *Service) Piutang(ctx context.Context, tenantID string, f ReportFilter) ([]domain.PiutangRow, error) {
+func (s *Service) Piutang(ctx context.Context, tenantID string, f ReportFilter) (*domain.PiutangReport, error) {
 	r, err := s.Repo.GetPiutangReport(ctx, tenantID, f)
 	if err != nil {
 		return nil, fmt.Errorf("piutang report: %w", err)

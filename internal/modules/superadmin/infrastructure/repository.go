@@ -5,10 +5,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
+	"sort"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/hivepos/api/internal/auth"
 	"github.com/hivepos/api/internal/modules/superadmin/application"
 	"github.com/hivepos/api/internal/modules/superadmin/domain"
 )
@@ -55,9 +58,15 @@ func (r *PgSuperAdminRepository) GetBillingOverview(ctx context.Context) (*domai
 			COALESCE(SUM(amount) FILTER (WHERE status = 'PAID'), 0)::float,
 			COUNT(*) FILTER (WHERE status = 'PENDING'),
 			COALESCE(SUM(amount) FILTER (WHERE status = 'REFUNDED'), 0)::float,
-			COALESCE(SUM(amount) FILTER (WHERE status = 'PAID' AND "createdAt" >= date_trunc('month', NOW())), 0)::float
-		FROM "SaaSPayment"`).Scan(&o.TotalRevenue, &o.PendingPayments, &o.RefundedTotal, &o.PaidThisMonth)
+			COALESCE(SUM(amount) FILTER (WHERE status = 'PAID' AND "createdAt" >= date_trunc('month', NOW())), 0)::float,
+			COUNT(DISTINCT "tenantId") FILTER (WHERE status = 'PAID'),
+			COALESCE(SUM("outletCount") FILTER (WHERE status = 'PAID'), 0),
+			COUNT(*) FILTER (WHERE status = 'FAILED' AND "createdAt" >= NOW() - INTERVAL '30 days')
+		FROM "SaaSPayment"`).Scan(
+		&o.TotalRevenue, &o.PendingPayments, &o.RefundedTotal, &o.PaidThisMonth,
+		&o.PaidTenantCount, &o.ActivePaidOutlets, &o.FailedCount30d)
 	o.MRR = o.TotalRevenue
+	o.LifetimeGross = o.TotalRevenue
 	return o, nil
 }
 
@@ -159,7 +168,10 @@ func (r *PgSuperAdminRepository) UpdateTenant(ctx context.Context, id string, in
 
 func (r *PgSuperAdminRepository) ApproveTenant(ctx context.Context, id string) (*domain.Tenant, error) {
 	_, err := r.db.ExecContext(ctx, `
-		UPDATE "Tenant" SET "approvedAt" = COALESCE("approvedAt", NOW()), "isActive" = true, "updatedAt" = NOW()
+		UPDATE "Tenant"
+		SET "approvedAt" = COALESCE("approvedAt", NOW()),
+		    "trialEndsAt" = COALESCE("trialEndsAt", NOW() + interval '14 days'),
+		    "isActive" = true, "updatedAt" = NOW()
 		WHERE id = $1`, id)
 	if err != nil {
 		return nil, err
@@ -173,6 +185,21 @@ func (r *PgSuperAdminRepository) SuspendTenant(ctx context.Context, id string, s
 		return nil, err
 	}
 	return r.GetTenant(ctx, id)
+}
+
+// ToggleTenantWhatsApp sets settings.whatsappEnabled on the tenant row.
+// Uses jsonb merge so other settings keys are preserved.
+func (r *PgSuperAdminRepository) ToggleTenantWhatsApp(ctx context.Context, id string, enabled bool) error {
+	val := "false"
+	if enabled {
+		val = "true"
+	}
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE "Tenant"
+		SET settings = COALESCE(settings, '{}'::jsonb) || jsonb_build_object('whatsappEnabled', `+val+`::bool),
+		    "updatedAt" = NOW()
+		WHERE id = $1`, id)
+	return err
 }
 
 func (r *PgSuperAdminRepository) GetTenantBilling(ctx context.Context, id string) (interface{}, error) {
@@ -229,6 +256,57 @@ func (r *PgSuperAdminRepository) UpdateTenantSubscription(ctx context.Context, i
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
+	s := &domain.Subscription{}
+	_ = r.db.QueryRowContext(ctx, `
+		SELECT id, "tenantId", "planId", status, "currentPeriodStart", "currentPeriodEnd",
+		       "paidOutletCount", "createdAt", "updatedAt"
+		FROM "Subscription" WHERE "tenantId" = $1`, id,
+	).Scan(&s.ID, &s.TenantID, &s.PlanID, &s.Status, &s.CurrentPeriodStart, &s.CurrentPeriodEnd,
+		&s.PaidOutletCount, &s.CreatedAt, &s.UpdatedAt)
+	return s, nil
+}
+
+// ExtendTrial extends a tenant's trial by `days`, bumping Subscription.currentPeriodEnd,
+// Tenant.trialEndsAt, AND every Branch.coverageEnd in one transaction.
+//
+// Branch.coverageEnd is what /branches + /billing outlet cards read — it must move
+// with the trial or those surfaces keep showing a stale expiry. The legacy
+// extend_trial updated only Subscription + Tenant and left Branch.coverageEnd behind;
+// this closes that gap.
+//
+// ponytail: no AuditLog row written — the Go super-admin module has no audit writer
+// yet (only ListAuditLogs reads). Add an INSERT into "AuditLog" (action
+// "subscription.extend_trial", actor from auth ctx) when a writer lands.
+func (r *PgSuperAdminRepository) ExtendTrial(ctx context.Context, tenantID string, days int) (*domain.Subscription, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	// Base = current currentPeriodEnd if set, else now.
+	var base sql.NullTime
+	_ = tx.QueryRowContext(ctx, `SELECT "currentPeriodEnd" FROM "Subscription" WHERE "tenantId" = $1`, tenantID).Scan(&base)
+	next := time.Now()
+	if base.Valid {
+		next = base.Time
+	}
+	next = next.AddDate(0, 0, days)
+
+	if _, err = tx.ExecContext(ctx, `UPDATE "Subscription" SET status = 'TRIAL', "currentPeriodEnd" = $1, "updatedAt" = NOW() WHERE "tenantId" = $2`, next, tenantID); err != nil {
+		return nil, err
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE "Tenant" SET "trialEndsAt" = $1, "updatedAt" = NOW() WHERE id = $2`, next, tenantID); err != nil {
+		return nil, err
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE "Branch" SET "coverageEnd" = $1, "updatedAt" = NOW() WHERE "tenantId" = $2`, next, tenantID); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	id := tenantID
 	s := &domain.Subscription{}
 	_ = r.db.QueryRowContext(ctx, `
 		SELECT id, "tenantId", "planId", status, "currentPeriodStart", "currentPeriodEnd",
@@ -319,9 +397,9 @@ func (r *PgSuperAdminRepository) ListPayments(ctx context.Context, filter applic
 	offset := (filter.Page - 1) * filter.Limit
 	args = append(args, filter.Limit, offset)
 	query := fmt.Sprintf(`
-		SELECT id, "tenantId", amount::float, "outletCount", "unitPrice"::float, "monthsPurchased",
-		       kind, status, "midtransOrderId", "coverageStart", "coverageEnd", "createdAt", "paidAt"
-		FROM "SaaSPayment" %s ORDER BY "createdAt" DESC LIMIT $%d OFFSET $%d`, where, idx, idx+1)
+		SELECT p.id, p."tenantId", COALESCE(t.name, ''), p.amount::float, p."outletCount", p."unitPrice"::float, p."monthsPurchased",
+		       p.kind, p.status, p."midtransOrderId", p."coverageStart", p."coverageEnd", p."createdAt", p."paidAt"
+		FROM "SaaSPayment" p LEFT JOIN "Tenant" t ON t.id = p."tenantId" %s ORDER BY p."createdAt" DESC LIMIT $%d OFFSET $%d`, where, idx, idx+1)
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
@@ -331,7 +409,7 @@ func (r *PgSuperAdminRepository) ListPayments(ctx context.Context, filter applic
 	var list []*domain.SaaSPayment
 	for rows.Next() {
 		p := &domain.SaaSPayment{}
-		if err := rows.Scan(&p.ID, &p.TenantID, &p.Amount, &p.OutletCount, &p.UnitPrice, &p.MonthsPurchased,
+		if err := rows.Scan(&p.ID, &p.TenantID, &p.TenantName, &p.Amount, &p.OutletCount, &p.UnitPrice, &p.MonthsPurchased,
 			&p.Kind, &p.Status, &p.MidtransOrderID, &p.CoverageStart, &p.CoverageEnd, &p.CreatedAt, &p.PaidAt); err != nil {
 			return nil, 0, err
 		}
@@ -591,6 +669,20 @@ func (r *PgSuperAdminRepository) ListFeatureFlags(ctx context.Context) ([]*domai
 	return list, nil
 }
 
+// GetFeatureFlag loads a single flag by id (for the detail page).
+func (r *PgSuperAdminRepository) GetFeatureFlag(ctx context.Context, id string) (*domain.FeatureFlag, error) {
+	f := &domain.FeatureFlag{}
+	err := r.db.QueryRowContext(ctx, `SELECT id, key, name, description, enabled, category, "createdAt", "updatedAt" FROM "FeatureFlag" WHERE id = $1`, id).
+		Scan(&f.ID, &f.Key, &f.Name, &f.Description, &f.Enabled, &f.Category, &f.CreatedAt, &f.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
+}
+
 func (r *PgSuperAdminRepository) CreateFeatureFlag(ctx context.Context, input application.FeatureFlagInput) (*domain.FeatureFlag, error) {
 	key := ""
 	if input.Key != nil {
@@ -669,6 +761,78 @@ func (r *PgSuperAdminRepository) ListTenantFlags(ctx context.Context, flagID str
 			return nil, err
 		}
 		list = append(list, tf)
+	}
+	return list, nil
+}
+
+// ListAllTenantFlags returns ALL tenants with their override status for a flag.
+// LEFT JOIN Tenant → TenantFeatureFlag so tenants without overrides appear too.
+// Response shape matches FE TenantRow: {tenantId, tenantName, tenantSlug,
+// overrideEnabled: null|bool, reason, effective}.
+func (r *PgSuperAdminRepository) ListAllTenantFlags(ctx context.Context, flagID, search string, overrideOnly bool) ([]map[string]any, error) {
+	args := []interface{}{flagID}
+	idx := 2
+	where := ""
+	if search != "" {
+		where += fmt.Sprintf(` AND t.name ILIKE $%d`, idx)
+		args = append(args, "%"+search+"%")
+		idx++
+	}
+	if overrideOnly {
+		where += ` AND tf.id IS NOT NULL`
+	}
+
+	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
+		SELECT t.id, t.name, t.slug,
+		       tf.id, tf.enabled, tf.reason,
+		       f.enabled
+		FROM "Tenant" t
+		LEFT JOIN "TenantFeatureFlag" tf ON tf."tenantId" = t.id AND tf."flagId" = $1
+		LEFT JOIN "FeatureFlag" f ON f.id = $1
+		WHERE 1=1%s
+		ORDER BY t.name
+		LIMIT 50`, where), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var list []map[string]any
+	for rows.Next() {
+		var tenantID, tenantName, tenantSlug string
+		var overrideID sql.NullString
+		var overrideEnabled, globalDefault sql.NullBool
+		var overrideReason sql.NullString
+		if err := rows.Scan(&tenantID, &tenantName, &tenantSlug, &overrideID, &overrideEnabled, &overrideReason, &globalDefault); err != nil {
+			return nil, err
+		}
+
+		// FE expects overrideEnabled as null (no override) or bool (override set).
+		var overrideVal any // nil by default
+		var reasonVal any
+		if overrideID.Valid {
+			overrideVal = overrideEnabled.Bool
+		}
+		if overrideReason.Valid {
+			reasonVal = overrideReason.String
+		}
+
+		// Effective = override value if set, else global default.
+		effective := false
+		if globalDefault.Valid {
+			effective = globalDefault.Bool
+		}
+		if overrideID.Valid {
+			effective = overrideEnabled.Bool
+		}
+
+		list = append(list, map[string]any{
+			"tenantId":        tenantID,
+			"tenantName":      tenantName,
+			"tenantSlug":      tenantSlug,
+			"overrideEnabled": overrideVal,
+			"reason":          reasonVal,
+			"effective":       effective,
+		})
 	}
 	return list, nil
 }
@@ -844,6 +1008,26 @@ func (r *PgSuperAdminRepository) AddTicketComment(ctx context.Context, ticketID,
 	// Bump ticket updatedAt
 	_, _ = r.db.ExecContext(ctx, `UPDATE "SupportTicket" SET "updatedAt" = NOW() WHERE id = $1`, ticketID)
 	return c, nil
+}
+
+// ListTicketComments returns the thread for a ticket (oldest first).
+func (r *PgSuperAdminRepository) ListTicketComments(ctx context.Context, ticketID string) ([]*domain.TicketComment, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, "ticketId", COALESCE("authorName",''), COALESCE("authorEmail",''), COALESCE("authorRole",'TENANT_USER'), body, "createdAt"
+		FROM "TicketComment" WHERE "ticketId" = $1 ORDER BY "createdAt" ASC`, ticketID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*domain.TicketComment
+	for rows.Next() {
+		c := &domain.TicketComment{}
+		if err := rows.Scan(&c.ID, &c.TicketID, &c.AuthorName, &c.AuthorEmail, &c.AuthorRole, &c.Body, &c.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
 }
 
 func (r *PgSuperAdminRepository) UpdateTicketStatus(ctx context.Context, id, status string) (*domain.SupportTicket, error) {
@@ -1088,15 +1272,16 @@ func (r *PgSuperAdminRepository) ListAuditLogs(ctx context.Context, filter appli
 // ===================== SUPER-ADMIN SELF =====================
 
 func (r *PgSuperAdminRepository) UpdateSuperAdminPassword(ctx context.Context, id, currentPassword, newPassword string) error {
-	// ponytail: 4 — real password change needs bcrypt verify + hash. Frontend will call existing auth endpoint;
-	// this stub validates the super-admin row exists. Replace with bcrypt.CompareHashAndPassword when wiring auth.
 	var hash string
 	err := r.db.QueryRowContext(ctx, `SELECT "passwordHash" FROM "SuperAdmin" WHERE id = $1`, id).Scan(&hash)
 	if err != nil {
 		return fmt.Errorf("super-admin not found")
 	}
-	// Hash the new password and persist (bcrypt rounds = 10).
-	newHash, err := hashPassword(newPassword)
+	// Verify current password before allowing the change.
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(currentPassword)); err != nil {
+		return fmt.Errorf("current password is incorrect")
+	}
+	newHash, err := auth.HashPassword(newPassword)
 	if err != nil {
 		return err
 	}
@@ -1109,22 +1294,359 @@ func (r *PgSuperAdminRepository) RevokeSuperAdminSessions(ctx context.Context, i
 	return err
 }
 
+// GetTenantPerformance computes cross-tenant performance rows for the
+// /super-admin/performance page. Mirrors legacy pos-saas getTenantPerformance,
+// but as 5 GROUP BY queries (vs ~6N). sort ∈ {rev30d,revAll,orders30d,ordersAll,name}.
+func (r *PgSuperAdminRepository) GetTenantPerformance(ctx context.Context, sort string) ([]map[string]any, error) {
+	since30d := time.Now().Add(-30 * 24 * time.Hour)
+	now := time.Now()
+	const day = 24 * time.Hour
+
+	// q1 — tenants + subscription status + trial
+	tRows, err := r.db.QueryContext(ctx, `
+		SELECT t.id, t.name, t.slug, COALESCE(t."isActive", false), t."trialEndsAt", t."createdAt",
+		       COALESCE((SELECT s.status::text FROM "Subscription" s WHERE s."tenantId" = t.id LIMIT 1), '')
+		FROM "Tenant" AS t`)
+	if err != nil {
+		return nil, fmt.Errorf("performance tenants: %w", err)
+	}
+	defer tRows.Close()
+	type base struct {
+		id, name, slug, sub string
+		active              bool
+		trial               sql.NullTime
+		created             time.Time
+	}
+	var bases []base
+	for tRows.Next() {
+		var b base
+		if err := tRows.Scan(&b.id, &b.name, &b.slug, &b.active, &b.trial, &b.created, &b.sub); err != nil {
+			return nil, fmt.Errorf("performance tenant scan: %w", err)
+		}
+		bases = append(bases, b)
+	}
+	if err := tRows.Err(); err != nil {
+		return nil, err
+	}
+
+	// q2 — outlets per tenant
+	outlets := map[string][2]int{} // [total, active]
+	oRows, err := r.db.QueryContext(ctx, `SELECT "tenantId", COUNT(*), COUNT(*) FILTER (WHERE "isActive") FROM "Branch" GROUP BY "tenantId"`)
+	if err != nil {
+		return nil, fmt.Errorf("performance outlets: %w", err)
+	}
+	for oRows.Next() {
+		var tid string
+		var total, act int64
+		if err := oRows.Scan(&tid, &total, &act); err != nil {
+			oRows.Close()
+			return nil, err
+		}
+		outlets[tid] = [2]int{int(total), int(act)}
+	}
+	oRows.Close()
+
+	// q3 — orders per tenant (via branch): all, 30d, last
+	type ord struct{ all, d30 int64; last sql.NullTime }
+	orders := map[string]ord{}
+	r3, err := r.db.QueryContext(ctx, `
+		SELECT b."tenantId",
+		       COUNT(*) FILTER (WHERE o.status <> 'CANCELED'),
+		       COUNT(*) FILTER (WHERE o.status <> 'CANCELED' AND o."createdAt" >= $1),
+		       MAX(o."createdAt")
+		FROM "Order" o JOIN "Branch" b ON b.id = o."branchId" GROUP BY b."tenantId"`, since30d)
+	if err != nil {
+		return nil, fmt.Errorf("performance orders: %w", err)
+	}
+	for r3.Next() {
+		var tid string
+		var o ord
+		if err := r3.Scan(&tid, &o.all, &o.d30, &o.last); err != nil {
+			r3.Close()
+			return nil, err
+		}
+		orders[tid] = o
+	}
+	r3.Close()
+
+	// q4 — revenue per tenant (Payment→Order→Branch): all, 30d
+	type rev struct{ all, d30 float64 }
+	revs := map[string]rev{}
+	r4, err := r.db.QueryContext(ctx, `
+		SELECT b."tenantId",
+		       COALESCE(SUM(p.amount),0)::float8,
+		       COALESCE(SUM(p.amount) FILTER (WHERE p."paidAt" >= $1),0)::float8
+		FROM "Payment" p
+		JOIN "Order" o ON o.id = p."orderId"
+		JOIN "Branch" b ON b.id = o."branchId"
+		GROUP BY b."tenantId"`, since30d)
+	if err != nil {
+		return nil, fmt.Errorf("performance revenue: %w", err)
+	}
+	for r4.Next() {
+		var tid string
+		var rv rev
+		if err := r4.Scan(&tid, &rv.all, &rv.d30); err != nil {
+			r4.Close()
+			return nil, err
+		}
+		revs[tid] = rv
+	}
+	r4.Close()
+
+	// q5 — SaaS paid per tenant
+	saas := map[string]float64{}
+	r5, err := r.db.QueryContext(ctx, `SELECT "tenantId", COALESCE(SUM(amount),0)::float8 FROM "SaaSPayment" WHERE status = 'PAID' GROUP BY "tenantId"`)
+	if err != nil {
+		return nil, fmt.Errorf("performance saas: %w", err)
+	}
+	for r5.Next() {
+		var tid string
+		var amt float64
+		if err := r5.Scan(&tid, &amt); err != nil {
+			r5.Close()
+			return nil, err
+		}
+		saas[tid] = amt
+	}
+	r5.Close()
+
+	rows := make([]map[string]any, 0, len(bases))
+	for _, b := range bases {
+		ot := outlets[b.id]
+		o := orders[b.id]
+		rv := revs[b.id]
+		var trialEndsAt any
+		var trialDays any
+		if b.trial.Valid {
+			trialEndsAt = b.trial.Time
+			days := int(math.Ceil(b.trial.Time.Sub(now).Hours() / 24))
+			if days < 0 {
+				days = 0
+			}
+			trialDays = days
+		}
+		var daysSince any
+		if o.last.Valid {
+			d := int(math.Floor(now.Sub(o.last.Time).Hours() / 24))
+			daysSince = d
+		}
+		var subStatus any
+		if b.sub != "" {
+			subStatus = b.sub
+		}
+		rows = append(rows, map[string]any{
+			"id":                 b.id,
+			"name":               b.name,
+			"slug":               b.slug,
+			"isActive":           b.active,
+			"subscriptionStatus": subStatus,
+			"trialEndsAt":        trialEndsAt,
+			"trialDaysRemaining": trialDays,
+			"activeOutlets":      ot[1],
+			"totalOutlets":       ot[0],
+			"orders30d":          o.d30,
+			"ordersAll":          o.all,
+			"revenue30d":         rv.d30,
+			"revenueAll":         rv.all,
+			"saasRevenuePaid":    saas[b.id],
+			"daysSinceLastOrder": daysSince,
+			"createdAt":          b.created,
+		})
+	}
+
+	sortRows(rows, sort)
+	return rows, nil
+}
+
+// sortRows orders performance rows by the given key (default rev30d).
+func sortRows(rows []map[string]any, sort string) {
+	num := func(r map[string]any, k string) float64 {
+		if v, ok := r[k].(float64); ok {
+			return v
+		}
+		return 0
+	}
+	switch sort {
+	case "revAll":
+		sortSlice(rows, func(a, b map[string]any) bool { return num(a, "revenueAll") > num(b, "revenueAll") })
+	case "orders30d":
+		sortSlice(rows, func(a, b map[string]any) bool { return num(a, "orders30d") > num(b, "orders30d") })
+	case "ordersAll":
+		sortSlice(rows, func(a, b map[string]any) bool { return num(a, "ordersAll") > num(b, "ordersAll") })
+	case "name":
+		sortSlice(rows, func(a, b map[string]any) bool { return a["name"].(string) < b["name"].(string) })
+	default: // rev30d
+		sortSlice(rows, func(a, b map[string]any) bool { return num(a, "revenue30d") > num(b, "revenue30d") })
+	}
+}
+
+func sortSlice(rows []map[string]any, less func(a, b map[string]any) bool) {
+	sort.Slice(rows, func(i, j int) bool { return less(rows[i], rows[j]) })
+}
+
+// ListAdmins returns all platform-staff accounts for the /super-admin/admins page.
+// ponytail: list-only — create/update/delete not migrated (FE admins-manager posts/patches/deletes).
+func (r *PgSuperAdminRepository) ListAdmins(ctx context.Context) ([]map[string]any, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, email, name, COALESCE(role::text, 'SUPER_ADMIN'), "createdAt"
+		FROM "SuperAdmin" ORDER BY "createdAt"`)
+	if err != nil {
+		return nil, fmt.Errorf("listing admins: %w", err)
+	}
+	defer rows.Close()
+	var out []map[string]any
+	for rows.Next() {
+		var id, email, name, role string
+		var createdAt time.Time
+		if err := rows.Scan(&id, &email, &name, &role, &createdAt); err != nil {
+			return nil, fmt.Errorf("scanning admin row: %w", err)
+		}
+		out = append(out, map[string]any{
+			"id":        id,
+			"email":     email,
+			"name":      name,
+			"role":      role,
+			"createdAt": createdAt,
+		})
+	}
+	return out, rows.Err()
+}
+
+// CreateAdmin inserts a platform-staff account. passwordHash must be bcrypt.
+func (r *PgSuperAdminRepository) CreateAdmin(ctx context.Context, email, name, passwordHash, role string) (map[string]any, error) {
+	if role == "" {
+		role = "SUPER_ADMIN"
+	}
+	var id string
+	var createdAt time.Time
+	err := r.db.QueryRowContext(ctx, `
+		INSERT INTO "SuperAdmin" (email, name, "passwordHash", role, "createdAt", "updatedAt")
+		VALUES ($1, $2, $3, $4, NOW(), NOW()) RETURNING id, "createdAt"`,
+		email, name, passwordHash, role).Scan(&id, &createdAt)
+	if err != nil {
+		return nil, fmt.Errorf("creating admin: %w", err)
+	}
+	return map[string]any{"id": id, "email": email, "name": name, "role": role, "createdAt": createdAt}, nil
+}
+
+// UpdateAdminRole changes a platform-staff account's role.
+func (r *PgSuperAdminRepository) UpdateAdminRole(ctx context.Context, id, role string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE "SuperAdmin" SET role = $1, "updatedAt" = NOW() WHERE id = $2`, role, id)
+	return err
+}
+
+// DeleteAdmin removes a platform-staff account (hard delete).
+func (r *PgSuperAdminRepository) DeleteAdmin(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM "SuperAdmin" WHERE id = $1`, id)
+	return err
+}
+
 func (r *PgSuperAdminRepository) CreateImpersonation(ctx context.Context, input application.ImpersonInput) (string, error) {
 	// ponytail: 4 — returns a placeholder token. Real implementation should mint a short-lived JWT scoped to the
 	// target tenant/user with an "impersonatingSuperAdminId" claim, then the auth middleware detects the swap.
 	return fmt.Sprintf("impersonate-%s-%d", input.UserID, time.Now().Unix()), nil
 }
 
-// hashPassword bcrypts a plaintext password. Used by the password-change flow.
-func hashPassword(plain string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(plain), bcrypt.DefaultCost)
-	return string(bytes), err
-}
+// GetPickupInsights aggregates cross-tenant pickup-request rejection analytics.
+// from/to are optional YYYY-MM-DD bounds on createdAt.
+func (r *PgSuperAdminRepository) GetPickupInsights(ctx context.Context, from, to string) (*domain.PickupInsights, error) {
+	out := &domain.PickupInsights{
+		TopReasons:        []domain.PickupInsightReason{},
+		TopTenantsByRate:  []domain.PickupInsightTenant{},
+		TopBranchesByRate: []domain.PickupInsightBranch{},
+	}
+	dateClause := ""
+	args := []interface{}{}
+	idx := 1
+	if from != "" {
+		dateClause += fmt.Sprintf(` AND "createdAt" >= $%d`, idx)
+		args = append(args, from)
+		idx++
+	}
+	if to != "" {
+		dateClause += fmt.Sprintf(` AND "createdAt" <= $%d`, idx)
+		args = append(args, to+" 23:59:59")
+		idx++
+	}
 
-// verifyPassword checks a plaintext password against a bcrypt hash.
-func verifyPassword(hash, plain string) bool {
-	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(plain)) == nil
-}
+	if err := r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*), COUNT(*) FILTER (WHERE status = 'REJECTED') FROM "PickupRequest" WHERE 1=1`+dateClause,
+		args...,
+	).Scan(&out.TotalAll, &out.TotalRejected); err != nil {
+		return nil, fmt.Errorf("pickup totals: %w", err)
+	}
+	if out.TotalAll > 0 {
+		out.RejectionRate = float64(out.TotalRejected) / float64(out.TotalAll)
+	}
 
-// keep verifyPassword exported for future auth wiring
-var _ = verifyPassword
+	if out.TotalRejected > 0 {
+		rows, err := r.db.QueryContext(ctx,
+			`SELECT COALESCE("rejectedReason", ''), COUNT(*) FROM "PickupRequest"
+			 WHERE status = 'REJECTED'`+dateClause+`
+			 GROUP BY COALESCE("rejectedReason", '') ORDER BY COUNT(*) DESC LIMIT 10`,
+			args...)
+		if err != nil {
+			return nil, fmt.Errorf("pickup reasons: %w", err)
+		}
+		for rows.Next() {
+			var reason string
+			var count int64
+			if err := rows.Scan(&reason, &count); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			out.TopReasons = append(out.TopReasons, domain.PickupInsightReason{
+				Reason: reason, Count: count, Pct: float64(count) / float64(out.TotalRejected),
+			})
+		}
+		rows.Close()
+	}
+
+	tRows, err := r.db.QueryContext(ctx,
+		`SELECT t.id, t.name, COUNT(*) AS total, COUNT(*) FILTER (WHERE p.status = 'REJECTED') AS rej
+		 FROM "PickupRequest" p JOIN "Tenant" t ON t.id = p."tenantId"
+		 WHERE 1=1`+dateClause+`
+		 GROUP BY t.id, t.name ORDER BY rej DESC LIMIT 10`,
+		args...)
+	if err != nil {
+		return nil, fmt.Errorf("pickup tenants: %w", err)
+	}
+	for tRows.Next() {
+		var t domain.PickupInsightTenant
+		if err := tRows.Scan(&t.TenantID, &t.TenantName, &t.Total, &t.Rejected); err != nil {
+			tRows.Close()
+			return nil, err
+		}
+		if t.Total > 0 {
+			t.Rate = float64(t.Rejected) / float64(t.Total)
+		}
+		out.TopTenantsByRate = append(out.TopTenantsByRate, t)
+	}
+	tRows.Close()
+
+	bRows, err := r.db.QueryContext(ctx,
+		`SELECT p."tenantId", t.name, COALESCE(b.name, p."branchId"), COUNT(*) AS total,
+		        COUNT(*) FILTER (WHERE p.status = 'REJECTED') AS rej
+		 FROM "PickupRequest" p
+		 JOIN "Tenant" t ON t.id = p."tenantId"
+		 LEFT JOIN "Branch" b ON b.id = p."branchId"
+		 WHERE p."branchId" IS NOT NULL`+dateClause+`
+		 GROUP BY p."tenantId", t.name, COALESCE(b.name, p."branchId") ORDER BY rej DESC LIMIT 10`,
+		args...)
+	if err != nil {
+		return nil, fmt.Errorf("pickup branches: %w", err)
+	}
+	for bRows.Next() {
+		var b domain.PickupInsightBranch
+		if err := bRows.Scan(&b.TenantID, &b.TenantName, &b.BranchName, &b.Total, &b.Rejected); err != nil {
+			bRows.Close()
+			return nil, err
+		}
+		if b.Total > 0 {
+			b.Rate = float64(b.Rejected) / float64(b.Total)
+		}
+		out.TopBranchesByRate = append(out.TopBranchesByRate, b)
+	}
+	return out, bRows.Err()
+}

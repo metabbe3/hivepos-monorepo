@@ -30,6 +30,9 @@ type TenantInput struct {
 
 // SubscriptionInput is the PATCH /tenants/:id/subscription body.
 type SubscriptionInput struct {
+	Op                 string  `json:"op"`     // "" | "extend_trial"
+	Days               int     `json:"days"`   // extend_trial: 1–365 days to add
+	Reason             string  `json:"reason"` // audit reason (≥10 chars for extend_trial)
 	PlanID             string  `json:"planId"`
 	Status             *string `json:"status"`
 	CurrentPeriodEnd   *time.Time `json:"currentPeriodEnd"`
@@ -131,6 +134,7 @@ type Repository interface {
 	SuspendTenant(ctx context.Context, id string, suspend bool) (*domain.Tenant, error)
 	GetTenantBilling(ctx context.Context, id string) (interface{}, error)
 	UpdateTenantSubscription(ctx context.Context, id string, input SubscriptionInput) (*domain.Subscription, error)
+	ExtendTrial(ctx context.Context, tenantID string, days int) (*domain.Subscription, error)
 
 	// Users
 	ListUsers(ctx context.Context, filter ListFilter) ([]*domain.User, int64, error)
@@ -193,6 +197,8 @@ type Repository interface {
 
 	// Impersonation
 	CreateImpersonation(ctx context.Context, input ImpersonInput) (string, error)
+	// Pickup insights (cross-tenant rejection analytics)
+	GetPickupInsights(ctx context.Context, from, to string) (*domain.PickupInsights, error)
 }
 
 // ImpersonInput is the internal impersonation payload used by the service.
@@ -256,6 +262,9 @@ func (s *Service) GetTenantBilling(ctx context.Context, id string) (interface{},
 	return s.Repo.GetTenantBilling(ctx, id)
 }
 func (s *Service) UpdateTenantSubscription(ctx context.Context, id string, input SubscriptionInput) (*domain.Subscription, error) {
+	if input.Op == "extend_trial" {
+		return s.Repo.ExtendTrial(ctx, id, input.Days)
+	}
 	return s.Repo.UpdateTenantSubscription(ctx, id, input)
 }
 
@@ -412,4 +421,9 @@ func (s *Service) UpdatePassword(ctx context.Context, id, currentPassword, newPa
 }
 func (s *Service) RevokeSessions(ctx context.Context, id string) error {
 	return s.Repo.RevokeSuperAdminSessions(ctx, id)
+}
+
+// GetPickupInsights returns cross-tenant pickup-request rejection analytics.
+func (s *Service) GetPickupInsights(ctx context.Context, from, to string) (*domain.PickupInsights, error) {
+	return s.Repo.GetPickupInsights(ctx, from, to)
 }

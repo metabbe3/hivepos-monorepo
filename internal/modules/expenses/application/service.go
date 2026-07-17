@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hivepos/api/internal/modules/expenses/domain"
 )
@@ -28,8 +29,11 @@ type ListFilter struct {
 	From       string
 	To         string
 	Search     string
-	Page       int
-	Limit      int
+	Page  int
+	Limit int
+	// All requests every row with no LIMIT/OFFSET — used by endpoints that are
+	// unpaginated by design (e.g. /api/expenses, matching the original TS contract).
+	All bool
 }
 
 // CategoryListFilter holds the query params for listing categories.
@@ -70,6 +74,15 @@ func (s *Service) CreateExpense(ctx context.Context, input CreateExpenseInput, t
 		Description: input.Description,
 		BranchID:    branchID,
 		CategoryID:  input.CategoryID,
+		Date:        time.Now(),
+	}
+	// Honor a caller-supplied date (backdating); fall back to now.
+	if input.Date != nil && *input.Date != "" {
+		if t, err := time.Parse("2006-01-02", *input.Date); err == nil {
+			e.Date = t
+		} else if t, err := time.Parse(time.RFC3339, *input.Date); err == nil {
+			e.Date = t
+		}
 	}
 	if err := s.Repo.CreateExpense(ctx, e); err != nil {
 		return nil, fmt.Errorf("creating expense: %w", err)
@@ -89,7 +102,7 @@ func (s *Service) ListExpenses(ctx context.Context, tenantID string, filter List
 	if filter.Page < 1 {
 		filter.Page = 1
 	}
-	if filter.Limit < 1 || filter.Limit > 200 {
+	if !filter.All && (filter.Limit < 1 || filter.Limit > 200) {
 		filter.Limit = 100
 	}
 	return s.Repo.ListExpenses(ctx, tenantID, filter)

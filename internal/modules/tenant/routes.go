@@ -25,7 +25,7 @@ func NewModule(db *sql.DB) *Module {
 // Register mounts the tenant-management endpoints under /api/tenant.
 // Every route is tenant-scoped — the RequireTenant middleware upstream injects tenantId.
 func (m *Module) Register(r chi.Router) {
-	r.Get("/onboarding", m.getOnboarding)
+	// TS only has PATCH /api/tenant/onboarding (no GET). Match the TS route surface.
 	r.Patch("/onboarding", m.completeOnboarding)
 	r.Get("/referral", m.getReferral)
 	r.Get("/website", m.getWebsite)

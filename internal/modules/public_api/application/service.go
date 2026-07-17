@@ -12,6 +12,7 @@ import (
 type Repository interface {
 	FindBranchesByTenantSlug(ctx context.Context, slug string) ([]*domain.PublicBranch, error)
 	FindServicesByTenantSlug(ctx context.Context, slug, branchID string) ([]*domain.PublicService, error)
+	FindPublicTenantBySlug(ctx context.Context, slug string) (*domain.PublicTenant, error)
 	CreateSupportTicket(ctx context.Context, input domain.TicketInput) (string, error)
 	FindOrderByNumber(ctx context.Context, orderNumber, phoneLast4 string) (*domain.PublicOrder, error)
 	CreatePickupRequest(ctx context.Context, input domain.PickupInput) (string, error)
@@ -88,4 +89,17 @@ func (s *Service) RequestPickup(ctx context.Context, input domain.PickupInput) (
 		return "", fmt.Errorf("creating pickup request: %w", err)
 	}
 	return id, nil
+}
+
+// GetPublicTenant returns the public website payload (identity + settings + branches) for an
+// active tenant by slug. nil → not found / inactive.
+func (s *Service) GetPublicTenant(ctx context.Context, slug string) (*domain.PublicTenant, error) {
+	if slug == "" {
+		return nil, fmt.Errorf("tenant slug is required")
+	}
+	t, err := s.Repo.FindPublicTenantBySlug(ctx, slug)
+	if err != nil {
+		return nil, fmt.Errorf("finding public tenant: %w", err)
+	}
+	return t, nil
 }

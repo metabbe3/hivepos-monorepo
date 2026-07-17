@@ -1,26 +1,37 @@
 package superadmin
 
 import (
+	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/hivepos/api/internal/auth"
 	"github.com/hivepos/api/internal/middleware"
 	"github.com/hivepos/api/internal/modules/superadmin/application"
+	"github.com/hivepos/api/internal/modules/superadmin/domain"
 	"github.com/hivepos/api/internal/modules/superadmin/infrastructure"
 	apphttp "github.com/hivepos/api/internal/shared/http"
+	"github.com/hivepos/api/internal/shared/pagination"
 )
 
 type Module struct {
-	svc  *application.Service
-	repo *infrastructure.PgSuperAdminRepository
+	svc     *application.Service
+	repo    *infrastructure.PgSuperAdminRepository
+	db      *sql.DB
+	aiKey   string
+	aiModel string
+	aiBase  string
 }
 
-func NewModule(db *sql.DB) *Module {
+func NewModule(db *sql.DB, aiKey, aiModel, aiBase string) *Module {
 	repo := infrastructure.NewPgSuperAdminRepository(db)
-	return &Module{svc: application.NewService(repo), repo: repo}
+	return &Module{svc: application.NewService(repo), repo: repo, db: db, aiKey: aiKey, aiModel: aiModel, aiBase: aiBase}
 }
 
 // Register mounts all super-admin endpoints. Every route is cross-tenant (platform-level).
@@ -29,6 +40,10 @@ func (m *Module) Register(r chi.Router) {
 	// Stats + billing overview
 	r.Get("/stats", m.getStats)
 	r.Get("/billing/overview", m.getBillingOverview)
+	// Cross-tenant performance (revenue/order volume/trial health).
+	r.Get("/performance", m.performance)
+	// Pickup-request rejection insights.
+	r.Get("/pickup-insights", m.pickupInsights)
 
 	// Tenants
 	r.Get("/tenants", m.listTenants)
@@ -40,10 +55,18 @@ func (m *Module) Register(r chi.Router) {
 		r.Post("/suspend", m.suspendTenant)
 		r.Delete("/suspend", m.reactivateTenant)
 		r.Patch("/subscription", m.updateTenantSubscription)
+		r.Patch("/whatsapp", m.toggleWhatsApp)
 	})
 
 	// Users
 	r.Get("/users", m.listUsers)
+	// Platform-staff accounts (list-only migration for the admins page).
+	r.Get("/admins", m.listAdmins)
+	r.Post("/admins", m.createAdmin)
+	r.Route("/admins/{id}", func(r chi.Router) {
+		r.Patch("/", m.updateAdmin)
+		r.Delete("/", m.deleteAdmin)
+	})
 	r.Route("/users/{id}", func(r chi.Router) {
 		r.Post("/reset-password", m.resetUserPassword)
 		r.Post("/suspend", m.suspendUser)
@@ -74,6 +97,7 @@ func (m *Module) Register(r chi.Router) {
 	r.Get("/feature-flags", m.listFeatureFlags)
 	r.Post("/feature-flags", m.createFeatureFlag)
 	r.Route("/feature-flags/{id}", func(r chi.Router) {
+		r.Get("/", m.getFeatureFlag)
 		r.Patch("/", m.updateFeatureFlag)
 		r.Delete("/", m.deleteFeatureFlag)
 		r.Get("/tenants", m.listTenantFlags)
@@ -88,6 +112,7 @@ func (m *Module) Register(r chi.Router) {
 	// Tickets
 	r.Get("/tickets", m.listTickets)
 	r.Route("/tickets/{id}", func(r chi.Router) {
+		r.Get("/", m.getTicket)
 		r.Post("/comments", m.addTicketComment)
 		r.Post("/status", m.updateTicketStatus)
 		r.Post("/priority", m.updateTicketPriority)
@@ -96,6 +121,7 @@ func (m *Module) Register(r chi.Router) {
 	// Error logs
 	r.Get("/error-logs", m.listErrorLogs)
 	r.Post("/error-logs/{id}/resolve", m.resolveErrorLog)
+	r.Delete("/error-logs/{id}/resolve", m.resolveErrorLog)
 
 	// Blog
 	r.Get("/blog", m.listBlogPosts)
@@ -120,7 +146,11 @@ func (m *Module) Register(r chi.Router) {
 	// PWA force update
 	r.Post("/pwa/force-update", m.forceUpdate)
 
+	// Impersonation stop
+	r.Post("/impersonate/stop", m.stopImpersonation)
+
 	// AI chat (stub)
+	r.Get("/ai/chat", m.aiChatConfig)
 	r.Post("/ai/chat", m.aiChat)
 }
 
@@ -133,6 +163,19 @@ func (m *Module) getStats(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	apphttp.Success(w, s)
+}
+
+// performance — cross-tenant performance rows for /super-admin/performance.
+func (m *Module) performance(w http.ResponseWriter, req *http.Request) {
+	list, err := m.repo.GetTenantPerformance(req.Context(), req.URL.Query().Get("sort"))
+	if err != nil {
+		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if list == nil {
+		list = []map[string]any{}
+	}
+	apphttp.Success(w, list)
 }
 
 func (m *Module) getBillingOverview(w http.ResponseWriter, req *http.Request) {
@@ -153,7 +196,7 @@ func (m *Module) listTenants(w http.ResponseWriter, req *http.Request) {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list, map[string]interface{}{"total": total, "page": filter.Page, "limit": filter.Limit})
+	apphttp.Success(w, list, pagination.Meta(int(total), filter.Page, filter.Limit))
 }
 
 func (m *Module) getTenant(w http.ResponseWriter, req *http.Request) {
@@ -219,12 +262,39 @@ func (m *Module) updateTenantSubscription(w http.ResponseWriter, req *http.Reque
 	if !decodeJSON(w, req, &input) {
 		return
 	}
+	if input.Op == "extend_trial" {
+		if input.Days < 1 || input.Days > 365 {
+			apphttp.ValidationError(w, "days must be between 1 and 365")
+			return
+		}
+		if len(input.Reason) < 10 {
+			apphttp.ValidationError(w, "reason must be at least 10 characters")
+			return
+		}
+	}
 	sub, err := m.svc.UpdateTenantSubscription(req.Context(), chi.URLParam(req, "id"), input)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	apphttp.Success(w, sub)
+}
+
+// PATCH /tenants/{id}/whatsapp — toggle settings.whatsappEnabled for this tenant.
+// Body: { "enabled": true/false }
+func (m *Module) toggleWhatsApp(w http.ResponseWriter, req *http.Request) {
+	var body struct {
+		Enabled bool `json:"enabled"`
+	}
+	if !decodeJSON(w, req, &body) {
+		return
+	}
+	tenantID := chi.URLParam(req, "id")
+	if err := m.repo.ToggleTenantWhatsApp(req.Context(), tenantID, body.Enabled); err != nil {
+		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	apphttp.Success(w, map[string]any{"ok": true, "whatsappEnabled": body.Enabled})
 }
 
 // ===================== USERS =====================
@@ -236,7 +306,75 @@ func (m *Module) listUsers(w http.ResponseWriter, req *http.Request) {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list, map[string]interface{}{"total": total, "page": filter.Page, "limit": filter.Limit})
+	apphttp.Success(w, list, pagination.Meta(int(total), filter.Page, filter.Limit))
+}
+
+// listAdmins — platform-staff accounts for the /super-admin/admins page.
+func (m *Module) listAdmins(w http.ResponseWriter, req *http.Request) {
+	list, err := m.repo.ListAdmins(req.Context())
+	if err != nil {
+		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if list == nil {
+		list = []map[string]any{}
+	}
+	apphttp.Success(w, list)
+}
+
+// createAdmin — POST /admins {email, name, password, role}
+func (m *Module) createAdmin(w http.ResponseWriter, req *http.Request) {
+	var body struct {
+		Email    string `json:"email"`
+		Name     string `json:"name"`
+		Password string `json:"password"`
+		Role     string `json:"role"`
+	}
+	if !decodeJSON(w, req, &body) {
+		return
+	}
+	if body.Email == "" || body.Name == "" || len(body.Password) < 8 {
+		apphttp.ValidationError(w, "email, name, and an 8+ char password are required")
+		return
+	}
+	if body.Role == "" {
+		body.Role = "SUPER_ADMIN"
+	}
+	hash, err := auth.HashPassword(body.Password)
+	if err != nil {
+		apphttp.Error(w, http.StatusInternalServerError, "failed to hash password")
+		return
+	}
+	a, err := m.repo.CreateAdmin(req.Context(), body.Email, body.Name, hash, body.Role)
+	if err != nil {
+		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	apphttp.Created(w, a)
+}
+
+// updateAdmin — PATCH /admins/{id} {role}
+func (m *Module) updateAdmin(w http.ResponseWriter, req *http.Request) {
+	var body struct {
+		Role string `json:"role"`
+	}
+	if !decodeJSON(w, req, &body) {
+		return
+	}
+	if err := m.repo.UpdateAdminRole(req.Context(), chi.URLParam(req, "id"), body.Role); err != nil {
+		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	apphttp.Success(w, map[string]any{"ok": true})
+}
+
+// deleteAdmin — DELETE /admins/{id}
+func (m *Module) deleteAdmin(w http.ResponseWriter, req *http.Request) {
+	if err := m.repo.DeleteAdmin(req.Context(), chi.URLParam(req, "id")); err != nil {
+		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	apphttp.Success(w, map[string]any{"ok": true})
 }
 
 func (m *Module) suspendUser(w http.ResponseWriter, req *http.Request) {
@@ -266,6 +404,29 @@ func (m *Module) resetUserPassword(w http.ResponseWriter, req *http.Request) {
 	apphttp.Success(w, map[string]string{"tempPassword": temp})
 }
 
+// getTicket — GET /tickets/{id}: ticket + its comment thread.
+func (m *Module) getTicket(w http.ResponseWriter, req *http.Request) {
+	id := chi.URLParam(req, "id")
+	t, err := m.svc.GetTicket(req.Context(), id)
+	if err != nil {
+		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if t == nil {
+		apphttp.NotFoundError(w, "ticket not found")
+		return
+	}
+	comments, _ := m.repo.ListTicketComments(req.Context(), id)
+	raw, _ := json.Marshal(t)
+	var tm map[string]any
+	_ = json.Unmarshal(raw, &tm)
+	if comments == nil {
+		comments = []*domain.TicketComment{}
+	}
+	tm["comments"] = comments
+	apphttp.Success(w, tm)
+}
+
 // ===================== PAYMENTS =====================
 
 func (m *Module) listPayments(w http.ResponseWriter, req *http.Request) {
@@ -275,7 +436,7 @@ func (m *Module) listPayments(w http.ResponseWriter, req *http.Request) {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list, map[string]interface{}{"total": total, "page": filter.Page, "limit": filter.Limit})
+	writeRows(w, list, total, filter)
 }
 
 func (m *Module) refundPayment(w http.ResponseWriter, req *http.Request) {
@@ -341,7 +502,7 @@ func (m *Module) listPromoCodes(w http.ResponseWriter, req *http.Request) {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list, map[string]interface{}{"total": total, "page": filter.Page, "limit": filter.Limit})
+	apphttp.Success(w, list, pagination.Meta(int(total), filter.Page, filter.Limit))
 }
 
 func (m *Module) createPromoCode(w http.ResponseWriter, req *http.Request) {
@@ -389,6 +550,20 @@ func (m *Module) listFeatureFlags(w http.ResponseWriter, req *http.Request) {
 	apphttp.Success(w, list)
 }
 
+// getFeatureFlag — GET /feature-flags/{id}.
+func (m *Module) getFeatureFlag(w http.ResponseWriter, req *http.Request) {
+	f, err := m.repo.GetFeatureFlag(req.Context(), chi.URLParam(req, "id"))
+	if err != nil {
+		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if f == nil {
+		apphttp.NotFoundError(w, "flag not found")
+		return
+	}
+	apphttp.Success(w, f)
+}
+
 func (m *Module) createFeatureFlag(w http.ResponseWriter, req *http.Request) {
 	var input application.FeatureFlagInput
 	if !decodeJSON(w, req, &input) {
@@ -424,10 +599,16 @@ func (m *Module) deleteFeatureFlag(w http.ResponseWriter, req *http.Request) {
 }
 
 func (m *Module) listTenantFlags(w http.ResponseWriter, req *http.Request) {
-	list, err := m.svc.ListTenantFlags(req.Context(), chi.URLParam(req, "id"))
+	flagID := chi.URLParam(req, "id")
+	q := req.URL.Query().Get("q")
+	overrideOnly := req.URL.Query().Get("overrideOnly") == "true"
+	list, err := m.repo.ListAllTenantFlags(req.Context(), flagID, q, overrideOnly)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	if list == nil {
+		list = []map[string]any{}
 	}
 	apphttp.Success(w, list)
 }
@@ -466,7 +647,7 @@ func (m *Module) listReferrals(w http.ResponseWriter, req *http.Request) {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list, map[string]interface{}{"total": total, "page": filter.Page, "limit": filter.Limit})
+	apphttp.Success(w, list, pagination.Meta(int(total), filter.Page, filter.Limit))
 }
 
 func (m *Module) updateReferral(w http.ResponseWriter, req *http.Request) {
@@ -498,7 +679,7 @@ func (m *Module) listTickets(w http.ResponseWriter, req *http.Request) {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list, map[string]interface{}{"total": total, "page": filter.Page, "limit": filter.Limit})
+	writeRows(w, list, total, filter)
 }
 
 func (m *Module) addTicketComment(w http.ResponseWriter, req *http.Request) {
@@ -558,15 +739,18 @@ func (m *Module) listErrorLogs(w http.ResponseWriter, req *http.Request) {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list, map[string]interface{}{"total": total, "page": filter.Page, "limit": filter.Limit})
+	writeRows(w, list, total, filter)
 }
 
 func (m *Module) resolveErrorLog(w http.ResponseWriter, req *http.Request) {
-	if err := m.svc.ResolveErrorLog(req.Context(), chi.URLParam(req, "id")); err != nil {
+	// POST → resolved=true, DELETE → resolved=false (toggle). Return an envelope
+	// (not 204) so the client apiFetch (which throws on empty bodies) is happy.
+	resolved := req.Method != http.MethodDelete
+	if err := m.repo.ResolveErrorLog(req.Context(), chi.URLParam(req, "id"), resolved); err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.NoContent(w)
+	apphttp.Success(w, map[string]any{"ok": true, "resolved": resolved})
 }
 
 // ===================== BLOG =====================
@@ -578,7 +762,7 @@ func (m *Module) listBlogPosts(w http.ResponseWriter, req *http.Request) {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list, map[string]interface{}{"total": total, "page": filter.Page, "limit": filter.Limit})
+	apphttp.Success(w, list, pagination.Meta(int(total), filter.Page, filter.Limit))
 }
 
 func (m *Module) createBlogPost(w http.ResponseWriter, req *http.Request) {
@@ -634,7 +818,7 @@ func (m *Module) listAuditLogs(w http.ResponseWriter, req *http.Request) {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list, map[string]interface{}{"total": total, "page": filter.Page, "limit": filter.Limit})
+	apphttp.Success(w, list, pagination.Meta(int(total), filter.Page, filter.Limit))
 }
 
 // ===================== IMPERSONATION =====================
@@ -657,12 +841,6 @@ func (m *Module) startImpersonation(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	apphttp.Success(w, map[string]string{"token": token})
-}
-
-func (m *Module) stopImpersonation(w http.ResponseWriter, req *http.Request) {
-	// ponytail: 4 — real implementation clears the impersonation claim from the JWT.
-	// Stub returns success; the frontend clears its client-side session state.
-	apphttp.Success(w, map[string]bool{"stopped": true})
 }
 
 // ===================== SELF =====================
@@ -696,18 +874,116 @@ func (m *Module) revokeSessions(w http.ResponseWriter, req *http.Request) {
 // ===================== PWA + AI =====================
 
 func (m *Module) forceUpdate(w http.ResponseWriter, req *http.Request) {
-	// ponytail: 4 — real implementation bumps a pwa-nonce key in SystemSetting / Redis.
+	// Bump the PWA nonce in SystemSetting → clients polling /api/pwa/nonce see the new value,
+	// mismatch against localStorage → nuke caches + reload. Propagates within the 3min poll window.
+	if _, err := m.db.ExecContext(req.Context(), `
+		INSERT INTO "SystemSetting" (key, value, "updatedAt")
+		VALUES ('pwaNonce', gen_random_uuid()::text, NOW())
+		ON CONFLICT (key) DO UPDATE SET value = gen_random_uuid()::text, "updatedAt" = NOW()
+	`); err != nil {
+		apphttp.Error(w, http.StatusInternalServerError, "bumping PWA nonce: "+err.Error())
+		return
+	}
 	apphttp.Success(w, map[string]string{"status": "force-updated"})
 }
 
+// stopImpersonation — logs the stop action (audit trail). Stateless JWTs have no server-side
+// session to revoke; the frontend drops the impersonation token from localStorage.
+func (m *Module) stopImpersonation(w http.ResponseWriter, req *http.Request) {
+	if _, err := m.db.ExecContext(req.Context(),
+		`INSERT INTO "AuditLog" (action, "targetType", reason, "createdAt")
+		 VALUES ('IMPERSONATION_STOP', 'user', 'Super-admin stopped impersonation', NOW())`); err != nil {
+		// Best-effort — don't fail the stop on audit-log error.
+	}
+	apphttp.Success(w, map[string]bool{"stopped": true})
+}
+
+// aiChatConfig — GET /ai/chat. Enabled when an AI key is configured.
+func (m *Module) aiChatConfig(w http.ResponseWriter, req *http.Request) {
+	apphttp.Success(w, map[string]interface{}{"enabled": m.aiKey != "", "model": m.aiModel})
+}
+
+// aiChat — POST /ai/chat {question, history}. Streams the FE's SSE protocol
+// (data: {"type":"delta",content} … data: [DONE]). Calls an OpenAI-compatible
+// chat completion when a key is set; otherwise emits a disabled notice.
 func (m *Module) aiChat(w http.ResponseWriter, req *http.Request) {
-	// ponytail: 5 — stub. Real implementation forwards to the AI provider.
-	var body map[string]interface{}
+	flusher, _ := w.(http.Flusher)
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	sse := func(evt map[string]interface{}) {
+		b, _ := json.Marshal(evt)
+		_, _ = w.Write([]byte("data: " + string(b) + "\n\n"))
+		if flusher != nil {
+			flusher.Flush()
+		}
+	}
+
+	var body struct {
+		Question string `json:"question"`
+		History  []struct {
+			Role    string `json:"role"`
+			Content string `json:"content"`
+		} `json:"history"`
+	}
 	_ = json.NewDecoder(req.Body).Decode(&body)
-	apphttp.Success(w, map[string]interface{}{
-		"reply":  "AI chat is not yet wired up.",
-		"stub":   true,
+
+	reply := "AI assistant is not configured (set AI_API_KEY on the server)."
+	if m.aiKey != "" && body.Question != "" {
+		msgs := []map[string]string{{"role": "system", "content": "You are hivePOS's super-admin assistant. Answer concisely about platform admin tasks (tenants, billing, plans)."}}
+		for _, h := range body.History {
+			if h.Role == "user" || h.Role == "assistant" {
+				msgs = append(msgs, map[string]string{"role": h.Role, "content": h.Content})
+			}
+		}
+		msgs = append(msgs, map[string]string{"role": "user", "content": body.Question})
+		if r, err := m.completeChat(req.Context(), msgs); err == nil {
+			reply = r
+		} else {
+			reply = "AI request failed: " + err.Error()
+		}
+	}
+
+	// Emit as one delta (non-streaming upstream) + close.
+	sse(map[string]interface{}{"type": "delta", "content": reply})
+	_, _ = w.Write([]byte("data: [DONE]\n\n"))
+	if flusher != nil {
+		flusher.Flush()
+	}
+}
+
+// completeChat calls an OpenAI-compatible /chat/completions endpoint (non-stream).
+func (m *Module) completeChat(ctx context.Context, messages []map[string]string) (string, error) {
+	payload, _ := json.Marshal(map[string]interface{}{
+		"model":    m.aiModel,
+		"messages": messages,
 	})
+	hr, err := http.NewRequestWithContext(ctx, http.MethodPost, m.aiBase+"/chat/completions", bytes.NewReader(payload))
+	if err != nil {
+		return "", err
+	}
+	hr.Header.Set("Content-Type", "application/json")
+	hr.Header.Set("Authorization", "Bearer "+m.aiKey)
+	resp, err := http.DefaultClient.Do(hr)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("ai %d: %s", resp.StatusCode, string(raw))
+	}
+	var out struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err := json.Unmarshal(raw, &out); err != nil || len(out.Choices) == 0 {
+		return "", fmt.Errorf("ai decode: %s", string(raw))
+	}
+	return out.Choices[0].Message.Content, nil
 }
 
 // ===================== helpers =====================
@@ -725,7 +1001,18 @@ func parseListFilter(req *http.Request) application.ListFilter {
 	if l, err := strconv.Atoi(req.URL.Query().Get("limit")); err == nil {
 		f.Limit = l
 	}
+	f.Page, f.Limit, _ = pagination.Normalize(f.Page, f.Limit)
 	return f
+}
+
+// writeRows emits the paginated shape the super-admin panel expects:
+// { rows: [...], page, hasNext }. (The web reads data.rows / data.hasNext.)
+func writeRows(w http.ResponseWriter, list any, total int64, filter application.ListFilter) {
+	apphttp.Success(w, map[string]any{
+		"rows":    list,
+		"page":    filter.Page,
+		"hasNext": filter.Page*filter.Limit < int(total),
+	})
 }
 
 func decodeJSON(w http.ResponseWriter, req *http.Request, dst interface{}) bool {
@@ -734,4 +1021,14 @@ func decodeJSON(w http.ResponseWriter, req *http.Request, dst interface{}) bool 
 		return false
 	}
 	return true
+}
+
+// GET /pickup-insights?from=&to= — cross-tenant pickup-request rejection analytics.
+func (m *Module) pickupInsights(w http.ResponseWriter, req *http.Request) {
+	insights, err := m.svc.GetPickupInsights(req.Context(), req.URL.Query().Get("from"), req.URL.Query().Get("to"))
+	if err != nil {
+		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	apphttp.Success(w, insights)
 }

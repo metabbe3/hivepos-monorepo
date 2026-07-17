@@ -1,6 +1,10 @@
 # Endpoint Gap: pos-saas (TS) → hivepos-api (Go)
 
-**TS total: 138 endpoints. Go total: 1 (health check).**
+**TS total: 138 endpoints. Go total: 138 — all ported (git `77a8a99`).**
+
+> The status columns below (🔲/❌) predate the port and are no longer accurate;
+> all 138 are implemented. For response-level parity status and open gaps, see
+> [`parity-report.md`](./parity-report.md).
 
 ## Status Legend
 - ✅ Done — endpoint implemented in Go

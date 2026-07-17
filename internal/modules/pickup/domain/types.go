@@ -23,6 +23,7 @@ type PickupRequest struct {
 	Status           PickupStatus `json:"status"`
 	CustomerName     string       `json:"customerName"`
 	CustomerPhone    *string      `json:"customerPhone,omitempty"`
+	CustomerID       *string      `json:"customerId,omitempty"`
 	Address          *string      `json:"address,omitempty"`
 	RequestedDate    *time.Time   `json:"requestedDate,omitempty"`
 	RequestedSlot    *string      `json:"requestedSlot,omitempty"`

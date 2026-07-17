@@ -34,8 +34,8 @@ func (r *PgExpenseRepository) CreateExpense(ctx context.Context, e *domain.Expen
 	}
 	return r.db.QueryRowContext(ctx, `
 		INSERT INTO "Expense" (amount, description, date, "branchId", "categoryId", "createdAt")
-		VALUES ($1, $2, NOW(), $3, $4, NOW()) RETURNING id, date, "createdAt"`,
-		e.Amount, descVal, e.BranchID, catVal,
+		VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id, date, "createdAt"`,
+		e.Amount, descVal, e.Date, e.BranchID, catVal,
 	).Scan(&e.ID, &e.Date, &e.CreatedAt)
 }
 
@@ -91,10 +91,14 @@ func (r *PgExpenseRepository) ListExpenses(ctx context.Context, tenantID string,
 
 	offset := (filter.Page - 1) * filter.Limit
 	query := fmt.Sprintf(`
-		SELECT %s
+		SELECT %s, ec.id, ec.name, ec.description
 		FROM "Expense" e JOIN "Branch" b ON b.id = e."branchId"
-		%s ORDER BY e.date DESC, e."createdAt" DESC LIMIT $%d OFFSET $%d`, expenseColumns, where, idx, idx+1)
-	args = append(args, filter.Limit, offset)
+		LEFT JOIN "ExpenseCategory" ec ON ec.id = e."categoryId"
+		%s ORDER BY e.date DESC, e."createdAt" DESC`, expenseColumns, where)
+	if !filter.All {
+		query += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, idx, idx+1)
+		args = append(args, filter.Limit, offset)
+	}
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -105,8 +109,13 @@ func (r *PgExpenseRepository) ListExpenses(ctx context.Context, tenantID string,
 	var list []*domain.Expense
 	for rows.Next() {
 		e := &domain.Expense{}
-		if err := rows.Scan(&e.ID, &e.Amount, &e.Description, &e.Date, &e.BranchID, &e.CategoryID, &e.CreatedAt); err != nil {
+		var ecID, ecName, ecDesc sql.NullString
+		if err := rows.Scan(&e.ID, &e.Amount, &e.Description, &e.Date, &e.BranchID, &e.CategoryID, &e.CreatedAt, &ecID, &ecName, &ecDesc); err != nil {
 			return nil, 0, err
+		}
+		if ecID.Valid {
+			desc := ecDesc.String
+			e.Category = &domain.ExpenseCategory{ID: ecID.String, Name: ecName.String, Description: &desc}
 		}
 		list = append(list, e)
 	}

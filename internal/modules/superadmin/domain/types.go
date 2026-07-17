@@ -63,6 +63,7 @@ type Subscription struct {
 type SaaSPayment struct {
 	ID              string     `json:"id"`
 	TenantID        string     `json:"tenantId"`
+	TenantName      string     `json:"tenantName"`
 	Amount          float64    `json:"amount"`
 	OutletCount     int        `json:"outletCount"`
 	UnitPrice       float64    `json:"unitPrice"`
@@ -232,11 +233,15 @@ type PlatformStats struct {
 }
 
 type BillingOverview struct {
-	MRR             float64 `json:"mrr"`
-	TotalRevenue    float64 `json:"totalRevenue"`
-	PendingPayments int64   `json:"pendingPayments"`
-	RefundedTotal   float64 `json:"refundedTotal"`
-	PaidThisMonth   float64 `json:"paidThisMonth"`
+	MRR              float64 `json:"mrr"`
+	TotalRevenue     float64 `json:"totalRevenue"`
+	PendingPayments  int64   `json:"pendingPayments"`
+	RefundedTotal    float64 `json:"refundedTotal"`
+	PaidThisMonth    float64 `json:"paidThisMonth"`
+	LifetimeGross    float64 `json:"lifetimeGross"`
+	PaidTenantCount  int64   `json:"paidTenantCount"`
+	ActivePaidOutlets int64  `json:"activePaidOutlets"`
+	FailedCount30d   int64   `json:"failedCount30d"`
 }
 
 type ImpersonationSession struct {
@@ -246,4 +251,38 @@ type ImpersonationSession struct {
 	UserID       string `json:"userId"`
 	UserEmail    string `json:"userEmail"`
 	ExpiresAt    time.Time `json:"expiresAt"`
+}
+
+// --- Pickup insights (cross-tenant pickup-request analytics) ---
+
+type PickupInsights struct {
+	TotalAll          int64                 `json:"totalAll"`
+	TotalRejected     int64                 `json:"totalRejected"`
+	RejectionRate     float64               `json:"rejectionRate"`
+	TopReasons        []PickupInsightReason `json:"topReasons"`
+	TopTenantsByRate  []PickupInsightTenant `json:"topTenantsByRate"`
+	TopBranchesByRate []PickupInsightBranch `json:"topBranchesByRate"`
+}
+
+type PickupInsightReason struct {
+	Reason  string  `json:"reason"`
+	Count   int64   `json:"count"`
+	Pct     float64 `json:"pct"`
+}
+
+type PickupInsightTenant struct {
+	TenantID   string  `json:"tenantId"`
+	TenantName string  `json:"tenantName"`
+	Rejected   int64   `json:"rejected"`
+	Total      int64   `json:"total"`
+	Rate       float64 `json:"rate"`
+}
+
+type PickupInsightBranch struct {
+	TenantID   string  `json:"tenantId"`
+	TenantName string  `json:"tenantName"`
+	BranchName string  `json:"branchName"`
+	Rejected   int64   `json:"rejected"`
+	Total      int64   `json:"total"`
+	Rate       float64 `json:"rate"`
 }

@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hivepos/api/internal/modules/customers/domain"
 )
@@ -21,8 +22,11 @@ type ListFilter struct {
 	Status   string
 	Sort     string
 	Order    string
-	Page     int
-	Limit    int
+	Page  int
+	Limit int
+	// All requests every row with no LIMIT/OFFSET — used by endpoints that are
+	// unpaginated by design (e.g. /api/customers, matching the original TS contract).
+	All bool
 }
 
 type Repository interface {
@@ -31,11 +35,49 @@ type Repository interface {
 	FindByPhone(ctx context.Context, phone, branchID string) (*domain.Customer, error)
 	FindByClientID(ctx context.Context, clientID string) (*domain.Customer, error)
 	List(ctx context.Context, tenantID string, filter ListFilter) ([]*domain.Customer, int64, error)
+	ListItems(ctx context.Context, tenantID string, filter ListFilter) ([]*CustomerListItem, int64, error)
 	Update(ctx context.Context, c *domain.Customer) error
 	Delete(ctx context.Context, id, tenantID string) error
 	GetStats(ctx context.Context, id, tenantID string) (*domain.CustomerStats, error)
 	GetDeposits(ctx context.Context, customerID, tenantID string) ([]*domain.DepositTransaction, error)
 	TopUpDeposit(ctx context.Context, customerID, tenantID string, amount float64, tType, notes string) (*domain.DepositTransaction, error)
+}
+
+// CustomerListItem mirrors the running TS /api/customers item: drops
+// branchId/updatedAt and adds order aggregates + derived status.
+type CustomerListItem struct {
+	ID             string     `json:"id"`
+	Name           string     `json:"name"`
+	Phone          *string    `json:"phone"`
+	Email          *string    `json:"email"`
+	Notes          *string    `json:"notes"`
+	Balance        float64    `json:"balance"`
+	CreatedAt      time.Time  `json:"createdAt"`
+	TotalOrders    int64      `json:"totalOrders"`
+	TotalSpent     float64    `json:"totalSpent"`
+	LastOrderDate  *time.Time `json:"lastOrderDate"`
+	CustomerStatus string     `json:"customerStatus"`
+}
+
+// DeriveCustomerStatus ports pos-saas modules/customers/domain/customer-status.ts:
+// NEW (registered <30d, 0 orders), LAPSED (no orders / >90d), ACTIVE (≤30d), AT_RISK (30–90d).
+func DeriveCustomerStatus(createdAt time.Time, lastOrderDate *time.Time, totalOrders int64, now time.Time) string {
+	const thirty = 30 * 24 * time.Hour
+	const ninety = 90 * 24 * time.Hour
+	if now.Sub(createdAt) < thirty && totalOrders == 0 {
+		return "NEW"
+	}
+	if lastOrderDate == nil {
+		return "LAPSED"
+	}
+	since := now.Sub(*lastOrderDate)
+	if since <= thirty {
+		return "ACTIVE"
+	}
+	if since <= ninety {
+		return "AT_RISK"
+	}
+	return "LAPSED"
 }
 
 type Service struct {
@@ -75,9 +117,33 @@ func (s *Service) Get(ctx context.Context, id, tenantID string) (*domain.Custome
 }
 
 func (s *Service) List(ctx context.Context, tenantID string, filter ListFilter) ([]*domain.Customer, int64, error) {
-	if filter.Page < 1 { filter.Page = 1 }
-	if filter.Limit < 1 || filter.Limit > 100 { filter.Limit = 20 }
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	if filter.Limit < 1 || filter.Limit > 100 {
+		filter.Limit = 20
+	}
 	return s.Repo.List(ctx, tenantID, filter)
+}
+
+// ListItems returns the curated customer DTO list with order aggregates and the
+// derived customerStatus (matches TS /api/customers).
+func (s *Service) ListItems(ctx context.Context, tenantID string, filter ListFilter) ([]*CustomerListItem, int64, error) {
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	if !filter.All && (filter.Limit < 1 || filter.Limit > 100) {
+		filter.Limit = 20
+	}
+	items, total, err := s.Repo.ListItems(ctx, tenantID, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+	now := time.Now()
+	for _, it := range items {
+		it.CustomerStatus = DeriveCustomerStatus(it.CreatedAt, it.LastOrderDate, it.TotalOrders, now)
+	}
+	return items, total, nil
 }
 
 func (s *Service) Update(ctx context.Context, c *domain.Customer) error {

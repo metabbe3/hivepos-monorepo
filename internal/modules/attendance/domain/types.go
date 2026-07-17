@@ -23,18 +23,20 @@ type StaffMember struct {
 
 // ClockEvent is a single clock-in/out record.
 type ClockEvent struct {
-	ID        string         `json:"id"`
-	UserID    string         `json:"userId"`
-	TenantID  string         `json:"tenantId"`
-	BranchID  string         `json:"branchId"`
-	Type      ClockEventType `json:"type"`
-	Timestamp time.Time      `json:"timestamp"`
+	ID         string         `json:"id"`
+	UserID     string         `json:"userId"`
+	UserName   string         `json:"userName"`
+	TenantID   string         `json:"-"`
+	BranchID   string         `json:"branchId"`
+	BranchName string         `json:"branchName"`
+	Type       ClockEventType `json:"type"`
+	Timestamp  time.Time      `json:"timestamp"`
 }
 
-// StaffStatus is the current clock state of a staff member.
+// StaffStatus mirrors TS /api/attendance/status: per-staff today's worked ms + open clock-in.
 type StaffStatus struct {
-	UserID    string      `json:"userId"`
-	Name      string      `json:"name"`
-	Status    string      `json:"status"` // "CLOCKED_IN" | "CLOCKED_OUT"
-	LastEvent *ClockEvent `json:"lastEvent,omitempty"`
+	ID      string  `json:"id"`
+	Name    string  `json:"name"`
+	Since   *string `json:"since"`
+	TodayMs int64   `json:"todayMs"`
 }

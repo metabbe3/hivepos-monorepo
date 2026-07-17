@@ -3,22 +3,23 @@ package application
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hivepos/api/internal/modules/services/domain"
 )
 
 // CreateServiceInput is the DTO for creating a service.
 type CreateServiceInput struct {
-	Name            string             `json:"name"`
-	Description     *string            `json:"description"`
-	PricingType     domain.PricingType `json:"pricingType"`
-	BasePrice       float64            `json:"basePrice"`
+	Name            string                `json:"name"`
+	Description     *string               `json:"description"`
+	PricingType     domain.PricingType    `json:"pricingType"`
+	BasePrice       float64               `json:"basePrice"`
 	CommissionType  domain.CommissionType `json:"commissionType"`
-	CommissionValue float64            `json:"commissionValue"`
-	Module          string             `json:"module"`
-	IsActive        *bool              `json:"isActive"`
-	IsDefaultSpeed  *bool              `json:"isDefaultSpeed"`
-	GroupID         *string            `json:"groupId"`
+	CommissionValue float64               `json:"commissionValue"`
+	Module          string                `json:"module"`
+	IsActive        *bool                 `json:"isActive"`
+	IsDefaultSpeed  *bool                 `json:"isDefaultSpeed"`
+	GroupID         *string               `json:"groupId"`
 }
 
 // CreateGroupInput is the DTO for creating a service group.
@@ -38,6 +39,35 @@ type ListFilter struct {
 	GroupID  string
 	Page     int
 	Limit    int
+	// All requests every row with no LIMIT/OFFSET — used by endpoints that are
+	// unpaginated by design (e.g. /api/services, matching the original TS contract).
+	All bool
+}
+
+// ServiceGroupRef is the nested group object on a ServiceListItem (null when
+// the service has no group).
+type ServiceGroupRef struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// ServiceListItem mirrors the running TS /api/services item: drops branchId and
+// adds the nested group.
+type ServiceListItem struct {
+	ID              string                `json:"id"`
+	Name            string                `json:"name"`
+	Description     *string               `json:"description"`
+	PricingType     domain.PricingType    `json:"pricingType"`
+	BasePrice       float64               `json:"basePrice"`
+	CommissionType  domain.CommissionType `json:"commissionType"`
+	CommissionValue float64               `json:"commissionValue"`
+	Module          string                `json:"module"`
+	IsActive        bool                  `json:"isActive"`
+	IsDefaultSpeed  bool                  `json:"isDefaultSpeed"`
+	GroupID         *string               `json:"groupId"`
+	CreatedAt       time.Time             `json:"createdAt"`
+	UpdatedAt       time.Time             `json:"updatedAt"`
+	Group           *ServiceGroupRef      `json:"group"`
 }
 
 // Repository is the persistence port for services + service groups.
@@ -45,6 +75,7 @@ type Repository interface {
 	Create(ctx context.Context, s *domain.Service) error
 	FindByID(ctx context.Context, id, tenantID string) (*domain.Service, error)
 	List(ctx context.Context, tenantID string, filter ListFilter) ([]*domain.Service, int64, error)
+	ListItems(ctx context.Context, tenantID string, filter ListFilter) ([]*ServiceListItem, int64, error)
 	Update(ctx context.Context, s *domain.Service) error
 	Delete(ctx context.Context, id, tenantID string) error
 
@@ -110,10 +141,21 @@ func (s *Service) List(ctx context.Context, tenantID string, filter ListFilter) 
 	if filter.Page < 1 {
 		filter.Page = 1
 	}
-	if filter.Limit < 1 || filter.Limit > 200 {
+	if !filter.All && (filter.Limit < 1 || filter.Limit > 200) {
 		filter.Limit = 100
 	}
 	return s.Repo.List(ctx, tenantID, filter)
+}
+
+// ListItems returns the curated ServiceListItem DTO (matches TS /api/services).
+func (s *Service) ListItems(ctx context.Context, tenantID string, filter ListFilter) ([]*ServiceListItem, int64, error) {
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	if !filter.All && (filter.Limit < 1 || filter.Limit > 200) {
+		filter.Limit = 100
+	}
+	return s.Repo.ListItems(ctx, tenantID, filter)
 }
 
 func (s *Service) Update(ctx context.Context, svc *domain.Service) error {

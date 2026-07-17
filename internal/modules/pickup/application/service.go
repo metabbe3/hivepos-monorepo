@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hivepos/api/internal/modules/pickup/domain"
 )
@@ -11,6 +12,7 @@ import (
 type CreateInput struct {
 	CustomerName  string  `json:"customerName"`
 	CustomerPhone *string `json:"customerPhone,omitempty"`
+	CustomerID    *string `json:"customerId,omitempty"`
 	Address       *string `json:"address,omitempty"`
 	RequestedDate *string `json:"requestedDate,omitempty"`
 	RequestedSlot *string `json:"requestedSlot,omitempty"`
@@ -66,9 +68,18 @@ func (s *Service) Create(ctx context.Context, input CreateInput, tenantID string
 		Status:        domain.PickupPending,
 		CustomerName:  input.CustomerName,
 		CustomerPhone: input.CustomerPhone,
+		CustomerID:    input.CustomerID,
 		Address:       input.Address,
 		RequestedSlot: input.RequestedSlot,
 		Notes:         input.Notes,
+	}
+	// Parse the caller-supplied requestedDate (FE sends a string) so it persists.
+	if input.RequestedDate != nil && *input.RequestedDate != "" {
+		if t, perr := time.Parse("2006-01-02", *input.RequestedDate); perr == nil {
+			p.RequestedDate = &t
+		} else if t, perr := time.Parse(time.RFC3339, *input.RequestedDate); perr == nil {
+			p.RequestedDate = &t
+		}
 	}
 	if err := s.Repo.Create(ctx, p); err != nil {
 		return nil, fmt.Errorf("creating pickup request: %w", err)

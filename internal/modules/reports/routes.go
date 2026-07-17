@@ -2,12 +2,16 @@ package reports
 
 import (
 	"database/sql"
+	"encoding/csv"
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hivepos/api/internal/middleware"
 	"github.com/hivepos/api/internal/modules/reports/application"
-	"github.com/hivepos/api/internal/modules/reports/domain"
 	"github.com/hivepos/api/internal/modules/reports/infrastructure"
 	apphttp "github.com/hivepos/api/internal/shared/http"
 )
@@ -44,10 +48,23 @@ func (m *Module) Register(r chi.Router) {
 
 // filterFromRequest reads the shared branchId/startDate/endDate query params.
 func filterFromRequest(req *http.Request) application.ReportFilter {
+	q := req.URL.Query()
+	// Frontend sends from/to (YYYY-MM-DD); accept startDate/endDate too for safety.
+	from := q.Get("from")
+	if from == "" {
+		from = q.Get("startDate")
+	}
+	to := q.Get("to")
+	if to == "" {
+		to = q.Get("endDate")
+	}
+	if len(to) == 10 { // date-only → include the whole end day (createdAt <= end-of-day)
+		to = to + " 23:59:59"
+	}
 	return application.ReportFilter{
-		BranchID:  req.URL.Query().Get("branchId"),
-		StartDate: req.URL.Query().Get("startDate"),
-		EndDate:   req.URL.Query().Get("endDate"),
+		BranchID:  q.Get("branchId"),
+		StartDate: from,
+		EndDate:   to,
 	}
 }
 
@@ -65,7 +82,11 @@ func (m *Module) orders(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		return
 	}
-	rep, err := m.svc.Orders(req.Context(), tenantID, filterFromRequest(req))
+	// TS /api/reports/orders scopes by the user's branch context (requireWithBranch),
+	// not a query param. Mirror that so totals match.
+	f := filterFromRequest(req)
+	f.BranchID = middleware.GetBranchID(req)
+	rep, err := m.svc.Orders(req.Context(), tenantID, f)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
@@ -130,7 +151,9 @@ func (m *Module) monthlyPnL(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		return
 	}
-	rep, err := m.svc.MonthlyPnL(req.Context(), tenantID)
+	month, _ := strconv.Atoi(req.URL.Query().Get("month"))
+	year, _ := strconv.Atoi(req.URL.Query().Get("year"))
+	rep, err := m.svc.MonthlyPnL(req.Context(), tenantID, month, year)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
@@ -200,7 +223,16 @@ func (m *Module) attendance(w http.ResponseWriter, req *http.Request) {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, rep)
+	// TS wraps attendance with meta {from, to, totalWorkDays}.
+	from := req.URL.Query().Get("from")
+	to := req.URL.Query().Get("to")
+	if from == "" {
+		from = time.Now().AddDate(0, -1, 0).UTC().Format(time.RFC3339)
+	}
+	if to == "" {
+		to = time.Now().UTC().Format(time.RFC3339)
+	}
+	apphttp.Success(w, rep, map[string]any{"from": from, "to": to, "totalWorkDays": 27})
 }
 
 func (m *Module) inventory(w http.ResponseWriter, req *http.Request) {
@@ -243,12 +275,80 @@ func (m *Module) financialStatement(w http.ResponseWriter, req *http.Request) {
 }
 
 func (m *Module) exportReport(w http.ResponseWriter, req *http.Request) {
-	// ponytail: <ceiling> — export not implemented; returns a stub. Wire to a
-	// real CSV/PDF generator when download is needed.
-	stub := domain.ExportStub{
-		Format: "csv",
-		URL:    "",
-		Note:   "stub — not implemented",
+	// CSV export of a report (format=csv). PDF needs a generator lib — left as a
+	// follow-up; the web client also exports CSV/XLSX client-side. This endpoint
+	// flattens the report struct to field,value rows so any type exports generically.
+	tenantID, ok := tenantOr403(w, req)
+	if !ok {
+		return
 	}
-	apphttp.Success(w, stub)
+	typ := req.URL.Query().Get("type")
+	if typ == "" {
+		typ = "revenue"
+	}
+	f := filterFromRequest(req)
+	ctx := req.Context()
+	var (
+		rep any
+		err error
+	)
+	switch typ {
+	case "orders":
+		rep, err = m.svc.Orders(ctx, tenantID, f)
+	case "expenses":
+		rep, err = m.svc.Expenses(ctx, tenantID, f)
+	case "profit":
+		rep, err = m.svc.Profit(ctx, tenantID, f)
+	case "customers":
+		rep, err = m.svc.Customers(ctx, tenantID, f)
+	case "services":
+		rep, err = m.svc.Services(ctx, tenantID, f)
+	case "commission":
+		rep, err = m.svc.Commission(ctx, tenantID, f)
+	case "outstanding":
+		rep, err = m.svc.Outstanding(ctx, tenantID, f)
+	case "piutang":
+		rep, err = m.svc.Piutang(ctx, tenantID, f)
+	case "inventory":
+		rep, err = m.svc.Inventory(ctx, tenantID)
+	case "financial":
+		rep, err = m.svc.FinancialStatement(ctx, tenantID, f)
+	default: // revenue + unknown
+		rep, err = m.svc.Revenue(ctx, tenantID, f)
+	}
+	if err != nil {
+		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", `attachment; filename="report-`+typ+`.csv"`)
+	raw, _ := json.Marshal(rep)
+	var obj any
+	_ = json.Unmarshal(raw, &obj)
+	cw := csv.NewWriter(w)
+	_ = cw.Write([]string{"field", "value"})
+	flattenCSV(cw, "", obj)
+	cw.Flush()
+}
+
+// flattenCSV walks a decoded JSON value, emitting one field,value row per leaf.
+func flattenCSV(cw *csv.Writer, prefix string, v any) {
+	switch t := v.(type) {
+	case map[string]any:
+		for k, val := range t {
+			p := k
+			if prefix != "" {
+				p = prefix + "." + k
+			}
+			flattenCSV(cw, p, val)
+		}
+	case []any:
+		for i, val := range t {
+			p := prefix + "[" + strconv.Itoa(i) + "]"
+			flattenCSV(cw, p, val)
+		}
+	default:
+		_ = cw.Write([]string{prefix, fmt.Sprintf("%v", v)})
+	}
 }

@@ -3,24 +3,26 @@ package branches
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	apphttp "github.com/hivepos/api/internal/shared/http"
+	"github.com/hivepos/api/internal/middleware"
 	"github.com/hivepos/api/internal/modules/branches/application"
 	"github.com/hivepos/api/internal/modules/branches/infrastructure"
-	"github.com/hivepos/api/internal/middleware"
+	"github.com/hivepos/api/internal/planlimits"
+	apphttp "github.com/hivepos/api/internal/shared/http"
 )
 
 // Module wires the branches domain: repository → service → HTTP handlers.
 type Module struct {
 	svc *application.Service
+	db  *sql.DB
 }
 
 func NewModule(db *sql.DB) *Module {
 	repo := infrastructure.NewPgBranchRepository(db)
-	return &Module{svc: application.NewService(repo)}
+	return &Module{svc: application.NewService(repo), db: db}
 }
 
 func (m *Module) Register(r chi.Router) {
@@ -43,18 +45,13 @@ func (m *Module) list(w http.ResponseWriter, req *http.Request) {
 		Search: req.URL.Query().Get("search"),
 		Active: req.URL.Query().Get("active"),
 	}
-	if p, err := strconv.Atoi(req.URL.Query().Get("page")); err == nil {
-		filter.Page = p
-	}
-	if l, err := strconv.Atoi(req.URL.Query().Get("limit")); err == nil {
-		filter.Limit = l
-	}
-	list, total, err := m.svc.List(req.Context(), tenantID, filter)
+	items, err := m.svc.ListItems(req.Context(), tenantID, filter)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list, map[string]interface{}{"total": total, "page": filter.Page, "limit": filter.Limit})
+	// TS /api/branches returns the curated DTO list, unpaginated (no meta).
+	apphttp.Success(w, items)
 }
 
 func (m *Module) create(w http.ResponseWriter, req *http.Request) {
@@ -70,6 +67,12 @@ func (m *Module) create(w http.ResponseWriter, req *http.Request) {
 	if input.Name == "" {
 		apphttp.ValidationError(w, "name is required")
 		return
+	}
+	if m.db != nil {
+		if r, _ := planlimits.Check(req.Context(), m.db, tenantID, planlimits.Outlets); r != nil && !r.Allowed {
+			apphttp.Error(w, http.StatusForbidden, fmt.Sprintf("%s limit reached (%d/%d) on the %s plan. Upgrade to add more.", r.Kind, r.Current, r.Max, r.PlanName))
+			return
+		}
 	}
 	b, err := m.svc.Create(req.Context(), input, tenantID)
 	if err != nil {

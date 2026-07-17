@@ -28,11 +28,34 @@ func NewModule(db interface{}) *Module {
 // Register mounts the public-API sub-router.
 // ponytail: medium — public endpoints resolved by slug; add API-key rate limiting when abuse occurs.
 func (m *Module) Register(r chi.Router) {
+	r.Get("/tenants/{slug}", m.publicTenant)
 	r.Get("/branches", m.listBranches)
 	r.Get("/services", m.listServices)
 	r.Post("/tickets", m.createTicket)
 	r.Get("/orders/track", m.trackOrder)
 	r.Post("/pickup-requests", m.createPickupRequest)
+}
+
+// publicTenant returns the public website payload (identity + settings + branches) by slug.
+func (m *Module) publicTenant(w http.ResponseWriter, req *http.Request) {
+	slug := chi.URLParam(req, "slug")
+	if slug == "" {
+		slug = resolveSlug(req)
+	}
+	if slug == "" {
+		apphttp.ValidationError(w, "tenant slug is required")
+		return
+	}
+	t, err := m.svc.GetPublicTenant(req.Context(), slug)
+	if err != nil {
+		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if t == nil {
+		apphttp.NotFoundError(w, "Tenant not found")
+		return
+	}
+	apphttp.Success(w, t)
 }
 
 // resolveSlug returns the tenant slug from the X-Tenant-Slug header OR the ?slug query param.

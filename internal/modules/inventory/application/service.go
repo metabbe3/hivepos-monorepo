@@ -22,6 +22,7 @@ type CreateMovementInput struct {
 	Type     domain.MovementType `json:"type"`
 	Quantity float64             `json:"quantity"`
 	Notes    *string             `json:"notes"`
+	Date     *string             `json:"date,omitempty"`
 }
 
 // ListFilter holds the query params for listing stock items.
@@ -30,8 +31,11 @@ type ListFilter struct {
 	Search   string
 	Active   string
 	LowOnly  string
-	Page     int
-	Limit    int
+	Page  int
+	Limit int
+	// All requests every row with no LIMIT/OFFSET — used by endpoints that are
+	// unpaginated by design (e.g. /api/stock-items, matching the original TS contract).
+	All bool
 }
 
 // Repository is the persistence port for stock items + movements.
@@ -99,7 +103,7 @@ func (s *Service) List(ctx context.Context, tenantID string, filter ListFilter) 
 	if filter.Page < 1 {
 		filter.Page = 1
 	}
-	if filter.Limit < 1 || filter.Limit > 200 {
+	if !filter.All && (filter.Limit < 1 || filter.Limit > 200) {
 		filter.Limit = 100
 	}
 	return s.Repo.List(ctx, tenantID, filter)

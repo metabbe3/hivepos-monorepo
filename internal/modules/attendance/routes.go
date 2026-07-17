@@ -12,6 +12,7 @@ import (
 	"github.com/hivepos/api/internal/modules/attendance/domain"
 	"github.com/hivepos/api/internal/modules/attendance/infrastructure"
 	apphttp "github.com/hivepos/api/internal/shared/http"
+	"github.com/hivepos/api/internal/shared/pagination"
 )
 
 // Module wires the attendance domain: repository -> service -> HTTP handlers.
@@ -49,7 +50,17 @@ func (m *Module) listStaff(w http.ResponseWriter, req *http.Request) {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list)
+	// TS /api/attendance/staff returns only {id, name} for staff eligible to
+	// clock (active + has a PIN).
+	type staffGridItem struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+	out := make([]staffGridItem, 0, len(list))
+	for _, s := range list {
+		out = append(out, staffGridItem{ID: s.ID, Name: s.Name})
+	}
+	apphttp.Success(w, out)
 }
 
 func (m *Module) status(w http.ResponseWriter, req *http.Request) {
@@ -58,7 +69,7 @@ func (m *Module) status(w http.ResponseWriter, req *http.Request) {
 		apphttp.ForbiddenError(w, "Missing tenant context")
 		return
 	}
-	list, err := m.svc.ListStatus(req.Context(), tenantID, req.URL.Query().Get("branchId"))
+	list, err := m.svc.ListStatus(req.Context(), tenantID, middleware.GetBranchID(req))
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
@@ -101,7 +112,9 @@ func (m *Module) clock(w http.ResponseWriter, req *http.Request) {
 
 	// Verify the PIN with bcrypt (same algorithm as password hashing).
 	if err := application.VerifyPIN(body.PIN, *staff.PinHash); err != nil {
-		apphttp.Error(w, http.StatusUnauthorized, "Invalid PIN")
+		// 400, not 401 — the caller IS authenticated; the PIN is just wrong.
+		// (401 UNAUTHENTICATED can trip client-side auth handling and hide the error.)
+		apphttp.Error(w, http.StatusBadRequest, "Invalid PIN")
 		return
 	}
 
@@ -117,7 +130,7 @@ func (m *Module) clock(w http.ResponseWriter, req *http.Request) {
 func (m *Module) listEvents(w http.ResponseWriter, req *http.Request) {
 	tenantID := middleware.GetTenantID(req)
 	f := application.ListFilter{
-		BranchID: req.URL.Query().Get("branchId"),
+		BranchID: middleware.GetBranchID(req),
 		UserID:   req.URL.Query().Get("userId"),
 		From:     req.URL.Query().Get("from"),
 		To:       req.URL.Query().Get("to"),
@@ -128,17 +141,15 @@ func (m *Module) listEvents(w http.ResponseWriter, req *http.Request) {
 	if l, err := strconv.Atoi(req.URL.Query().Get("limit")); err == nil {
 		f.Limit = l
 	}
+	f.Page, f.Limit, _ = pagination.Normalize(f.Page, f.Limit)
 
-	list, total, err := m.svc.ListEvents(req.Context(), tenantID, f)
+	list, _, err := m.svc.ListEvents(req.Context(), tenantID, f)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, list, map[string]interface{}{
-		"total": total,
-		"page":  f.Page,
-		"limit": f.Limit,
-	})
+	// TS /api/attendance/events returns the list unpaginated (no meta).
+	apphttp.Success(w, list)
 }
 
 func (m *Module) createEvent(w http.ResponseWriter, req *http.Request) {
