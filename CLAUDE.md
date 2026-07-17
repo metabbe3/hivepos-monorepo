@@ -1,10 +1,12 @@
 # hivePOS — Monorepo
 
-hivePOS laundry SaaS. Three repos share one Postgres + one API contract.
+hivePOS laundry SaaS. One git repo (this root) holds three app subdirs that share one Postgres + one API contract.
 
-## Repos
+**Single repo:** this `hivepos/` root is the only git repo (remote `metabbe3/hivepos-monorepo`). `hivepos-api/`, `hivepos-web/`, `pos-saas/` are **subpaths**, not separate repos — their histories were merged in (preserved). Branch + commit at the root.
 
-| Repo | Stack | Role | Port |
+## Repos (subdirs)
+
+| Subdir | Stack | Role | Port |
 |---|---|---|---|
 | `hivepos-api` | Go 1.25, chi, pgx, JWT, bcrypt | Backend (REST API) | :8099 |
 | `hivepos-web` | Next.js 16, React 19, TS, Tailwind 4 | Frontend (App Router) | :3008 |
@@ -54,6 +56,17 @@ Re-index after structural changes. The index lives in `.codebase-rag/index.json`
 - **One branch per goal/feature.** Before starting non-trivial work, branch off `main` (e.g. `feat/<thing>`, `fix/<thing>`).
 - **Merge to `main` only after everything works** — build passes, feature verified, no regressions. Don't merge broken WIP.
 - Small trivial fixes (typo, one-liner) can land directly on `main`.
+
+## Feature workflow — contract first, parallel agents
+
+For any feature touching **both** `hivepos-api` and `hivepos-web`:
+
+1. **Contract first.** Add/update the endpoint(s) in `hivepos-web/contracts/openapi.yaml` (single source of truth — see `hivepos-web/CLAUDE.md`), then `npm run gen:contract` (regenerates `lib/api/types.ts` + `docs/contracts/*.md`). Commit the contract on its own branch **before** any BE/FE feature code.
+2. **Dispatch two agents in parallel**, each branched off `main` (see Git workflow above):
+   - **Backend agent** → implements the Go route(s) in `hivepos-api` against the contract: correct response envelope, exact field names. Verify by `curl` + JSON-key check.
+   - **Frontend agent** → consumes the regenerated types in `hivepos-web`, wires `apiFetch`. No hand-written response shapes.
+   - Both read `contracts/openapi.yaml` as the shared spec — neither invents fields.
+3. **Merge when verified.** Each branch lands on `main` only after it builds and the contract round-trips (FE generated types match the BE response). Land the contract commit first or together with the feature.
 
 ## Modes (global plugins — active across all repos)
 
