@@ -1,0 +1,278 @@
+openapi: 3.0.3
+info:
+  title: hivePOS API
+  version: 0.1.0
+  description: |
+    Single source of truth for the hivePOS frontend ↔ backend contract.
+
+    - Authored here (spec-first) so both hivepos-web (TS) and hivepos-api (Go)
+      build to the same shapes.
+    // ponytail: owned in the web repo for now — relocate to hivepos-api once
+    // it can emit OpenAPI (swag/oapi-codegen).
+    - Every response uses the standard envelope:
+        { success: true, data: T, meta?: {...} }
+        { success: false, error: { code?, message } }
+    - `npm run gen:contract` regenerates `lib/api/types.ts` + `docs/contracts/*.md`
+      from this file. CI fails if generated files drift.
+servers:
+  - url: /api
+    description: Same-origin via Caddy edge (default).
+  - url: http://localhost:8080/api
+    description: Direct to Go backend (local dev without Caddy).
+
+security: []
+
+tags:
+  - name: health
+  - name: auth
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Liveness probe
+      operationId: getHealth
+      security: []
+      responses:
+        "200":
+          description: Service is up.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthEnvelope"
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Email + password login → JWT
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Credentials accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponseEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /register:
+    post:
+      tags: [auth]
+      summary: Register a new tenant + owner, mint JWT
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Tenant + owner created, logged in.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponseEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: Current user + resolved claims
+      operationId: getMe
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Current session context.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/session-version:
+    post:
+      tags: [auth]
+      summary: Bump session version (force token refresh)
+      operationId: bumpSessionVersion
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Session version bumped.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionVersionEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "`Authorization: Bearer <jwt>` — 24h, HS256."
+
+  responses:
+    BadRequest:
+      description: Validation error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Unauthorized:
+      description: Missing or invalid credentials.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+
+  schemas:
+    HealthData:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        service:
+          type: string
+          example: hivepos-api
+        version:
+          type: string
+          example: 0.1.0
+      required: [status]
+    HealthEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/EnvelopeSuccess"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/HealthData"
+
+    UserInfo:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string, format: email }
+        name: { type: string }
+        role: { type: string, example: OWNER }
+        tenantId: { type: string }
+        branchId: { type: string }
+      required: [id, email, name, role, tenantId, branchId]
+
+    LoginInput:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 6 }
+      required: [email, password]
+
+    RegisterInput:
+      type: object
+      properties:
+        tenantName: { type: string }
+        tenantSlug: { type: string }
+        ownerName: { type: string }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 6 }
+        module:
+          type: string
+          enum: [laundry, fnb, salon]
+        branchName: { type: string }
+        phone: { type: string, nullable: true }
+      required: [tenantName, tenantSlug, ownerName, email, password, module, branchName]
+
+    LoginResponse:
+      type: object
+      properties:
+        token: { type: string }
+        user:
+          $ref: "#/components/schemas/UserInfo"
+      required: [token, user]
+
+    Claims:
+      type: object
+      description: JWT claims resolved server-side, surfaced via /auth/me.
+      properties:
+        tenantId: { type: string }
+        branchId: { type: string }
+        role: { type: string }
+        permissions:
+          type: array
+          items: { type: string }
+
+    MeData:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/UserInfo"
+        claims:
+          $ref: "#/components/schemas/Claims"
+      required: [user, claims]
+
+    SessionVersionData:
+      type: object
+      properties:
+        ok: { type: boolean }
+        sessionVersion: { type: integer }
+      required: [ok, sessionVersion]
+
+    # ─── Envelope building blocks ───────────────────────────────
+    EnvelopeSuccess:
+      type: object
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { type: object, nullable: true }
+        meta: { type: object, nullable: true }
+      required: [success, data]
+
+    LoginResponseEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/EnvelopeSuccess"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/LoginResponse"
+
+    MeEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/EnvelopeSuccess"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/MeData"
+
+    SessionVersionEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/EnvelopeSuccess"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/SessionVersionData"
+
+    ErrorBody:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+      required: [message]
+
+    ErrorEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, enum: [false] }
+        error:
+          $ref: "#/components/schemas/ErrorBody"
+      required: [success, error]

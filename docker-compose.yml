@@ -1,0 +1,41 @@
+# Local full-stack: web + api + postgres + caddy (single origin).
+# `api` builds from the sibling hivepos-api repo.
+services:
+  web:
+    build: .
+    image: hivepos-web:latest
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: /api
+      NODE_ENV: production
+    expose: ["3000"]
+    depends_on: [api]
+
+  api:
+    build: ../hivepos-api
+    image: hivepos-api:latest
+    environment:
+      DATABASE_URL: postgres://hivepos:hivepos@postgres:5432/pos_saas?sslmode=disable
+      JWT_SECRET: dev-jwt-secret-change-me
+      PORT: "8080"
+    expose: ["8080"]
+    depends_on: [postgres]
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: hivepos
+      POSTGRES_PASSWORD: hivepos
+      POSTGRES_DB: pos_saas
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    expose: ["5432"]
+
+  caddy:
+    image: caddy:2-alpine
+    ports: ["80:80"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on: [web, api]
+
+volumes:
+  pgdata:

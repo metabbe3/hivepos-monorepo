@@ -1,0 +1,15 @@
+# Local edge: single origin. /api/* → Go, everything else → Next.
+# Prod: replace :80 with your domain (e.g. hivepos.id) for auto-TLS.
+# Cloudflare terminates TLS in front — Caddy always sees HTTP, so X-Forwarded-Proto
+# comes from Cloudflare (or defaults to https in production).
+:80 {
+	encode gzip zstd
+
+	handle /api/* {
+		reverse_proxy api:8080
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+}
