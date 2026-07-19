@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import { useEffect } from "react";
+import { reportClientError } from "@/lib/telemetry/client-errors";
 
 export default function Error({
   error,
@@ -13,7 +14,8 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log to error reporting service in production
+    // Persist to ErrorLog via /api/telemetry so the crash is visible to super-admin.
+    reportClientError(error);
     console.error("App error:", error.digest, error.message);
   }, [error]);
 

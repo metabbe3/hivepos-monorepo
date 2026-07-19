@@ -4,6 +4,7 @@ import {
   type SuccessEnvelope,
   isErrorEnvelope,
 } from "./response";
+import { withRetry, isTransientError } from "@/lib/api/retry";
 
 /** Thrown when a fetch request returns a non-success envelope or fails the network call. */
 export class ApiClientError extends Error {
@@ -53,20 +54,25 @@ export async function apiFetch<T>(
   const token =
     typeof window !== "undefined" ? window.localStorage.getItem("hivepos_token") : null;
 
-  const res = await fetch(`${ORIGIN}${url}`, {
-    ...rest,
-    credentials: "include",
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-      ...headers,
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  // One attempt = fetch + envelope parse. withRetry re-runs it ONLY on transient
+  // failures (429/5xx/network); 4xx throws immediately. See @/lib/api/retry.
+  return withRetry(
+    async (signal) => {
+      const res = await fetch(`${ORIGIN}${url}`, {
+        ...rest,
+        credentials: "include",
+        signal: signal ?? rest.signal,
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+          ...headers,
+        },
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
 
-  const json: unknown = await res.json().catch(() => null);
+      const json: unknown = await res.json().catch(() => null);
 
-  if (isErrorEnvelope(json)) {
+      if (isErrorEnvelope(json)) {
     const env = json as ErrorEnvelope;
     throw new ApiClientError(
       env.error.code,
@@ -85,7 +91,11 @@ export async function apiFetch<T>(
   }
 
   const env = json as SuccessEnvelope<T>;
-  return { data: env.data, meta: env.meta };
+      return { data: env.data, meta: env.meta };
+    },
+    isTransientError,
+    { attempts: 3, timeoutMs: 0 },
+  );
 }
 
 /**

@@ -79,6 +79,12 @@ func CreateTransaction(ctx context.Context, serverKey, env string, req Transacti
 	// Midtrans Snap uses Basic auth with the Server Key as the username and an empty password.
 	httpReq.SetBasicAuth(serverKey, "")
 
+	// TODO(self-heal): wrap this Do in a resilience.CircuitBreaker to fast-fail
+	// when Midtrans is down (protects checkout from hanging). Requires status-aware
+	// failure classification first — count transport errors + 5xx as failures, NOT
+	// 4xx (a 4xx is a request/auth problem, not a dependency-health signal, and
+	// would wrongly trip the breaker). See internal/shared/resilience. Money path —
+	// wrap in a dedicated, separately-tested change.
 	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Do(httpReq)
 	if err != nil {

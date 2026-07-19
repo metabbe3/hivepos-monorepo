@@ -21,6 +21,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/telemetry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Client-side event batch (errors persisted to ErrorLog)
+         * @description Accepts a batch of client-side events. Events with `type: "error"` (or
+         *     `level: "error"`) are persisted to `ErrorLog` so FE-only JS crashes show
+         *     up in the super-admin error-logs viewer; other events are accepted +
+         *     discarded (analytics placeholder). Rate-limited 100 events/min/user.
+         */
+        post: operations["postTelemetry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -125,11 +148,14 @@ export interface components {
             ownerName: string;
             /** Format: email */
             email: string;
-            password: string;
+            /** @description Required for the email flow. Omit (or send empty) when googleId is present — Google-only accounts authenticate via OAuth and store an unusable password hash. */
+            password?: string;
             /** @enum {string} */
             module: "laundry" | "fnb" | "salon";
             branchName: string;
             phone?: string | null;
+            /** @description Google OAuth sub. When present, password is optional and the account authenticates via Google only. */
+            googleId?: string;
         };
         LoginResponse: {
             token: string;
@@ -219,6 +245,52 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HealthEnvelope"];
                 };
+            };
+        };
+    };
+    postTelemetry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    events: {
+                        /** @example error */
+                        type?: string;
+                        /** @example error */
+                        level?: string;
+                        message?: string;
+                        url?: string;
+                        stack?: string;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Accepted (no content). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit exceeded. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
