@@ -1,13 +1,14 @@
 package telemetry
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/hivepos/api/internal/middleware"
 	apphttp "github.com/hivepos/api/internal/shared/http"
 )
 
@@ -39,9 +40,16 @@ func (m *Module) Register(w http.ResponseWriter, req *http.Request) {
 }
 
 // PostTelemetry handles POST /api/telemetry — accepts a batch of client-side
-// events and stores them. Rate-limited to 100 events/min/user (matches TS).
+// events. Events with type "error" (or level "error") are persisted to ErrorLog
+// so FE-only JS crashes surface in the super-admin error-logs viewer; everything
+// else is accepted + discarded (analytics placeholder). Rate-limited 100/min/user.
 func (m *Module) PostTelemetry(w http.ResponseWriter, req *http.Request) {
-	userID := req.Header.Get("X-User-Id")
+	// RequireAuth populates the user id in context; fall back to the X-User-Id
+	// header for any caller that bypasses it.
+	userID := middleware.GetUserID(req)
+	if userID == "" {
+		userID = req.Header.Get("X-User-Id")
+	}
 	if userID == "" {
 		apphttp.UnauthorizedError(w, "Authentication required")
 		return
@@ -77,13 +85,53 @@ func (m *Module) PostTelemetry(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Insert events (ponytail: ceiling — no TelemetryEvent table in this schema yet;
-	// accept and discard. Wire to the table when the Prisma migration runs).
-	for range body.Events {
-		_ = ctx(req)
+	tenantID := middleware.GetTenantID(req)
+	for _, ev := range body.Events {
+		// Only error events persist — keeps an analytics channel open without
+		// flooding ErrorLog with non-error events.
+		if strField(ev, "type") != "error" && strField(ev, "level") != "error" {
+			continue
+		}
+		if err := insertClientError(req, m.db, userID, tenantID, ev); err != nil {
+			log.Printf("telemetry: insert client error failed: %v", err)
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func ctx(req *http.Request) context.Context { return req.Context() }
+// insertClientError maps a client error event onto an ErrorLog row (reuses the
+// existing table — no schema change).
+//
+// ponytail: ErrorLog has no stack column → the stack trace is dropped. Upgrade
+// path: add a stack column when the next Prisma migration runs (BE never alters
+// schema — non-negotiable #1).
+func insertClientError(req *http.Request, db *sql.DB, userID, tenantID string, ev map[string]interface{}) error {
+	msg := strField(ev, "message")
+	if len(msg) > 500 {
+		msg = msg[:500]
+	}
+	url := strField(ev, "url")
+	if url == "" {
+		url = "(client)"
+	}
+	code := strField(ev, "type")
+	if code == "" {
+		code = "CLIENT_JS"
+	}
+
+	_, err := db.ExecContext(req.Context(), `
+		INSERT INTO "ErrorLog" (id, "requestId", method, url, "httpStatus", code, message,
+			"tenantId", "userId", "ipAddress", "userAgent", resolved, "createdAt")
+		VALUES (gen_random_uuid()::text, NULL, 'CLIENT', $1, 0, NULLIF($2, ''), $3, NULLIF($4, ''), NULLIF($5, ''), $6, $7, false, NOW())`,
+		url, code, msg, tenantID, userID, req.RemoteAddr, req.UserAgent())
+	return err
+}
+
+func strField(ev map[string]interface{}, key string) string {
+	v, ok := ev[key].(string)
+	if !ok {
+		return ""
+	}
+	return v
+}

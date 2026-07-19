@@ -41,6 +41,43 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthEnvelope"
 
+  /telemetry:
+    post:
+      tags: [telemetry]
+      summary: Client-side event batch (errors persisted to ErrorLog)
+      description: |
+        Accepts a batch of client-side events. Events with `type: "error"` (or
+        `level: "error"`) are persisted to `ErrorLog` so FE-only JS crashes show
+        up in the super-admin error-logs viewer; other events are accepted +
+        discarded (analytics placeholder). Rate-limited 100 events/min/user.
+      operationId: postTelemetry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [events]
+              properties:
+                events:
+                  type: array
+                  maxItems: 50
+                  items:
+                    type: object
+                    properties:
+                      type: { type: string, example: "error" }
+                      level: { type: string, example: "error" }
+                      message: { type: string }
+                      url: { type: string }
+                      stack: { type: string }
+      responses:
+        "204":
+          description: Accepted (no content).
+        "401":
+          description: Authentication required.
+        "429":
+          description: Rate limit exceeded.
+
   /auth/login:
     post:
       tags: [auth]
@@ -186,13 +223,19 @@ components:
         tenantSlug: { type: string }
         ownerName: { type: string }
         email: { type: string, format: email }
-        password: { type: string, minLength: 6 }
+        password:
+          type: string
+          minLength: 6
+          description: Required for the email flow. Omit (or send empty) when googleId is present — Google-only accounts authenticate via OAuth and store an unusable password hash.
         module:
           type: string
           enum: [laundry, fnb, salon]
         branchName: { type: string }
         phone: { type: string, nullable: true }
-      required: [tenantName, tenantSlug, ownerName, email, password, module, branchName]
+        googleId:
+          type: string
+          description: Google OAuth sub. When present, password is optional and the account authenticates via Google only.
+      required: [tenantName, tenantSlug, ownerName, email, module, branchName]
 
     LoginResponse:
       type: object

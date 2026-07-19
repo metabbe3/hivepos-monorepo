@@ -3,13 +3,16 @@ package whatsapp
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hivepos/api/internal/middleware"
+	"github.com/hivepos/api/internal/shared/resilience"
 	apphttp "github.com/hivepos/api/internal/shared/http"
 )
 
@@ -23,10 +26,19 @@ import (
 type Module struct {
 	db    *sql.DB
 	gwURL string // WhatsApp gateway base URL (e.g. http://whatsapp-gateway:3001)
+	// cb trips after repeated gateway-unreachable failures so callers fast-fail
+	// instead of queuing behind a dead dependency.
+	cb *resilience.CircuitBreaker
 }
 
 func NewModule(db *sql.DB, gwURL string) *Module {
-	return &Module{db: db, gwURL: strings.TrimRight(gwURL, "/")}
+	return &Module{
+		db:    db,
+		gwURL: strings.TrimRight(gwURL, "/"),
+		// Counts TRANSPORT errors only (HTTP status passes through) — a 4xx from
+		// the gateway is a caller problem, not a dependency-health signal.
+		cb: resilience.NewCircuitBreaker(5, 30*time.Second),
+	}
 }
 
 func (m *Module) Register(r chi.Router) {
@@ -65,6 +77,28 @@ func (m *Module) gate(tenantID string) bool {
 	return v
 }
 
+// gatewayDo runs req through the circuit breaker. Returns the response, or
+// resilience.ErrCircuitOpen when the breaker is tripped. Centralized so every
+// proxy route gets breaker protection without re-wrapping each call site.
+func (m *Module) gatewayDo(req *http.Request) (*http.Response, error) {
+	var resp *http.Response
+	err := m.cb.Do(func() error {
+		r, e := http.DefaultClient.Do(req)
+		resp = r
+		return e
+	})
+	return resp, err
+}
+
+// writeGatewayError maps a gatewayDo error to the right HTTP status.
+func writeGatewayError(w http.ResponseWriter, err error) {
+	if errors.Is(err, resilience.ErrCircuitOpen) {
+		apphttp.Error(w, http.StatusServiceUnavailable, "WhatsApp gateway temporarily unavailable")
+		return
+	}
+	apphttp.Error(w, http.StatusBadGateway, "WhatsApp gateway unreachable")
+}
+
 // proxyGET forwards a GET to the gateway's /:tenantId/<path>.
 func (m *Module) proxyGET(w http.ResponseWriter, req *http.Request, path string) {
 	tenantID := middleware.GetTenantID(req)
@@ -76,9 +110,15 @@ func (m *Module) proxyGET(w http.ResponseWriter, req *http.Request, path string)
 		apphttp.ForbiddenError(w, "WhatsApp automation is not enabled for this tenant")
 		return
 	}
-	resp, err := http.Get(fmt.Sprintf("%s/%s/%s", m.gwURL, tenantID, path))
+	gwReq, err := http.NewRequestWithContext(req.Context(), http.MethodGet,
+		fmt.Sprintf("%s/%s/%s", m.gwURL, tenantID, path), nil)
 	if err != nil {
-		apphttp.Error(w, http.StatusBadGateway, "WhatsApp gateway unreachable")
+		writeGatewayError(w, err)
+		return
+	}
+	resp, err := m.gatewayDo(gwReq)
+	if err != nil {
+		writeGatewayError(w, err)
 		return
 	}
 	defer resp.Body.Close()
@@ -96,12 +136,16 @@ func (m *Module) proxyPOST(w http.ResponseWriter, req *http.Request, path string
 		apphttp.ForbiddenError(w, "WhatsApp automation is not enabled for this tenant")
 		return
 	}
-	url := fmt.Sprintf("%s/%s/%s", m.gwURL, tenantID, path)
-	httpReq, _ := http.NewRequestWithContext(req.Context(), http.MethodPost, url, req.Body)
-	httpReq.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(httpReq)
+	httpReq, err := http.NewRequestWithContext(req.Context(), http.MethodPost,
+		fmt.Sprintf("%s/%s/%s", m.gwURL, tenantID, path), req.Body)
 	if err != nil {
-		apphttp.Error(w, http.StatusBadGateway, "WhatsApp gateway unreachable")
+		writeGatewayError(w, err)
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	resp, err := m.gatewayDo(httpReq)
+	if err != nil {
+		writeGatewayError(w, err)
 		return
 	}
 	defer resp.Body.Close()
@@ -143,10 +187,15 @@ func (m *Module) SendAsync(tenantID, phone, message string) {
 	go func() {
 		url := fmt.Sprintf("%s/%s/send", m.gwURL, tenantID)
 		body, _ := json.Marshal(map[string]string{"phone": phone, "message": message})
-		resp, err := http.Post(url, "application/json", strings.NewReader(string(body)))
+		req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(string(body)))
 		if err != nil {
-			return // gateway down — silently skip
+			return
 		}
-		resp.Body.Close()
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := m.gatewayDo(req)
+		if err == nil && resp != nil {
+			resp.Body.Close()
+		}
+		// breaker-open or gateway-down → skip silently (fire-and-forget)
 	}()
 }

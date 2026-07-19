@@ -10,6 +10,9 @@
  * Domain types are imported from ./types (generated from contracts/openapi.yaml).
  */
 
+import { withRetry, isTransientError } from "./retry";
+import { getAuthToken } from "./token";
+
 export interface ResponseMeta {
   page?: number;
   limit?: number;
@@ -46,7 +49,6 @@ export async function apiFetch<T>(
   const { body, headers, ...rest } = options;
 
   // Attach the JWT (hivepos-api returns it in the login body, not a cookie).
-  const { getAuthToken } = await import("./token");
   const token = getAuthToken();
 
   // ponytail: the port left two path conventions in the call sites — 58 pass "/api/...",
@@ -54,35 +56,44 @@ export async function apiFetch<T>(
   // "/api" prefix so both resolve to "<base>/...". Tighten to one convention once port settles.
   const normPath = BASE.endsWith("/api") && path.startsWith("/api/") ? path.slice(4) : path;
 
-  const res = await fetch(`${BASE}${normPath}`, {
-    ...rest,
-    credentials: "include",
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-      ...headers,
+  // One attempt = fetch + envelope parse. withRetry re-runs it ONLY on transient
+  // failures (429/5xx/network); 4xx throws immediately, untouched. See ./retry.ts.
+  return withRetry(
+    async (signal) => {
+      const res = await fetch(`${BASE}${normPath}`, {
+        ...rest,
+        credentials: "include",
+        signal: signal ?? rest.signal,
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+          ...headers,
+        },
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
+
+      const json: unknown = await res.json().catch(() => null);
+
+      // NOTE: do NOT clear the token here on 401. That triggers a useSession
+      // re-render → the page's useEffect fires again → 401 again → infinite loop.
+      // reloadSession (in auth-client) is the single source of truth for clearing
+      // the token + setting status="unauthenticated". SessionGuard handles the redirect.
+
+      const requestId = res.headers.get("X-Request-Id") ?? undefined;
+
+      if (json && typeof json === "object" && (json as { success?: unknown }).success === false) {
+        const err = (json as { error?: { code?: string; message: string; details?: { field: string; message: string }[] } }).error;
+        throw new ApiClientError(err?.code ?? "UNKNOWN", err?.message ?? "Request failed", res.status, err?.details, requestId);
+      }
+
+      if (!res.ok || !json || typeof json !== "object") {
+        throw new ApiClientError("UNKNOWN", `Request failed with status ${res.status}`, res.status, undefined, requestId);
+      }
+
+      const env = json as { data: T; meta?: ResponseMeta };
+      return { data: env.data, meta: env.meta };
     },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-
-  const json: unknown = await res.json().catch(() => null);
-
-  // NOTE: do NOT clear the token here on 401. That triggers a useSession
-  // re-render → the page's useEffect fires again → 401 again → infinite loop.
-  // reloadSession (in auth-client) is the single source of truth for clearing
-  // the token + setting status="unauthenticated". SessionGuard handles the redirect.
-
-  const requestId = res.headers.get("X-Request-Id") ?? undefined;
-
-  if (json && typeof json === "object" && (json as { success?: unknown }).success === false) {
-    const err = (json as { error?: { code?: string; message: string; details?: { field: string; message: string }[] } }).error;
-    throw new ApiClientError(err?.code ?? "UNKNOWN", err?.message ?? "Request failed", res.status, err?.details, requestId);
-  }
-
-  if (!res.ok || !json || typeof json !== "object") {
-    throw new ApiClientError("UNKNOWN", `Request failed with status ${res.status}`, res.status, undefined, requestId);
-  }
-
-  const env = json as { data: T; meta?: ResponseMeta };
-  return { data: env.data, meta: env.meta };
+    isTransientError,
+    { attempts: 3, timeoutMs: 0 },
+  );
 }

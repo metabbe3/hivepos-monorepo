@@ -40,6 +40,7 @@ import (
 	"github.com/hivepos/api/internal/router"
 	"github.com/hivepos/api/internal/shared/apperror"
 	"github.com/hivepos/api/internal/shared/logging"
+	"github.com/hivepos/api/internal/shared/selfheal"
 )
 
 func main() {
@@ -273,6 +274,19 @@ func main() {
 		}
 	}()
 
+	// Self-heal alert ticker — scans ErrorLog every cfg.AlertIntervalMinutes for
+	// spikes (>= threshold identical errors in the window) and opens a SupportTicket
+	// (+ optional ALERT_WEBHOOK_URL). Guardrail: alert + ticket only — never resolves
+	// the error, touches money, or edits code. Canceled on shutdown.
+	healCtx, healCancel := context.WithCancel(context.Background())
+	go selfheal.RunAlertTicker(healCtx, db,
+		time.Duration(cfg.AlertIntervalMinutes)*time.Minute,
+		selfheal.Config{
+			WebhookURL:     cfg.AlertWebhookURL,
+			ErrorThreshold: cfg.AlertErrorThreshold,
+			WindowMinutes:  cfg.AlertWindowMinutes,
+		})
+
 	// HTTP server
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
@@ -301,6 +315,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down...")
+	healCancel() // stop the self-heal ticker before draining
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
