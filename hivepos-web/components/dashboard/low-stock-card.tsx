@@ -20,8 +20,8 @@ export function LowStockCard({ lowStock }: Props) {
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950/40">
-              <AlertTriangle className="h-4 w-4 text-orange-600" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/40">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
             </div>
             <CardTitle className="text-base font-bold">{t("dashboard.lowStock")}</CardTitle>
             {lowStock.length > 0 && (

@@ -27,10 +27,11 @@ function daysSince(dateStr: string): number {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function agingBadge(days: number) {
-  if (days <= 3) return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 text-[10px]">{days}d</Badge>;
-  if (days <= 7) return <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 text-[10px]">{days}d</Badge>;
-  return <Badge variant="destructive" className="text-[10px]">{days}d</Badge>;
+function agingBadge(days: number, t: (k: string) => string) {
+  const suffix = t("dashboard.daysShort");
+  if (days <= 3) return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 text-[10px]">{days}{suffix}</Badge>;
+  if (days <= 7) return <Badge className="bg-amber-200 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 text-[10px]">{days}{suffix}</Badge>;
+  return <Badge variant="destructive" className="text-[10px]">{days}{suffix}</Badge>;
 }
 
 function buildWhatsAppLink(phone: string, orderNumber: string, overrides?: TemplateOverrides): string {
@@ -58,9 +59,9 @@ export function UnpaidOrdersCard({ orders }: Props) {
               <AlertTriangle className="h-4 w-4 text-red-600" />
             </div>
             <div>
-              <CardTitle className="text-base font-bold">Piutang</CardTitle>
+              <CardTitle className="text-base font-bold">{t("dashboard.receivables")}</CardTitle>
               <p className="text-xs text-muted-foreground mt-0.5">
-                <span className="font-semibold text-red-600">{formatCurrency(totalUnpaid)}</span> belum dibayar
+                <span className="font-semibold text-red-600">{formatCurrency(totalUnpaid)}</span> {t("dashboard.notYetPaid")}
               </p>
             </div>
             <Badge variant="destructive" className="ml-auto text-xs">{orders.length}</Badge>
@@ -78,7 +79,7 @@ export function UnpaidOrdersCard({ orders }: Props) {
                   className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-card/60 hover:shadow-sm transition-shadow cursor-pointer"
                   onClick={() => router.push(`/laundry/orders/${order.id}`)}
                 >
-                  <Avatar className="h-9 w-9 bg-gradient-to-br from-sky-500 to-sky-600 text-white shrink-0">
+                  <Avatar className="h-9 w-9 bg-gradient-to-br from-brand-500 to-brand-700 text-white shrink-0">
                     <AvatarFallback className="bg-transparent text-white font-semibold text-sm">
                       {initial}
                     </AvatarFallback>
@@ -91,7 +92,7 @@ export function UnpaidOrdersCard({ orders }: Props) {
                       <Badge className={`${payConfig?.color || ""} text-[10px] px-1.5 py-0`}>
                         {t(payConfig?.labelKey || order.paymentStatus)}
                       </Badge>
-                      {agingBadge(days)}
+                      {agingBadge(days, t)}
                     </div>
                     <p className="text-sm font-medium truncate mt-0.5">{order.customerName}</p>
                   </div>

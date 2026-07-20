@@ -974,7 +974,13 @@ function OutletRow({
     },
   };
 
-  const config = statusConfig[outlet.status];
+  // Defensive: an out-of-contract status string would make statusConfig[...] undefined
+  // and crash config.icon below. Fall back to a neutral pill instead.
+  const config = statusConfig[outlet.status] ?? {
+    label: outlet.status,
+    className: "bg-muted text-muted-foreground border-border",
+    icon: Store,
+  };
   const StatusIcon = config.icon;
 
   return (

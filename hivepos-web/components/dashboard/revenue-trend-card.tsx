@@ -52,7 +52,7 @@ export function RevenueTrendCard({
               {t("dashboard.revenueTrend")}
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Total: <span className="font-semibold text-foreground">{formatCurrency(totalRevenue)}</span>
+              {t("dashboard.totalLabel")}: <span className="font-semibold text-foreground">{formatCurrency(totalRevenue)}</span>
             </p>
           </div>
         </div>

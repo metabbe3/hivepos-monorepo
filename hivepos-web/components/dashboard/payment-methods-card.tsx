@@ -20,8 +20,10 @@ export function PaymentMethodsCard({ breakdown }: Props) {
   return (
     <Card className="border border-border/40 bg-card shadow-sm">
       <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <Wallet className="h-4 w-4 text-muted-foreground" />
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/40">
+            <Wallet className="h-4 w-4 text-emerald-600" />
+          </div>
           <CardTitle className="text-base font-bold">{t("dashboard.paymentMethods")}</CardTitle>
         </div>
       </CardHeader>
@@ -31,7 +33,7 @@ export function PaymentMethodsCard({ breakdown }: Props) {
             const totalAll = breakdown.reduce((s, p) => s + p.total, 0);
             const pct = totalAll > 0 ? (pm.total / totalAll) * 100 : 0;
             return (
-              <div key={pm.method} className="rounded-xl border border-border/40 bg-card p-4 space-y-3">
+              <div key={pm.method} className="rounded-xl border border-border/40 bg-muted/30 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium">{t(PAYMENT_METHOD_LABELS[pm.method] ?? pm.method)}</p>
                   <Badge variant="secondary" className="text-[10px]">{pm.count} {pm.count !== 1 ? t("dashboard.payments") : t("dashboard.payment")}</Badge>

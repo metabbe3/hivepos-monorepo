@@ -74,8 +74,11 @@ function RegisterForm() {
         method: "POST",
         body: {
           ...values,
-          businessName,
-          slug,
+          // Contract field names (openapi.yaml RegisterInput / Go RegisterInput):
+          // tenantName/tenantSlug/module — not businessName/slug. Go requires all three.
+          tenantName: businessName,
+          tenantSlug: slug,
+          module: "LAUNDRY",
           branchName: "Outlet Pusat",
           ownerName,
           ownerPhone: "",

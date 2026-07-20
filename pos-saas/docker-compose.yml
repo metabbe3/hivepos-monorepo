@@ -8,7 +8,9 @@ services:
     ports:
       - "5437:5432"
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data
+      # Named volume, NOT a bind mount. Was ./data/postgres (gitignored) — any
+      # working-dir reset re-initdb'd an empty cluster → silent data loss.
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U posadmin -d pos_saas"]
       interval: 5s
@@ -98,3 +100,6 @@ networks:
   pos-saas:
     name: pos-saas-net
     driver: bridge
+
+volumes:
+  pgdata:

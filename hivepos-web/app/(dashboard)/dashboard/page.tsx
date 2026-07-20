@@ -67,6 +67,18 @@ import type { PaymentMethod } from "@/app/generated/prisma/enums";
 // Default every nested field so the page + sub-components never crash on undefined.
 function normalizeStats(d: Partial<Stats> | null | undefined): Stats {
   const s = (d ?? {}) as Partial<Stats>;
+  // hivepos-api returns paymentBreakdown (populated) but leaves
+  // paymentMethodBreakdown empty; fall back so the Payment Methods card renders.
+  const rawPm = s.paymentMethodBreakdown;
+  const pmFallback = (s as unknown as { paymentBreakdown?: Record<string, number> }).paymentBreakdown;
+  const paymentMethodBreakdown =
+    rawPm && rawPm.length > 0
+      ? rawPm
+      : Object.entries(pmFallback ?? {}).map(([method, total]) => ({
+          method: method as PaymentMethod,
+          count: 0,
+          total: Number(total),
+        }));
   return {
     todayOrders: s.todayOrders ?? 0,
     inProgress: s.inProgress ?? 0,
@@ -78,7 +90,7 @@ function normalizeStats(d: Partial<Stats> | null | undefined): Stats {
     revenueChange: s.revenueChange ?? null,
     topCustomers: s.topCustomers ?? [],
     serviceBreakdown: s.serviceBreakdown ?? [],
-    paymentMethodBreakdown: s.paymentMethodBreakdown ?? [],
+    paymentMethodBreakdown,
     recentOrders: s.recentOrders ?? [],
     cashFlow: (s.cashFlow ?? {}) as Stats["cashFlow"],
     orderPipeline: (s.orderPipeline ?? {}) as Stats["orderPipeline"],
@@ -160,6 +172,23 @@ function toStats(data: unknown): Stats | null {
   if ((d as Partial<Stats>).comparison) return normalizeStats(d as unknown as Stats); // pos-saas shape
   if (typeof d.totalOrders === "number" || d.ordersByStatus) return mapGoDashboardStats(d); // Go shape
   return null;
+}
+
+// hivepos-api nil-inits every heatmap sub-field, but the legacy pos-saas backend
+// (same client, dual-target per CLAUDE.md) may return null for empty arrays/maps.
+// Default each sub-field so HeatmapCard's tabs (.length / Object.entries / spread)
+// never throw on a partial payload.
+function normalizeHeatmap(h: Partial<HeatmapData> | null | undefined): HeatmapData {
+  const d = (h ?? {}) as Partial<HeatmapData>;
+  return {
+    hourlyByDay: d.hourlyByDay ?? [],
+    revenueByDay: d.revenueByDay ?? {},
+    customerVisits: (d.customerVisits ?? []).map((c) => ({
+      ...c,
+      dayDistribution: c.dayDistribution ?? [],
+    })),
+    revenueTrend: d.revenueTrend ?? [],
+  };
 }
 
 function getGreeting(t: (key: string) => string): string {
@@ -250,7 +279,7 @@ export default function DashboardPage() {
     if (roleLoading || isSuperAdmin || isEmployee) return;
     let cancelled = false;
     loadHeatmap(dateFrom, dateTo, granularity)
-      .then((data) => { if (!cancelled) setHeatmap(data); })
+      .then((data) => { if (!cancelled) setHeatmap(normalizeHeatmap(data)); })
       .catch((err) => { console.warn("[dashboard] heatmap load failed", err); });
     return () => { cancelled = true; };
   }, [dateFrom, dateTo, granularity, roleLoading, isSuperAdmin, isEmployee, loadHeatmap]);
@@ -262,7 +291,7 @@ export default function DashboardPage() {
         const s = toStats(statsData);
         if (s) {
           setStats(s);
-          setHeatmap(heatmapData);
+          setHeatmap(normalizeHeatmap(heatmapData));
           setStatsError(false);
         } else {
           setStats(null);

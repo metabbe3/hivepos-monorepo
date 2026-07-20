@@ -87,6 +87,9 @@ export default function CustomerDetailPage({
     ])
       .then(([c, s]) => {
         if (cancelled) return;
+        // null data (missing/404) → leave customer null so the not-found branch renders,
+        // instead of spreading {...null} into a malformed object.
+        if (!c) return;
         // hivepos-api customer omits orders; default so customer.orders.flatMap doesn't crash.
         setCustomer({ ...c, orders: c.orders ?? [] });
         if (s) setStats(s);
@@ -120,6 +123,7 @@ export default function CustomerDetailPage({
       apiFetch<CustomerStats>(`/api/customers/${customerId}/stats?${q}`).then((r) => r.data),
     ])
       .then(([c, s]) => {
+        if (!c) return;
         setCustomer({ ...c, orders: c.orders ?? [] });
         setStats(s);
       })
@@ -145,7 +149,7 @@ export default function CustomerDetailPage({
 
   const hasDateFilter = Boolean(dateFrom || dateTo);
   const allPayments: PaymentHistoryRow[] = customer.orders.flatMap((o) =>
-    o.payments.map((p) => ({ ...p, orderNumber: o.orderNumber, orderId: o.id })),
+    (o.payments ?? []).map((p) => ({ ...p, orderNumber: o.orderNumber, orderId: o.id })),
   ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const TABS = [

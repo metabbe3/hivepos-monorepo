@@ -11,9 +11,17 @@ interface Props {
   services: ServiceBreakdown[];
 }
 
+// On-brand categorical palette — indigo (brand) + emerald + amber + red + gray
+// only. No off-brand blue/violet/cyan/pink (see memory: dashboard-color-system).
 const COLORS = [
-  "#f59e0b", "#3b82f6", "#10b981", "#8b5cf6",
-  "#ef4444", "#06b6d4", "#ec4899", "#6366f1",
+  "#4f46e5", // indigo-600 (brand) — largest slice
+  "#10b981", // emerald-500
+  "#f59e0b", // amber-500
+  "#6366f1", // indigo-500
+  "#34d399", // emerald-400
+  "#ef4444", // red-500
+  "#818cf8", // indigo-400
+  "#71717a", // zinc-500 (gray) — Others
 ];
 
 function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number; payload: { percent: number } }> }) {
@@ -42,7 +50,7 @@ export function ServiceCompositionCard({ services }: Props) {
   if (rest.length > 0) {
     grouped.push({
       serviceId: "other",
-      name: "Lainnya",
+      name: t("dashboard.others"),
       orders: rest.reduce((s, r) => s + r.orders, 0),
       revenue: rest.reduce((s, r) => s + r.revenue, 0),
     });
@@ -91,7 +99,7 @@ export function ServiceCompositionCard({ services }: Props) {
             {/* Center text */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <p className="text-lg font-bold">{formatCompactCurrency(total)}</p>
-              <p className="text-[11px] text-muted-foreground">total</p>
+              <p className="text-[11px] text-muted-foreground">{t("dashboard.totalLabel")}</p>
             </div>
           </div>
           {/* Legend */}

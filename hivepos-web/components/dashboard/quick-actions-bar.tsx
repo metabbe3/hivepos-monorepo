@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Plus, UserPlus, DollarSign, ShoppingCart } from "lucide-react";
+import { UserPlus, ShoppingCart } from "lucide-react";
 import { useTranslation } from "@/hooks/use-translation";
 
 export function QuickActionsBar() {

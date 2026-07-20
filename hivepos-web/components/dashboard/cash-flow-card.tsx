@@ -51,15 +51,15 @@ export function CashFlowCard({ cashFlow }: CashFlowCardProps) {
     <Card className="border border-border/40 bg-card shadow-sm">
       <CardHeader className="pb-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/40">
-            <DollarSign className="h-4 w-4 text-blue-600" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/40">
+            <DollarSign className="h-4 w-4 text-indigo-600" />
           </div>
           <div>
             <CardTitle className="text-base font-bold">
               {t("dashboard.cashFlow")}
             </CardTitle>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-xs text-muted-foreground">Net:</span>
+              <span className="text-xs text-muted-foreground">{t("dashboard.netLabel")}:</span>
               <span className={`text-sm font-bold ${net >= 0 ? "text-emerald-600" : "text-red-600"}`}>
                 {formatCompactCurrency(net)}
               </span>
@@ -88,8 +88,8 @@ export function CashFlowCard({ cashFlow }: CashFlowCardProps) {
             </div>
             <p className="text-lg font-bold">{formatCompactCurrency(expenses)}</p>
           </div>
-          <div className="col-span-2 rounded-xl border border-blue-200/60 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-800/30 p-3 space-y-1">
-            <div className="flex items-center gap-1 text-blue-600">
+          <div className="col-span-2 rounded-xl border border-indigo-200/60 bg-indigo-50/50 dark:bg-indigo-950/20 dark:border-indigo-800/30 p-3 space-y-1">
+            <div className="flex items-center gap-1 text-indigo-600">
               <Wallet className="h-3.5 w-3.5" />
               <span className="text-xs font-medium">{t("dashboard.walletDeposits")}</span>
             </div>

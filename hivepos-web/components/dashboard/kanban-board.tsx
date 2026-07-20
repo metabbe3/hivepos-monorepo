@@ -182,7 +182,7 @@ function KanbanOrderCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                className="h-9 w-9 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
                 onClick={(e) => {
                   e.stopPropagation();
                   onAdvance(order.id, nextStatus);

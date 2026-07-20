@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { formatCurrency } from "@/lib/format";
 import { useTranslation } from "@/hooks/use-translation";
 import { ORDER_STATUS_CONFIG } from "@/lib/constants";
+import { History } from "lucide-react";
 import Link from "next/link";
 import type { RecentOrder } from "./dashboard-types";
 
@@ -22,12 +23,17 @@ interface Props {
 }
 
 export function RecentOrdersCard({ orders, onCreateOrder }: Props) {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
 
   return (
     <Card className="border border-border/40 bg-card shadow-sm">
       <CardHeader className="pb-3">
-        <CardTitle className="text-base font-bold">{t("dashboard.recentOrders")}</CardTitle>
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/40">
+            <History className="h-4 w-4 text-indigo-600" />
+          </div>
+          <CardTitle className="text-base font-bold">{t("dashboard.recentOrders")}</CardTitle>
+        </div>
       </CardHeader>
       <CardContent>
         {orders.length === 0 ? (
@@ -63,7 +69,7 @@ export function RecentOrdersCard({ orders, onCreateOrder }: Props) {
                   </TableCell>
                   <TableCell className="text-right">{formatCurrency(order.totalAmount)}</TableCell>
                   <TableCell className="text-right text-muted-foreground hidden sm:table-cell">
-                    {new Date(order.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                    {new Date(order.createdAt).toLocaleDateString(lang === "id" ? "id-ID" : "en-US", { day: "numeric", month: "short" })}
                   </TableCell>
                 </TableRow>
               ))}

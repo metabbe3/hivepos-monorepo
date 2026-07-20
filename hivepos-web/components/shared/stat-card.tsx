@@ -19,6 +19,9 @@ interface StatCardProps {
   subtitle?: string;
   /** Optional size variant */
   size?: "default" | "lg";
+  /** Hero = committed brand surface (indigo drench) for the focal metric.
+   * Overrides iconColor/iconBg with a white-on-brand treatment. */
+  variant?: "default" | "hero";
   /** Optional sparkline data points (7-day mini trend) */
   sparkline?: number[];
   /** Sparkline fill color (e.g. "#10b981") */
@@ -34,29 +37,31 @@ export function StatCard({
   extra,
   subtitle,
   size = "default",
+  variant = "default",
   sparkline,
   sparklineColor = "var(--color-secondary)",
 }: StatCardProps) {
   const isLg = size === "lg";
+  const isHero = variant === "hero";
   const hasSparkline = sparkline && sparkline.length >= 2;
 
   return (
-    <Card className="h-full group relative overflow-hidden border border-border bg-card shadow-none transition-shadow hover:shadow-sm">
-      <CardContent className={`flex items-center gap-4 py-4 px-4`}>
+    <Card className={`h-full group relative overflow-hidden border transition-shadow ${isHero ? "border-transparent bg-brand text-white shadow-sm ring-1 ring-inset ring-white/10 hover:shadow-md dark:bg-brand-700" : "border-border bg-card shadow-none hover:shadow-sm"}`}>
+      <CardContent className="flex items-center gap-4 py-4 px-4">
         <div
-          className={`flex ${isLg ? "h-12 w-12" : "h-10 w-10"} shrink-0 items-center justify-center rounded-xl ${iconBg} transition-transform duration-200 group-hover:scale-110`}
+          className={`flex ${isLg ? "h-12 w-12" : "h-10 w-10"} shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-110 ${isHero ? "bg-white/15" : iconBg}`}
         >
-          <Icon className={`${isLg ? "h-6 w-6" : "h-5 w-5"} ${iconColor}`} />
+          <Icon className={`${isLg ? "h-6 w-6" : "h-5 w-5"} ${isHero ? "text-white" : iconColor}`} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-muted-foreground">
+          <p className={`text-xs font-medium ${isHero ? "text-white/80" : "text-muted-foreground"}`}>
             {title}
           </p>
           <div className="mt-0.5 flex items-baseline gap-2">
-            <p className={`${isLg ? "text-3xl" : "text-2xl"} font-extrabold sa-tnum tracking-tight`}>{value}</p>
+            <p className={`${isHero ? "text-4xl" : isLg ? "text-3xl" : "text-2xl"} font-extrabold sa-tnum tracking-tight`}>{value}</p>
           </div>
           {subtitle && (
-            <p className="mt-0.5 text-[11px] text-muted-foreground/80">
+            <p className={`mt-0.5 text-[11px] ${isHero ? "text-white/70" : "text-muted-foreground/80"}`}>
               {subtitle}
             </p>
           )}
@@ -65,7 +70,7 @@ export function StatCard({
         {hasSparkline && (
           <div className="w-16 h-8 shrink-0 opacity-60">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={sparkline.map((v, i) => ({ v }))}>
+              <AreaChart data={sparkline.map((v) => ({ v }))}>
                 <defs>
                   <linearGradient id={`spark-${title}`} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor={sparklineColor} stopOpacity={0.3} />

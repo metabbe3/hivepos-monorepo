@@ -13,7 +13,7 @@ export function OrderPipelineCard({ pipeline }: Props) {
   const { t } = useTranslation();
 
   const pipelineConfig = [
-    { key: "RECEIVED", label: t("dashboard.received"), color: "bg-blue-500" },
+    { key: "RECEIVED", label: t("dashboard.received"), color: "bg-indigo-500" },
     { key: "IN_PROGRESS", label: t("dashboard.inPipeline"), color: "bg-amber-500" },
     { key: "READY", label: t("dashboard.ready"), color: "bg-emerald-500" },
     { key: "DELIVERED", label: t("dashboard.delivered"), color: "bg-gray-400" },
@@ -24,8 +24,10 @@ export function OrderPipelineCard({ pipeline }: Props) {
   return (
     <Card className="border border-border/40 bg-card shadow-sm">
       <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/40">
+            <ShoppingCart className="h-4 w-4 text-indigo-600" />
+          </div>
           <CardTitle className="text-base font-bold">{t("dashboard.orderPipeline")}</CardTitle>
         </div>
       </CardHeader>

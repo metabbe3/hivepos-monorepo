@@ -123,8 +123,8 @@ export function SLATracker() {
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/40">
-              <Zap className="h-4 w-4 text-orange-600" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/40">
+              <Zap className="h-4 w-4 text-amber-600" />
             </div>
             <CardTitle className="text-base font-bold">{t("dashboard.sla.express")}</CardTitle>
             <Badge variant="secondary" className="text-xs px-1.5">
@@ -157,7 +157,7 @@ export function SLATracker() {
               ? "bg-red-500"
               : item.isUrgent
                 ? "bg-amber-500"
-                : "bg-blue-500";
+                : "bg-indigo-500";
 
             const startMs = item.order.inProgressAt
               ? new Date(item.order.inProgressAt).getTime()
@@ -170,7 +170,7 @@ export function SLATracker() {
             const currentCheckpoint = item.order.status === "IN_PROGRESS" ? "washing" : "received";
 
             const cpReceived = currentCheckpoint === "received" || currentCheckpoint === "washing"
-              ? "bg-blue-500" : "bg-muted-foreground/30";
+              ? "bg-indigo-500" : "bg-muted-foreground/30";
             const cpWashing = currentCheckpoint === "washing"
               ? "bg-amber-500 animate-pulse" : "bg-muted-foreground/30";
 
@@ -232,7 +232,7 @@ export function SLATracker() {
                   </div>
                   {/* Segment 1 */}
                   <div className="flex-1 h-1.5 rounded-full bg-muted/50 overflow-hidden">
-                    <div className={`h-full rounded-full transition-all duration-1000 ${currentCheckpoint === "received" ? barColor : "bg-blue-400"}`} style={{ width: `${firstSegmentProgress}%` }} />
+                    <div className={`h-full rounded-full transition-all duration-1000 ${currentCheckpoint === "received" ? barColor : "bg-indigo-400"}`} style={{ width: `${firstSegmentProgress}%` }} />
                   </div>
                   {/* Washing */}
                   <div className="flex flex-col items-center shrink-0">
@@ -251,7 +251,7 @@ export function SLATracker() {
                 </div>
 
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  SLA: {item.totalSla / (60 * 60 * 1000)}j — Due: {deadlineTime}
+                  {t("dashboard.sla.slaLabel")}: {item.totalSla / (60 * 60 * 1000)}{t("dashboard.sla.hourShort")} — {t("dashboard.sla.dueLabel")}: {deadlineTime}
                 </p>
               </div>
             );

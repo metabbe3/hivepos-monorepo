@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Package, Clock } from "lucide-react";
+import { AlertTriangle, Package } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { useTranslation } from "@/hooks/use-translation";
 import type { UnpaidOrder, LowStockItem } from "./dashboard-types";
@@ -12,7 +12,6 @@ interface Props {
 
 export function AlertSummary({ unpaidOrders, lowStock }: Props) {
   const { t } = useTranslation();
-
   const totalUnpaid = unpaidOrders.reduce((s, o) => s + o.totalAmount, 0);
   const overdueUnpaid = unpaidOrders.filter((o) => {
     const days = Math.floor((Date.now() - new Date(o.createdAt).getTime()) / (1000 * 60 * 60 * 24));
@@ -25,7 +24,9 @@ export function AlertSummary({ unpaidOrders, lowStock }: Props) {
     alerts.push({
       type: overdueUnpaid > 0 ? "danger" : "warning",
       icon: AlertTriangle,
-      text: `${unpaidOrders.length} piutang (${formatCurrency(totalUnpaid)})`,
+      text: t("dashboard.unpaidAlert")
+        .replace("{n}", String(unpaidOrders.length))
+        .replace("{total}", formatCurrency(totalUnpaid)),
       count: unpaidOrders.length,
     });
   }
@@ -34,7 +35,7 @@ export function AlertSummary({ unpaidOrders, lowStock }: Props) {
     alerts.push({
       type: "warning",
       icon: Package,
-      text: `${lowStock.length} stok rendah`,
+      text: t("dashboard.lowStockAlert").replace("{n}", String(lowStock.length)),
       count: lowStock.length,
     });
   }
@@ -44,7 +45,7 @@ export function AlertSummary({ unpaidOrders, lowStock }: Props) {
   const styles = {
     danger: "bg-red-50 dark:bg-red-950/20 border-red-200/60 dark:border-red-800/40 text-red-700 dark:text-red-300",
     warning: "bg-amber-50 dark:bg-amber-950/20 border-amber-200/60 dark:border-amber-800/40 text-amber-700 dark:text-amber-300",
-    info: "bg-blue-50 dark:bg-blue-950/20 border-blue-200/60 dark:border-blue-800/40 text-blue-700 dark:text-blue-300",
+    info: "bg-indigo-50 dark:bg-indigo-950/20 border-indigo-200/60 dark:border-indigo-800/40 text-indigo-700 dark:text-indigo-300",
   };
 
   return (
