@@ -68,7 +68,10 @@ func CreateTransaction(ctx context.Context, serverKey, env string, req Transacti
 		body["custom_field1"] = req.CustomField1
 		body["custom_field2"] = req.CustomField2
 	}
-	raw, _ := json.Marshal(body)
+	raw, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("midtrans marshal request: %w", err)
+	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, snapBaseURL(env), bytes.NewReader(raw))
 	if err != nil {
@@ -92,7 +95,10 @@ func CreateTransaction(ctx context.Context, serverKey, env string, req Transacti
 	}
 	defer resp.Body.Close()
 
-	respBody, _ := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("midtrans read response: %w", err)
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("midtrans %d: %s", resp.StatusCode, string(respBody))
 	}

@@ -78,11 +78,14 @@ func (s *Service) CreateExpense(ctx context.Context, input CreateExpenseInput, t
 	}
 	// Honor a caller-supplied date (backdating); fall back to now.
 	if input.Date != nil && *input.Date != "" {
-		if t, err := time.Parse("2006-01-02", *input.Date); err == nil {
-			e.Date = t
-		} else if t, err := time.Parse(time.RFC3339, *input.Date); err == nil {
-			e.Date = t
+		t, perr := time.Parse("2006-01-02", *input.Date)
+		if perr != nil {
+			t, perr = time.Parse(time.RFC3339, *input.Date)
 		}
+		if perr != nil {
+			return nil, fmt.Errorf("invalid expense date %q: expected YYYY-MM-DD or RFC3339", *input.Date)
+		}
+		e.Date = t
 	}
 	if err := s.Repo.CreateExpense(ctx, e); err != nil {
 		return nil, fmt.Errorf("creating expense: %w", err)

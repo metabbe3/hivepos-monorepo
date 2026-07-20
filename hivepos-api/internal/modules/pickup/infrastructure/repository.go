@@ -108,6 +108,9 @@ func (r *PgPickupRepository) List(ctx context.Context, tenantID string, f applic
 		}
 		list = append(list, p)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating pickup requests: %w", err)
+	}
 	return list, total, nil
 }
 

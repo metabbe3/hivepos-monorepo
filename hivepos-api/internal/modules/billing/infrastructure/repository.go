@@ -281,7 +281,9 @@ func (r *PgBillingRepository) GetTenantInfo(ctx context.Context, tenantID string
 		return nil, fmt.Errorf("fetching tenant info: %w", err)
 	}
 	if activeModules != nil {
-		_ = json.Unmarshal(activeModules, &t.ActiveModules)
+		if err := json.Unmarshal(activeModules, &t.ActiveModules); err != nil {
+			return nil, fmt.Errorf("decoding tenant activeModules: %w", err)
+		}
 	}
 	return t, nil
 }

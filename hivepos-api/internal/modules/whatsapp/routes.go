@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -59,13 +60,17 @@ func (m *Module) gate(tenantID string) bool {
 	}
 	// Layer 1: global flag.
 	var globalEnabled bool
-	_ = m.db.QueryRow(`SELECT enabled FROM "FeatureFlag" WHERE key = 'whatsappAutomation'`).Scan(&globalEnabled)
+	if err := m.db.QueryRow(`SELECT enabled FROM "FeatureFlag" WHERE key = 'whatsappAutomation'`).Scan(&globalEnabled); err != nil {
+		log.Printf("whatsapp gate: feature flag lookup failed: %v", err)
+	}
 	if !globalEnabled {
 		return false
 	}
 	// Layer 2: tenant whitelist in settings JSON.
 	var settingsJSON sql.NullString
-	_ = m.db.QueryRow(`SELECT settings FROM "Tenant" WHERE id = $1`, tenantID).Scan(&settingsJSON)
+	if err := m.db.QueryRow(`SELECT settings FROM "Tenant" WHERE id = $1`, tenantID).Scan(&settingsJSON); err != nil {
+		log.Printf("whatsapp gate: tenant settings lookup failed: %v", err)
+	}
 	if !settingsJSON.Valid {
 		return false
 	}

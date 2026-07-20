@@ -64,6 +64,10 @@ func (r *PgCustomerRepository) FindByID(ctx context.Context, id, tenantID string
 		byID[o.ID] = o
 		orderIDs = append(orderIDs, o.ID)
 	}
+	if err := ordRows.Err(); err != nil {
+		ordRows.Close()
+		return nil, fmt.Errorf("iterating customer orders: %w", err)
+	}
 	ordRows.Close()
 
 	// Attach payments grouped by order.
@@ -86,6 +90,10 @@ func (r *PgCustomerRepository) FindByID(ctx context.Context, id, tenantID string
 			if o, ok := byID[oid]; ok {
 				o.Payments = append(o.Payments, p)
 			}
+		}
+		if err := payRows.Err(); err != nil {
+			payRows.Close()
+			return nil, fmt.Errorf("iterating customer payments: %w", err)
 		}
 		payRows.Close()
 	}
@@ -161,7 +169,9 @@ func (r *PgCustomerRepository) List(ctx context.Context, tenantID string, filter
 	}
 
 	var total int64
-	r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "Customer" c JOIN "Branch" b ON b.id = c."branchId" `+where, args...).Scan(&total)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "Customer" c JOIN "Branch" b ON b.id = c."branchId" `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting customers: %w", err)
+	}
 
 	offset := (filter.Page - 1) * filter.Limit
 	orderBy := `c."createdAt" DESC`
@@ -191,9 +201,12 @@ func (r *PgCustomerRepository) List(ctx context.Context, tenantID string, filter
 	for rows.Next() {
 		c := &domain.Customer{}
 		if err := rows.Scan(&c.ID, &c.Name, &c.Phone, &c.Email, &c.Notes, &c.Balance, &c.BranchID, &c.CreatedAt, &c.UpdatedAt); err != nil {
-			return nil, 0, err
+			return nil, 0, fmt.Errorf("scanning customer: %w", err)
 		}
 		list = append(list, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating customers: %w", err)
 	}
 	return list, total, nil
 }
@@ -216,7 +229,9 @@ func (r *PgCustomerRepository) ListItems(ctx context.Context, tenantID string, f
 	}
 
 	var total int64
-	r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "Customer" c JOIN "Branch" b ON b.id = c."branchId" `+where, args...).Scan(&total)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "Customer" c JOIN "Branch" b ON b.id = c."branchId" `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting customers: %w", err)
+	}
 
 	offset := (filter.Page - 1) * filter.Limit
 	orderBy := `c."createdAt" DESC`
@@ -253,6 +268,9 @@ func (r *PgCustomerRepository) ListItems(ctx context.Context, tenantID string, f
 			return nil, 0, fmt.Errorf("scanning customer item: %w", err)
 		}
 		out = append(out, it)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating customer items: %w", err)
 	}
 	return out, total, nil
 }
@@ -316,6 +334,9 @@ func (r *PgCustomerRepository) GetDeposits(ctx context.Context, customerID, tena
 		}
 		list = append(list, d)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating deposits: %w", err)
+	}
 	return list, nil
 }
 
@@ -352,7 +373,10 @@ func (r *PgCustomerRepository) TopUpDeposit(ctx context.Context, customerID, ten
 		return nil, fmt.Errorf("inserting deposit tx: %w", err)
 	}
 
-	return d, tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("committing deposit top-up: %w", err)
+	}
+	return d, nil
 }
 
 func descIfDesc(order string) string {

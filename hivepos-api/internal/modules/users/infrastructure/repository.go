@@ -105,6 +105,9 @@ func (r *PgUserRepository) ListUsers(ctx context.Context, tenantID string, f app
 		}
 		list = append(list, u)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating users: %w", err)
+	}
 	return list, total, nil
 }
 
@@ -186,6 +189,9 @@ func (r *PgUserRepository) ListUserItems(ctx context.Context, tenantID string, f
 			it.RoleRef = rr
 		}
 		out = append(out, it)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating user items: %w", err)
 	}
 	return out, total, nil
 }
@@ -354,6 +360,9 @@ func (r *PgUserRepository) ListRoles(ctx context.Context, tenantID string, f app
 		}
 		list = append(list, role)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating roles: %w", err)
+	}
 	return list, total, nil
 }
 
@@ -395,8 +404,13 @@ func (r *PgUserRepository) ListRoleItems(ctx context.Context, tenantID string, f
 		if err := rows.Scan(&it.ID, &it.Name, &it.Description, &it.Color, &permsJSON, &it.IsSystem, &it.CreatedAt, &it.UserCount); err != nil {
 			return nil, 0, fmt.Errorf("scanning role item: %w", err)
 		}
-		_ = json.Unmarshal([]byte(permsJSON.String), &it.Permissions)
+		if err := json.Unmarshal([]byte(permsJSON.String), &it.Permissions); err != nil {
+			return nil, 0, fmt.Errorf("decoding role permissions: %w", err)
+		}
 		out = append(out, it)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating role items: %w", err)
 	}
 	return out, total, nil
 }

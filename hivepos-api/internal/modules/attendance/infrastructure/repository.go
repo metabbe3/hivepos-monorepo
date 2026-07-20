@@ -42,6 +42,9 @@ func (r *PgAttendanceRepository) ListStaff(ctx context.Context, tenantID string)
 		}
 		list = append(list, s)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating staff: %w", err)
+	}
 	return list, nil
 }
 
@@ -97,6 +100,10 @@ func (r *PgAttendanceRepository) ListStatus(ctx context.Context, tenantID, branc
 		nameByID[id] = name
 		order = append(order, id)
 	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, fmt.Errorf("iterating staff status: %w", err)
+	}
 	rows.Close()
 
 	// 2. today's clock events (in branch)
@@ -137,6 +144,10 @@ func (r *PgAttendanceRepository) ListStatus(ctx context.Context, tenantID, branc
 			st.todayMs += ts.Sub(*st.openIn).Milliseconds()
 			st.openIn = nil
 		}
+	}
+	if err := evRows.Err(); err != nil {
+		evRows.Close()
+		return nil, fmt.Errorf("iterating clock events: %w", err)
 	}
 	evRows.Close()
 
@@ -251,6 +262,9 @@ func (r *PgAttendanceRepository) ListEvents(ctx context.Context, tenantID string
 			return nil, 0, fmt.Errorf("scanning event: %w", err)
 		}
 		list = append(list, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating events: %w", err)
 	}
 	return list, total, nil
 }

@@ -112,6 +112,9 @@ func (r *PgReportsRepository) GetOrdersReport(ctx context.Context, tenantID stri
 		}
 		byStatus = append(byStatus, g)
 	}
+	if err := statusRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating orders status groups: %w", err)
+	}
 	statusRows.Close()
 
 	// 2. total orders
@@ -136,6 +139,9 @@ func (r *PgReportsRepository) GetOrdersReport(ctx context.Context, tenantID stri
 		if h >= 0 {
 			turnaroundHours = append(turnaroundHours, h)
 		}
+	}
+	if err := delivRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating delivered orders: %w", err)
 	}
 	delivRows.Close()
 
@@ -162,6 +168,9 @@ func (r *PgReportsRepository) GetOrdersReport(ctx context.Context, tenantID stri
 		totalItems += a.quantity
 		totalWeightKg += a.weightKg
 	}
+	if err := svcRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating service breakdown: %w", err)
+	}
 	svcRows.Close()
 
 	// 5. order dates (daily volume)
@@ -187,6 +196,9 @@ func (r *PgReportsRepository) GetOrdersReport(ctx context.Context, tenantID stri
 			dailyOrder = append(dailyOrder, day)
 		}
 		dailyMap[day]++
+	}
+	if err := dateRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating order dates: %w", err)
 	}
 	dateRows.Close()
 	sort.Strings(dailyOrder)
@@ -307,6 +319,9 @@ func (r *PgReportsRepository) GetRevenueReport(ctx context.Context, tenantID str
 		}
 		byMethod = append(byMethod, m)
 	}
+	if err := methRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating revenue by method: %w", err)
+	}
 	methRows.Close()
 
 	// 3. payments (for daily)
@@ -346,6 +361,9 @@ func (r *PgReportsRepository) GetRevenueReport(ctx context.Context, tenantID str
 		a.revenue += amt
 		a.byMethod[method] += amt
 	}
+	if err := payRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating revenue payments: %w", err)
+	}
 	payRows.Close()
 
 	// 4. orders by payment status
@@ -363,6 +381,9 @@ func (r *PgReportsRepository) GetRevenueReport(ctx context.Context, tenantID str
 			return nil, err
 		}
 		byStatus = append(byStatus, s)
+	}
+	if err := psRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating revenue by status: %w", err)
 	}
 	psRows.Close()
 
@@ -394,6 +415,9 @@ func (r *PgReportsRepository) GetRevenueReport(ctx context.Context, tenantID str
 		a.orders[id] = struct{}{}
 		a.gross += total + disc
 		a.net += total
+	}
+	if err := odRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating revenue daily orders: %w", err)
 	}
 	odRows.Close()
 
@@ -460,6 +484,9 @@ func (r *PgReportsRepository) GetServicesReport(ctx context.Context, tenantID st
 		}
 		byPricingType[it.PricingType] = agg
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating services report: %w", err)
+	}
 	return &domain.ServicesReport{Services: services, ByPricingType: byPricingType}, nil
 }
 
@@ -514,6 +541,9 @@ func (r *PgReportsRepository) GetCustomersReport(ctx context.Context, tenantID s
 		}
 		spenders = append(spenders, s)
 		totalSpent += s.spent
+	}
+	if err := topRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating top spenders: %w", err)
 	}
 	topRows.Close()
 
@@ -602,6 +632,9 @@ func (r *PgReportsRepository) GetCustomersReport(ctx context.Context, tenantID s
 		a.total += total - paid
 		a.count++
 	}
+	if err := outRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating customers outstanding: %w", err)
+	}
 	outRows.Close()
 	outstanding := make([]domain.CustomerOutstanding, 0, len(outMap))
 	for cid, a := range outMap {
@@ -659,6 +692,9 @@ func (r *PgReportsRepository) GetExpensesReport(ctx context.Context, tenantID st
 		}
 		a.id = id.String
 		aggs = append(aggs, a)
+	}
+	if err := catRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating expenses by category: %w", err)
 	}
 	catRows.Close()
 
@@ -725,6 +761,9 @@ func (r *PgReportsRepository) GetExpensesReport(ctx context.Context, tenantID st
 		dailyTot[day] += amt
 		dailyCnt[day]++
 	}
+	if err := dRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating expenses daily: %w", err)
+	}
 	dRows.Close()
 	sort.Strings(order)
 	dailyTrend := make([]domain.ExpenseDailyRow, 0, len(order))
@@ -764,46 +803,56 @@ func (r *PgReportsRepository) GetMonthlyPnL(ctx context.Context, tenantID string
 
 	// 1. per-kg + per-item subtotals from OrderItem (current month, branch-scoped)
 	var perKg, perItem float64
-	r.db.QueryRowContext(ctx, fmt.Sprintf(`
+	if err := r.db.QueryRowContext(ctx, fmt.Sprintf(`
 		SELECT COALESCE(SUM(CASE WHEN s."pricingType"='PER_KG' THEN oi.subtotal::float ELSE 0 END),0),
 		       COALESCE(SUM(CASE WHEN s."pricingType"='PER_ITEM' THEN oi.subtotal::float ELSE 0 END),0)
 		FROM "OrderItem" oi
 		JOIN "Order" o ON o.id=oi."orderId" JOIN "Service" s ON s.id=oi."serviceId"
 		WHERE %s AND (o."receivedAt" IS NOT NULL AND o."receivedAt" >= $2 AND o."receivedAt" <= $3
-		              OR o."receivedAt" IS NULL AND o."createdAt" >= $2 AND o."createdAt" <= $3)`, branchIn), args1...).Scan(&perKg, &perItem)
+		              OR o."receivedAt" IS NULL AND o."createdAt" >= $2 AND o."createdAt" <= $3)`, branchIn), args1...).Scan(&perKg, &perItem); err != nil {
+		return nil, fmt.Errorf("monthly pnl income: %w", err)
+	}
 	totalIncome := perKg + perItem
 
 	// 2. unpaid orders in month
 	var unpaidBalance float64
-	r.db.QueryRowContext(ctx, fmt.Sprintf(`
+	if err := r.db.QueryRowContext(ctx, fmt.Sprintf(`
 		SELECT COALESCE(SUM(o."totalAmount"::float - o."paidAmount"::float),0)
 		FROM "Order" o WHERE %s AND o."paymentStatus" IN ('PENDING','PARTIAL')
 		AND (o."receivedAt" IS NOT NULL AND o."receivedAt" >= $2 AND o."receivedAt" <= $3
-		     OR o."receivedAt" IS NULL AND o."createdAt" >= $2 AND o."createdAt" <= $3)`, branchIn), args1...).Scan(&unpaidBalance)
+		     OR o."receivedAt" IS NULL AND o."createdAt" >= $2 AND o."createdAt" <= $3)`, branchIn), args1...).Scan(&unpaidBalance); err != nil {
+		return nil, fmt.Errorf("monthly pnl unpaid: %w", err)
+	}
 
 	// 3. cash collected in month
 	var cashCollected float64
-	r.db.QueryRowContext(ctx, `
+	if err := r.db.QueryRowContext(ctx, `
 		SELECT COALESCE(SUM(p.amount::float),0) FROM "Payment" p
 		JOIN "Order" o ON o.id=p."orderId" JOIN "Branch" b ON b.id=o."branchId"
-		WHERE b."tenantId"=$1 AND p."paidAt" >= $2 AND p."paidAt" <= $3`, args1...).Scan(&cashCollected)
+		WHERE b."tenantId"=$1 AND p."paidAt" >= $2 AND p."paidAt" <= $3`, args1...).Scan(&cashCollected); err != nil {
+		return nil, fmt.Errorf("monthly pnl cash collected: %w", err)
+	}
 
 	// 4. cash by origin month
 	cashByOrig := map[string]float64{}
-	cRows, _ := r.db.QueryContext(ctx, `
+	cRows, err := r.db.QueryContext(ctx, `
 		SELECT p.amount::float, COALESCE(o."receivedAt", o."createdAt")
 		FROM "Payment" p JOIN "Order" o ON o.id=p."orderId" JOIN "Branch" b ON b.id=o."branchId"
 		WHERE b."tenantId"=$1 AND p."paidAt" >= $2 AND p."paidAt" <= $3`, args1...)
-	if cRows != nil {
-		for cRows.Next() {
-			var amt float64
-			var d time.Time
-			if cRows.Scan(&amt, &d) == nil {
-				cashByOrig[d.Format("2006-01")] += amt
-			}
-		}
-		cRows.Close()
+	if err != nil {
+		return nil, fmt.Errorf("monthly pnl cash-by-origin: %w", err)
 	}
+	for cRows.Next() {
+		var amt float64
+		var d time.Time
+		if cRows.Scan(&amt, &d) == nil {
+			cashByOrig[d.Format("2006-01")] += amt
+		}
+	}
+	if err := cRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating monthly pnl cash-by-origin: %w", err)
+	}
+	cRows.Close()
 	currentMonthKey := fmt.Sprintf("%d-%02d", year, month)
 	cashByMonth := make([]domain.CashByMonth, 0)
 	for m, amt := range cashByOrig {
@@ -812,16 +861,19 @@ func (r *PgReportsRepository) GetMonthlyPnL(ctx context.Context, tenantID string
 	sort.Slice(cashByMonth, func(i, j int) bool { return cashByMonth[i].Month > cashByMonth[j].Month })
 
 	// 5. expenses by category
-	catRows, _ := r.db.QueryContext(ctx, `
+	catRows, err := r.db.QueryContext(ctx, `
 		SELECT e."categoryId", COALESCE(SUM(e.amount::float),0) FROM "Expense" e
 		JOIN "Branch" b ON b.id=e."branchId" WHERE b."tenantId"=$1 AND e.date >= $2 AND e.date <= $3
 		GROUP BY e."categoryId" ORDER BY SUM(e.amount::float) DESC`, args1...)
+	if err != nil {
+		return nil, fmt.Errorf("monthly pnl expenses by category: %w", err)
+	}
 	type catAgg struct {
 		id  string
 		amt float64
 	}
 	var catAggs []catAgg
-	for catRows != nil && catRows.Next() {
+	for catRows.Next() {
 		var ca catAgg
 		var cid sql.NullString
 		if catRows.Scan(&cid, &ca.amt) == nil {
@@ -829,9 +881,10 @@ func (r *PgReportsRepository) GetMonthlyPnL(ctx context.Context, tenantID string
 			catAggs = append(catAggs, ca)
 		}
 	}
-	if catRows != nil {
-		catRows.Close()
+	if err := catRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating monthly pnl expenses by category: %w", err)
 	}
+	catRows.Close()
 	// resolve names
 	catNames := map[string]string{}
 	if len(catAggs) > 0 {
@@ -879,33 +932,37 @@ func (r *PgReportsRepository) GetMonthlyPnL(ctx context.Context, tenantID string
 	}
 
 	// 6. expense details
-	edRows, _ := r.db.QueryContext(ctx, `
+	edRows, err := r.db.QueryContext(ctx, `
 		SELECT e.date, e.description, e.amount::float, ec.name FROM "Expense" e
 		JOIN "Branch" b ON b.id=e."branchId" LEFT JOIN "ExpenseCategory" ec ON ec.id=e."categoryId"
 		WHERE b."tenantId"=$1 AND e.date >= $2 AND e.date <= $3 ORDER BY e.date`, args1...)
-	expenseDetails := make([]domain.ExpenseDetailRow, 0)
-	if edRows != nil {
-		for edRows.Next() {
-			var d time.Time
-			var desc, cn sql.NullString
-			var amt float64
-			if edRows.Scan(&d, &desc, &amt, &cn) == nil {
-				ds := d.UTC().Format("2006-01-02")
-				dp := desc.String
-				if dp == "" {
-					dp = cn.String
-					if dp == "" {
-						dp = "Uncategorized"
-					}
-				}
-				expenseDetails = append(expenseDetails, domain.ExpenseDetailRow{Date: ds, Description: dp, Amount: amt})
-			}
-		}
-		edRows.Close()
+	if err != nil {
+		return nil, fmt.Errorf("monthly pnl expense details: %w", err)
 	}
+	expenseDetails := make([]domain.ExpenseDetailRow, 0)
+	for edRows.Next() {
+		var d time.Time
+		var desc, cn sql.NullString
+		var amt float64
+		if edRows.Scan(&d, &desc, &amt, &cn) == nil {
+			ds := d.UTC().Format("2006-01-02")
+			dp := desc.String
+			if dp == "" {
+				dp = cn.String
+				if dp == "" {
+					dp = "Uncategorized"
+				}
+			}
+			expenseDetails = append(expenseDetails, domain.ExpenseDetailRow{Date: ds, Description: dp, Amount: amt})
+		}
+	}
+	if err := edRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating monthly pnl expense details: %w", err)
+	}
+	edRows.Close()
 
 	// 7. daily transactions (orders with items)
-	dRows, _ := r.db.QueryContext(ctx, fmt.Sprintf(`
+	dRows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
 		SELECT o.id, o."totalAmount"::float, COALESCE(o."receivedAt",o."createdAt"), c.name,
 		       oi.subtotal::float, s.name, s."pricingType", oi."weightKg"::float, oi.quantity::float
 		FROM "Order" o
@@ -916,6 +973,9 @@ func (r *PgReportsRepository) GetMonthlyPnL(ctx context.Context, tenantID string
 		WHERE %s AND (o."receivedAt" IS NOT NULL AND o."receivedAt" >= $2 AND o."receivedAt" <= $3
 		             OR o."receivedAt" IS NULL AND o."createdAt" >= $2 AND o."createdAt" <= $3)
 		ORDER BY COALESCE(o."receivedAt",o."createdAt")`, branchIn), args1...)
+	if err != nil {
+		return nil, fmt.Errorf("monthly pnl daily transactions: %w", err)
+	}
 	type ordDetail struct {
 		name   string
 		weight float64
@@ -925,35 +985,36 @@ func (r *PgReportsRepository) GetMonthlyPnL(ctx context.Context, tenantID string
 	dayMap := map[string][]*ordDetail{}
 	var dayOrder []string
 	ordByID := map[string]*ordDetail{}
-	if dRows != nil {
-		for dRows.Next() {
-			var oid, custName, svcName, pricing sql.NullString
-			var total float64
-			var ordDate time.Time
-			var subtotal, weight, qty sql.NullFloat64
-			if dRows.Scan(&oid, &total, &ordDate, &custName, &subtotal, &svcName, &pricing, &weight, &qty) != nil {
-				continue
-			}
-			day := ordDate.UTC().Format("2006-01-02")
-			od, ok := ordByID[oid.String]
-			if !ok {
-				od = &ordDetail{name: custName.String, amount: total}
-				ordByID[oid.String] = od
-				if _, ok2 := dayMap[day]; !ok2 {
-					dayOrder = append(dayOrder, day)
-				}
-				dayMap[day] = append(dayMap[day], od)
-			}
-			if pricing.String == "PER_KG" {
-				if weight.Valid {
-					od.weight += weight.Float64
-				}
-			} else if svcName.Valid {
-				od.items = append(od.items, domain.DailyItem{Name: svcName.String, Qty: qty.Float64})
-			}
+	for dRows.Next() {
+		var oid, custName, svcName, pricing sql.NullString
+		var total float64
+		var ordDate time.Time
+		var subtotal, weight, qty sql.NullFloat64
+		if dRows.Scan(&oid, &total, &ordDate, &custName, &subtotal, &svcName, &pricing, &weight, &qty) != nil {
+			continue
 		}
-		dRows.Close()
+		day := ordDate.UTC().Format("2006-01-02")
+		od, ok := ordByID[oid.String]
+		if !ok {
+			od = &ordDetail{name: custName.String, amount: total}
+			ordByID[oid.String] = od
+			if _, ok2 := dayMap[day]; !ok2 {
+				dayOrder = append(dayOrder, day)
+			}
+			dayMap[day] = append(dayMap[day], od)
+		}
+		if pricing.String == "PER_KG" {
+			if weight.Valid {
+				od.weight += weight.Float64
+			}
+		} else if svcName.Valid {
+			od.items = append(od.items, domain.DailyItem{Name: svcName.String, Qty: qty.Float64})
+		}
 	}
+	if err := dRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating monthly pnl daily transactions: %w", err)
+	}
+	dRows.Close()
 	sort.Strings(dayOrder)
 	dailyTx := make([]domain.DailyTransaction, 0, len(dayOrder))
 	running := 0.0
@@ -990,36 +1051,44 @@ func (r *PgReportsRepository) GetMonthlyPnL(ctx context.Context, tenantID string
 	yrArgs := []interface{}{tenantID, yearStart, yearEnd}
 	monthlyRev := [12]float64{}
 	monthlyExp := [12]float64{}
-	yoRows, _ := r.db.QueryContext(ctx, fmt.Sprintf(`
+	yoRows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
 		SELECT COALESCE(o."receivedAt",o."createdAt") AS d, o."totalAmount"::float, COALESCE(o."discountAmount"::float,0)
 		FROM "Order" o WHERE %s AND COALESCE(o."receivedAt",o."createdAt") >= $2 AND COALESCE(o."receivedAt",o."createdAt") <= $3`, branchIn), yrArgs...)
-	if yoRows != nil {
-		for yoRows.Next() {
-			var d time.Time
-			var rev, disc float64
-			if yoRows.Scan(&d, &rev, &disc) == nil {
-				if d.Year() == year {
-					monthlyRev[int(d.Month())-1] += rev - disc
-				}
+	if err != nil {
+		return nil, fmt.Errorf("monthly pnl annual revenue: %w", err)
+	}
+	for yoRows.Next() {
+		var d time.Time
+		var rev, disc float64
+		if yoRows.Scan(&d, &rev, &disc) == nil {
+			if d.Year() == year {
+				monthlyRev[int(d.Month())-1] += rev - disc
 			}
 		}
-		yoRows.Close()
 	}
-	yeRows, _ := r.db.QueryContext(ctx, `
+	if err := yoRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating monthly pnl annual revenue: %w", err)
+	}
+	yoRows.Close()
+	yeRows, err := r.db.QueryContext(ctx, `
 		SELECT e.date, e.amount::float FROM "Expense" e
 		JOIN "Branch" b ON b.id=e."branchId" WHERE b."tenantId"=$1 AND e.date >= $2 AND e.date <= $3`, yrArgs...)
-	if yeRows != nil {
-		for yeRows.Next() {
-			var d time.Time
-			var amt float64
-			if yeRows.Scan(&d, &amt) == nil {
-				if d.Year() == year {
-					monthlyExp[int(d.Month())-1] += amt
-				}
+	if err != nil {
+		return nil, fmt.Errorf("monthly pnl annual expenses: %w", err)
+	}
+	for yeRows.Next() {
+		var d time.Time
+		var amt float64
+		if yeRows.Scan(&d, &amt) == nil {
+			if d.Year() == year {
+				monthlyExp[int(d.Month())-1] += amt
 			}
 		}
-		yeRows.Close()
 	}
+	if err := yeRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating monthly pnl annual expenses: %w", err)
+	}
+	yeRows.Close()
 	annual := make([]domain.AnnualMonth, 12)
 	for i := 0; i < 12; i++ {
 		annual[i] = domain.AnnualMonth{Month: i + 1, MonthName: monthNamesID[i], Revenue: monthlyRev[i], Expenses: monthlyExp[i], NetProfit: monthlyRev[i] - monthlyExp[i]}
@@ -1090,6 +1159,9 @@ func (r *PgReportsRepository) GetProfitReport(ctx context.Context, tenantID stri
 		}
 		daily[day].rev += amt
 	}
+	if err := revRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating profit daily revenue: %w", err)
+	}
 	revRows.Close()
 
 	expRows, err := r.db.QueryContext(ctx, fmt.Sprintf(
@@ -1110,6 +1182,9 @@ func (r *PgReportsRepository) GetProfitReport(ctx context.Context, tenantID stri
 			order = append(order, day)
 		}
 		daily[day].exp += amt
+	}
+	if err := expRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating profit daily expenses: %w", err)
 	}
 	expRows.Close()
 
@@ -1184,6 +1259,9 @@ func (r *PgReportsRepository) GetOutstandingReport(ctx context.Context, tenantID
 		}
 		a.orders = append(a.orders, domain.OutstandingOrder{OrderNumber: onum.String, Outstanding: outstanding, CreatedAt: created.UTC().Format(time.RFC3339)})
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating outstanding report: %w", err)
+	}
 
 	customers := make([]domain.OutstandingCustomer, 0, len(order))
 	for _, k := range order {
@@ -1252,6 +1330,9 @@ func (r *PgReportsRepository) GetPaymentCollection(ctx context.Context, tenantID
 			OrderCreatedDate: orderCreated.UTC().Format(time.RFC3339),
 		})
 	}
+	if err := payRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating payment collection: %w", err)
+	}
 	payRows.Close()
 
 	payMonths := make([]domain.PaymentCollMonth, 0, len(payMap))
@@ -1312,6 +1393,9 @@ func (r *PgReportsRepository) GetPaymentCollection(ctx context.Context, tenantID
 			t := created
 			oldestUnpaid = &t
 		}
+	}
+	if err := unpaidRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating unpaid orders: %w", err)
 	}
 	unpaidRows.Close()
 
@@ -1383,6 +1467,9 @@ func (r *PgReportsRepository) GetCommissionReport(ctx context.Context, tenantID 
 		totalRevenue += r.Revenue
 		totalCommission += r.Commission
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating commission report: %w", err)
+	}
 	return &domain.CommissionReport{
 		Summary:   domain.CommissionSummary{TotalRevenue: totalRevenue, TotalCommission: totalCommission},
 		ByService: byService,
@@ -1419,6 +1506,9 @@ func (r *PgReportsRepository) GetAttendanceReport(ctx context.Context, tenantID 
 		}
 		out = append(out, a)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating attendance: %w", err)
+	}
 	return out, nil
 }
 
@@ -1452,6 +1542,9 @@ func (r *PgReportsRepository) GetInventoryReport(ctx context.Context, tenantID s
 		}
 		totalValue += s.Value
 		stockLevels = append(stockLevels, s)
+	}
+	if err := siRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating inventory stock levels: %w", err)
 	}
 
 	return &domain.InventoryReport{
@@ -1521,6 +1614,9 @@ func (r *PgReportsRepository) GetPiutangReport(ctx context.Context, tenantID str
 		}
 		totalOutstanding += o.Outstanding
 		orders = append(orders, o)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating piutang report: %w", err)
 	}
 
 	// Compute monthly summary (last 6 months).

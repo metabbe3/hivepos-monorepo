@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -63,8 +64,10 @@ func (m *Module) unread(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	var lastRead sql.NullTime
-	_ = m.db.QueryRowContext(req.Context(),
-		`SELECT "lastTicketEventReadAt" FROM "User" WHERE id=$1`, userID).Scan(&lastRead)
+	if err := m.db.QueryRowContext(req.Context(),
+		`SELECT "lastTicketEventReadAt" FROM "User" WHERE id=$1`, userID).Scan(&lastRead); err != nil && err != sql.ErrNoRows {
+		log.Printf("tickets unread: lastTicketEventReadAt load failed: %v", err)
+	}
 
 	rows, err := m.db.QueryContext(req.Context(), `
 		SELECT id, action, "targetId", COALESCE("actorEmail",''), "createdAt"
@@ -242,8 +245,10 @@ func (m *Module) create(w http.ResponseWriter, req *http.Request) {
 	}
 	var name, email sql.NullString
 	var phone sql.NullString
-	_ = m.db.QueryRowContext(req.Context(),
-		`SELECT name, email, phone FROM "User" WHERE id=$1`, userID).Scan(&name, &email, &phone)
+	if err := m.db.QueryRowContext(req.Context(),
+		`SELECT name, email, phone FROM "User" WHERE id=$1`, userID).Scan(&name, &email, &phone); err != nil && err != sql.ErrNoRows {
+		log.Printf("tickets create: submitter profile load failed: %v", err)
+	}
 
 	var id string
 	err := m.db.QueryRowContext(req.Context(), `
@@ -309,7 +314,9 @@ func (m *Module) addComment(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 	var name, email sql.NullString
-	_ = tx.QueryRow(`SELECT name, email FROM "User" WHERE id=$1`, userID).Scan(&name, &email)
+	if err := tx.QueryRow(`SELECT name, email FROM "User" WHERE id=$1`, userID).Scan(&name, &email); err != nil && err != sql.ErrNoRows {
+		log.Printf("tickets comment: author profile load failed: %v", err)
+	}
 	var c Comment
 	var created time.Time
 	err = tx.QueryRow(`

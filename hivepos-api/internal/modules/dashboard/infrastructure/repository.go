@@ -70,10 +70,13 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 	}
 
 	// 1. Period orders grouped by status
-	rows, _ := r.db.QueryContext(ctx, fmt.Sprintf(
+	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(
 		`SELECT o.status, COUNT(*), COALESCE(SUM(o."totalAmount"::float),0) FROM "Order" o WHERE %s GROUP BY o.status`, periodFilter), baseArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("querying period orders by status: %w", err)
+	}
 	var pipelineReceived, pipelineInProgress, pipelineReady, pipelineDelivered int64
-	for rows != nil && rows.Next() {
+	for rows.Next() {
 		var st string
 		var cnt int64
 		var sum float64
@@ -93,9 +96,11 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 			}
 		}
 	}
-	if rows != nil {
+	if err := rows.Err(); err != nil {
 		rows.Close()
+		return nil, fmt.Errorf("iterating period orders by status: %w", err)
 	}
+	rows.Close()
 	_ = pipelineReceived
 	_ = pipelineInProgress
 	_ = pipelineReady
@@ -103,11 +108,14 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 	s.OrderPipeline = map[string]int64{"RECEIVED": pipelineReceived, "IN_PROGRESS": pipelineInProgress, "READY": pipelineReady, "DELIVERED": pipelineDelivered}
 
 	// 2. Previous period for comparison
-	prevRows, _ := r.db.QueryContext(ctx, fmt.Sprintf(
+	prevRows, err := r.db.QueryContext(ctx, fmt.Sprintf(
 		`SELECT o.status, COUNT(*), COALESCE(SUM(o."totalAmount"::float),0) FROM "Order" o WHERE %s GROUP BY o.status`, prevFilter), prevArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("querying previous period orders by status: %w", err)
+	}
 	var prevOrderCount int64
 	var prevOmset float64
-	for prevRows != nil && prevRows.Next() {
+	for prevRows.Next() {
 		var st string
 		var cnt int64
 		var sum float64
@@ -116,9 +124,11 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 			prevOmset += sum
 		}
 	}
-	if prevRows != nil {
+	if err := prevRows.Err(); err != nil {
 		prevRows.Close()
+		return nil, fmt.Errorf("iterating previous period orders by status: %w", err)
 	}
+	prevRows.Close()
 
 	// 3. All-time status counts (inProgress, readyForPickup)
 	allTimeArgs := []interface{}{tenantID, mod}
@@ -127,9 +137,12 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 		allTimeBranchIn += fmt.Sprintf(` AND o."branchId" = $%d`, len(allTimeArgs)+1)
 		allTimeArgs = append(allTimeArgs, bID)
 	}
-	allTimeRows, _ := r.db.QueryContext(ctx, fmt.Sprintf(
+	allTimeRows, err := r.db.QueryContext(ctx, fmt.Sprintf(
 		`SELECT o.status, COUNT(*) FROM "Order" o WHERE %s AND o.module = $2 GROUP BY o.status`, allTimeBranchIn), allTimeArgs...)
-	for allTimeRows != nil && allTimeRows.Next() {
+	if err != nil {
+		return nil, fmt.Errorf("querying all-time status counts: %w", err)
+	}
+	for allTimeRows.Next() {
 		var st string
 		var cnt int64
 		if allTimeRows.Scan(&st, &cnt) == nil {
@@ -141,9 +154,11 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 			}
 		}
 	}
-	if allTimeRows != nil {
+	if err := allTimeRows.Err(); err != nil {
 		allTimeRows.Close()
+		return nil, fmt.Errorf("iterating all-time status counts: %w", err)
 	}
+	allTimeRows.Close()
 
 	// 4. Revenue (payments in period) + previous revenue
 	payArgs := []interface{}{tenantID, from, to}
@@ -155,7 +170,9 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 	payWhere += fmt.Sprintf(` AND o.module = $%d`, len(payArgs)+1)
 	payArgs = append(payArgs, mod)
 	var currentRevenue float64
-	r.db.QueryRowContext(ctx, fmt.Sprintf(`SELECT COALESCE(SUM(pay.amount::float),0) FROM "Payment" pay JOIN "Order" o ON o.id=pay."orderId" JOIN "Branch" b ON b.id=o."branchId" WHERE %s`, payWhere), payArgs...).Scan(&currentRevenue)
+	if err := r.db.QueryRowContext(ctx, fmt.Sprintf(`SELECT COALESCE(SUM(pay.amount::float),0) FROM "Payment" pay JOIN "Order" o ON o.id=pay."orderId" JOIN "Branch" b ON b.id=o."branchId" WHERE %s`, payWhere), payArgs...).Scan(&currentRevenue); err != nil {
+		return nil, fmt.Errorf("scanning current revenue: %w", err)
+	}
 	s.TodayRevenue = currentRevenue
 
 	prevPayArgs := []interface{}{tenantID, prevFromT, prevToT}
@@ -167,7 +184,9 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 	prevPayWhere += fmt.Sprintf(` AND o.module = $%d`, len(prevPayArgs)+1)
 	prevPayArgs = append(prevPayArgs, mod)
 	var previousRevenue float64
-	r.db.QueryRowContext(ctx, fmt.Sprintf(`SELECT COALESCE(SUM(pay.amount::float),0) FROM "Payment" pay JOIN "Order" o ON o.id=pay."orderId" JOIN "Branch" b ON b.id=o."branchId" WHERE %s`, prevPayWhere), prevPayArgs...).Scan(&previousRevenue)
+	if err := r.db.QueryRowContext(ctx, fmt.Sprintf(`SELECT COALESCE(SUM(pay.amount::float),0) FROM "Payment" pay JOIN "Order" o ON o.id=pay."orderId" JOIN "Branch" b ON b.id=o."branchId" WHERE %s`, prevPayWhere), prevPayArgs...).Scan(&previousRevenue); err != nil {
+		return nil, fmt.Errorf("scanning previous revenue: %w", err)
+	}
 	s.PreviousRevenue = previousRevenue
 
 	s.RevenueChange = calcChange(currentRevenue, previousRevenue)
@@ -180,33 +199,41 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 		recentWhere += fmt.Sprintf(` AND o."branchId" = $%d`, len(recentArgs)+1)
 		recentArgs = append(recentArgs, bID)
 	}
-	recentRows, _ := r.db.QueryContext(ctx, fmt.Sprintf(
+	recentRows, err := r.db.QueryContext(ctx, fmt.Sprintf(
 		`SELECT o.id, o."orderNumber", COALESCE(c.name,'Unknown'), o.status, o."totalAmount"::float, o."createdAt"
 		 FROM "Order" o JOIN "Branch" b ON b.id=o."branchId" LEFT JOIN "Customer" c ON c.id=o."customerId"
 		 WHERE %s ORDER BY o."createdAt" DESC LIMIT 10`, recentWhere), recentArgs...)
-	for recentRows != nil && recentRows.Next() {
+	if err != nil {
+		return nil, fmt.Errorf("querying recent orders: %w", err)
+	}
+	for recentRows.Next() {
 		var ro domain.DashboardRecentOrder
 		if recentRows.Scan(&ro.ID, &ro.OrderNumber, &ro.CustomerName, &ro.Status, &ro.TotalAmount, &ro.CreatedAt) == nil {
 			ro.CreatedAt = parseISO(ro.CreatedAt)
 			s.RecentOrders = append(s.RecentOrders, ro)
 		}
 	}
-	if recentRows != nil {
+	if err := recentRows.Err(); err != nil {
 		recentRows.Close()
+		return nil, fmt.Errorf("iterating recent orders: %w", err)
 	}
+	recentRows.Close()
 
 	// 6. Top customers (5)
 	tcArgs := append([]interface{}{}, baseArgs...)
-	tcRows, _ := r.db.QueryContext(ctx, fmt.Sprintf(
+	tcRows, err := r.db.QueryContext(ctx, fmt.Sprintf(
 		`SELECT o."customerId", COUNT(*), COALESCE(SUM(o."totalAmount"::float),0)
 		 FROM "Order" o WHERE %s GROUP BY o."customerId" ORDER BY SUM(o."totalAmount"::float) DESC LIMIT 5`, periodFilter), tcArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("querying top customers: %w", err)
+	}
 	type tcAgg struct {
 		id    string
 		cnt   int64
 		spent float64
 	}
 	var tcAggs []tcAgg
-	for tcRows != nil && tcRows.Next() {
+	for tcRows.Next() {
 		var a tcAgg
 		var cid sql.NullString
 		if tcRows.Scan(&cid, &a.cnt, &a.spent) == nil {
@@ -214,9 +241,11 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 			tcAggs = append(tcAggs, a)
 		}
 	}
-	if tcRows != nil {
+	if err := tcRows.Err(); err != nil {
 		tcRows.Close()
+		return nil, fmt.Errorf("iterating top customers: %w", err)
 	}
+	tcRows.Close()
 	// resolve names
 	tcNames := map[string]string{}
 	if len(tcAggs) > 0 {
@@ -233,16 +262,21 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 			ids = append(ids, a.id)
 		}
 		if len(ids) > 0 {
-			nr, _ := r.db.QueryContext(ctx, fmt.Sprintf(`SELECT id,name FROM "Customer" WHERE id IN (%s)`, in), ids...)
-			if nr != nil {
-				for nr.Next() {
-					var id, nm string
-					if nr.Scan(&id, &nm) == nil {
-						tcNames[id] = nm
-					}
-				}
-				nr.Close()
+			nr, err := r.db.QueryContext(ctx, fmt.Sprintf(`SELECT id,name FROM "Customer" WHERE id IN (%s)`, in), ids...)
+			if err != nil {
+				return nil, fmt.Errorf("querying top customer names: %w", err)
 			}
+			for nr.Next() {
+				var id, nm string
+				if nr.Scan(&id, &nm) == nil {
+					tcNames[id] = nm
+				}
+			}
+			if err := nr.Err(); err != nil {
+				nr.Close()
+				return nil, fmt.Errorf("iterating top customer names: %w", err)
+			}
+			nr.Close()
 		}
 	}
 	for _, a := range tcAggs {
@@ -261,7 +295,9 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 		expArgs = append(expArgs, bID)
 	}
 	var todayExpenses float64
-	r.db.QueryRowContext(ctx, fmt.Sprintf(`SELECT COALESCE(SUM(e.amount::float),0) FROM "Expense" e JOIN "Branch" b ON b.id=e."branchId" WHERE %s`, expWhere), expArgs...).Scan(&todayExpenses)
+	if err := r.db.QueryRowContext(ctx, fmt.Sprintf(`SELECT COALESCE(SUM(e.amount::float),0) FROM "Expense" e JOIN "Branch" b ON b.id=e."branchId" WHERE %s`, expWhere), expArgs...).Scan(&todayExpenses); err != nil {
+		return nil, fmt.Errorf("scanning today expenses: %w", err)
+	}
 
 	var prevExpenses float64
 	prevExpArgs := []interface{}{tenantID, prevFromT, prevToT}
@@ -270,7 +306,9 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 		prevExpWhere += fmt.Sprintf(` AND e."branchId" = $%d`, len(prevExpArgs)+1)
 		prevExpArgs = append(prevExpArgs, bID)
 	}
-	r.db.QueryRowContext(ctx, fmt.Sprintf(`SELECT COALESCE(SUM(e.amount::float),0) FROM "Expense" e JOIN "Branch" b ON b.id=e."branchId" WHERE %s`, prevExpWhere), prevExpArgs...).Scan(&prevExpenses)
+	if err := r.db.QueryRowContext(ctx, fmt.Sprintf(`SELECT COALESCE(SUM(e.amount::float),0) FROM "Expense" e JOIN "Branch" b ON b.id=e."branchId" WHERE %s`, prevExpWhere), prevExpArgs...).Scan(&prevExpenses); err != nil {
+		return nil, fmt.Errorf("scanning previous expenses: %w", err)
+	}
 
 	var walletDeposits float64
 	walletWhere := `b."tenantId"=$1 AND dt.type='TOP_UP' AND dt."createdAt" >= $2 AND dt."createdAt" <= $3`
@@ -278,7 +316,9 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 		// bID is already the 4th element of expArgs (appended by the expenses block above).
 		walletWhere += ` AND dt."branchId" = $4`
 	}
-	r.db.QueryRowContext(ctx, fmt.Sprintf(`SELECT COALESCE(SUM(dt.amount::float),0) FROM "DepositTransaction" dt JOIN "Branch" b ON b.id=dt."branchId" WHERE %s`, walletWhere), expArgs...).Scan(&walletDeposits)
+	if err := r.db.QueryRowContext(ctx, fmt.Sprintf(`SELECT COALESCE(SUM(dt.amount::float),0) FROM "DepositTransaction" dt JOIN "Branch" b ON b.id=dt."branchId" WHERE %s`, walletWhere), expArgs...).Scan(&walletDeposits); err != nil {
+		return nil, fmt.Errorf("scanning wallet deposits: %w", err)
+	}
 
 	s.CashFlow = domain.CashFlow{Income: currentRevenue, Expenses: todayExpenses, Net: currentRevenue - todayExpenses, WalletDeposits: walletDeposits}
 
@@ -304,6 +344,10 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 			}
 			s.PaymentBreakdown[method] = total
 		}
+		if err := pbRows.Err(); err != nil {
+			pbRows.Close()
+			return nil, fmt.Errorf("iterating payment breakdown: %w", err)
+		}
 		pbRows.Close()
 	}
 
@@ -327,6 +371,10 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 			}
 			s.ServiceBreakdown = append(s.ServiceBreakdown, sb)
 		}
+		if err := sbRows.Err(); err != nil {
+			sbRows.Close()
+			return nil, fmt.Errorf("iterating service breakdown: %w", err)
+		}
 		sbRows.Close()
 	}
 
@@ -345,10 +393,13 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 		lsWhere += fmt.Sprintf(` AND si."branchId" = $%d`, len(lsArgs)+1)
 		lsArgs = append(lsArgs, bID)
 	}
-	lsRows, _ := r.db.QueryContext(ctx, fmt.Sprintf(
+	lsRows, err := r.db.QueryContext(ctx, fmt.Sprintf(
 		`SELECT si.id, si.name, si.unit, si."currentQuantity"::float, si."lowStockThreshold"::float
 		 FROM "StockItem" si JOIN "Branch" b ON b.id=si."branchId" WHERE %s`, lsWhere), lsArgs...)
-	for lsRows != nil && lsRows.Next() {
+	if err != nil {
+		return nil, fmt.Errorf("querying low stock: %w", err)
+	}
+	for lsRows.Next() {
 		var ls domain.LowStockItem
 		if lsRows.Scan(&ls.ID, &ls.Name, &ls.Unit, &ls.CurrentQuantity, &ls.LowStockThreshold) == nil {
 			if ls.CurrentQuantity <= ls.LowStockThreshold {
@@ -356,9 +407,11 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 			}
 		}
 	}
-	if lsRows != nil {
+	if err := lsRows.Err(); err != nil {
 		lsRows.Close()
+		return nil, fmt.Errorf("iterating low stock: %w", err)
 	}
+	lsRows.Close()
 
 	// 10. Customer insights
 	custArgs := []interface{}{tenantID}
@@ -371,11 +424,14 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 	weekStart = time.Date(weekStart.Year(), weekStart.Month(), weekStart.Day(), 0, 0, 0, 0, now.Location())
 	thirtyDays := 30 * 24 * time.Hour
 	ninetyDays := 90 * 24 * time.Hour
-	custRows, _ := r.db.QueryContext(ctx, fmt.Sprintf(
+	custRows, err := r.db.QueryContext(ctx, fmt.Sprintf(
 		`SELECT c."createdAt", (SELECT MAX(o."createdAt") FROM "Order" o WHERE o."customerId"=c.id)
 		 FROM "Customer" c JOIN "Branch" b ON b.id=c."branchId" WHERE %s`, custWhere), custArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("querying customer insights: %w", err)
+	}
 	var totalCust, newWeek, active, atRisk, lapsed int64
-	for custRows != nil && custRows.Next() {
+	for custRows.Next() {
 		var created time.Time
 		var lastOrder sql.NullTime
 		if custRows.Scan(&created, &lastOrder) != nil {
@@ -400,9 +456,11 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 			}
 		}
 	}
-	if custRows != nil {
+	if err := custRows.Err(); err != nil {
 		custRows.Close()
+		return nil, fmt.Errorf("iterating customer insights: %w", err)
 	}
+	custRows.Close()
 	s.CustomerInsights = domain.CustomerInsights{Total: totalCust, NewThisWeek: newWeek, Active: active, AtRisk: atRisk, Lapsed: lapsed}
 
 	// 11. Unpaid delivered + unpaid orders
@@ -412,7 +470,9 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 		unpaidDelWhere += fmt.Sprintf(` AND o."branchId" = $%d`, len(unpaidDelArgs)+1)
 		unpaidDelArgs = append(unpaidDelArgs, bID)
 	}
-	r.db.QueryRowContext(ctx, fmt.Sprintf(`SELECT COUNT(*) FROM "Order" o JOIN "Branch" b ON b.id=o."branchId" WHERE %s`, unpaidDelWhere), unpaidDelArgs...).Scan(&s.UnpaidDelivered)
+	if err := r.db.QueryRowContext(ctx, fmt.Sprintf(`SELECT COUNT(*) FROM "Order" o JOIN "Branch" b ON b.id=o."branchId" WHERE %s`, unpaidDelWhere), unpaidDelArgs...).Scan(&s.UnpaidDelivered); err != nil {
+		return nil, fmt.Errorf("scanning unpaid delivered: %w", err)
+	}
 
 	unpaidArgs := []interface{}{tenantID, mod}
 	unpaidWhere := `b."tenantId" = $1 AND o.module = $2 AND o."paymentStatus" IN ('PENDING','PARTIAL')`
@@ -420,20 +480,25 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 		unpaidWhere += fmt.Sprintf(` AND o."branchId" = $%d`, len(unpaidArgs)+1)
 		unpaidArgs = append(unpaidArgs, bID)
 	}
-	unpaidRows, _ := r.db.QueryContext(ctx, fmt.Sprintf(
+	unpaidRows, err := r.db.QueryContext(ctx, fmt.Sprintf(
 		`SELECT o.id, o."orderNumber", COALESCE(c.name,''), COALESCE(c.phone,''), o."totalAmount"::float, o.status, o."paymentStatus", o."createdAt"
 		 FROM "Order" o JOIN "Branch" b ON b.id=o."branchId" LEFT JOIN "Customer" c ON c.id=o."customerId"
 		 WHERE %s ORDER BY o."createdAt" ASC LIMIT 20`, unpaidWhere), unpaidArgs...)
-	for unpaidRows != nil && unpaidRows.Next() {
+	if err != nil {
+		return nil, fmt.Errorf("querying unpaid orders: %w", err)
+	}
+	for unpaidRows.Next() {
 		var uo domain.UnpaidOrderDash
 		if unpaidRows.Scan(&uo.ID, &uo.OrderNumber, &uo.CustomerName, &uo.CustomerPhone, &uo.TotalAmount, &uo.Status, &uo.PaymentStatus, &uo.CreatedAt) == nil {
 			uo.CreatedAt = parseISO(uo.CreatedAt)
 			s.UnpaidOrders = append(s.UnpaidOrders, uo)
 		}
 	}
-	if unpaidRows != nil {
+	if err := unpaidRows.Err(); err != nil {
 		unpaidRows.Close()
+		return nil, fmt.Errorf("iterating unpaid orders: %w", err)
 	}
+	unpaidRows.Close()
 
 	// 12. Turnaround (delivered orders)
 	turnArgs := []interface{}{tenantID, mod}
@@ -442,10 +507,13 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 		turnWhere += fmt.Sprintf(` AND o."branchId" = $%d`, len(turnArgs)+1)
 		turnArgs = append(turnArgs, bID)
 	}
-	turnRows, _ := r.db.QueryContext(ctx, fmt.Sprintf(
+	turnRows, err := r.db.QueryContext(ctx, fmt.Sprintf(
 		`SELECT o."receivedAt", o."deliveredAt" FROM "Order" o JOIN "Branch" b ON b.id=o."branchId" WHERE %s ORDER BY o."deliveredAt" DESC LIMIT 50`, turnWhere), turnArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("querying turnaround: %w", err)
+	}
 	var hours []float64
-	for turnRows != nil && turnRows.Next() {
+	for turnRows.Next() {
 		var rec, del time.Time
 		if turnRows.Scan(&rec, &del) == nil {
 			h := del.Sub(rec).Hours()
@@ -454,9 +522,11 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 			}
 		}
 	}
-	if turnRows != nil {
+	if err := turnRows.Err(); err != nil {
 		turnRows.Close()
+		return nil, fmt.Errorf("iterating turnaround: %w", err)
 	}
+	turnRows.Close()
 	if len(hours) > 0 {
 		var sum, mn, mx float64
 		mn = hours[0]
@@ -483,7 +553,7 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 		spWhere += fmt.Sprintf(` AND o."branchId" = $%d`, len(spArgs)+1)
 		spArgs = append(spArgs, bID)
 	}
-	spRows, _ := r.db.QueryContext(ctx, fmt.Sprintf(`
+	spRows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
 		SELECT COUNT(o.id) AS cnt
 		FROM generate_series(0, 6) AS g(n)
 		LEFT JOIN (
@@ -492,11 +562,18 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 			WHERE %s
 		) o ON date_trunc('day', o.dt) = date_trunc('day', NOW() - (n || ' days')::interval)
 		GROUP BY n ORDER BY n DESC`, spWhere), spArgs...)
-	if spRows != nil {
+	if err != nil {
+		return nil, fmt.Errorf("querying sparkline: %w", err)
+	}
+	{
 		idx := 0
 		for spRows.Next() && idx < len(s.Sparkline) {
 			spRows.Scan(&s.Sparkline[idx])
 			idx++
+		}
+		if err := spRows.Err(); err != nil {
+			spRows.Close()
+			return nil, fmt.Errorf("iterating sparkline: %w", err)
 		}
 		spRows.Close()
 	}
@@ -600,6 +677,9 @@ func (r *PgDashboardRepository) GetKanban(ctx context.Context, tenantID, branchI
 		}
 		list = append(list, row)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating kanban: %w", err)
+	}
 	// Batch-fetch all items for the collected orders (one query instead of N per-order queries).
 	if len(orderIDs) > 0 {
 		ph := make([]string, len(orderIDs))
@@ -608,27 +688,32 @@ func (r *PgDashboardRepository) GetKanban(ctx context.Context, tenantID, branchI
 			ph[i] = fmt.Sprintf("$%d", i+1)
 			iargs[i] = id
 		}
-		itemRows, _ := r.db.QueryContext(ctx, fmt.Sprintf(`
+		itemRows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
 			SELECT oi."orderId", COALESCE(s.name,''), COALESCE(oi.quantity::float,0), COALESCE(oi."weightKg"::float,0)
 			FROM "OrderItem" oi LEFT JOIN "Service" s ON s.id = oi."serviceId"
 			WHERE oi."orderId" IN (%s)`, strings.Join(ph, ",")), iargs...)
-		if itemRows != nil {
-			itemsByOrder := map[string][]map[string]interface{}{}
-			for itemRows.Next() {
-				var oid, svcName string
-				var qty, weight float64
-				if itemRows.Scan(&oid, &svcName, &qty, &weight) == nil {
-					itemsByOrder[oid] = append(itemsByOrder[oid], map[string]interface{}{
-						"serviceName": svcName, "quantity": qty, "weightKg": weight,
-					})
-				}
+		if err != nil {
+			return nil, fmt.Errorf("querying kanban items: %w", err)
+		}
+		itemsByOrder := map[string][]map[string]interface{}{}
+		for itemRows.Next() {
+			var oid, svcName string
+			var qty, weight float64
+			if itemRows.Scan(&oid, &svcName, &qty, &weight) == nil {
+				itemsByOrder[oid] = append(itemsByOrder[oid], map[string]interface{}{
+					"serviceName": svcName, "quantity": qty, "weightKg": weight,
+				})
 			}
+		}
+		if err := itemRows.Err(); err != nil {
 			itemRows.Close()
-			for _, row := range list {
-				if id, ok := row["id"].(string); ok {
-					if items, found := itemsByOrder[id]; found {
-						row["items"] = items
-					}
+			return nil, fmt.Errorf("iterating kanban items: %w", err)
+		}
+		itemRows.Close()
+		for _, row := range list {
+			if id, ok := row["id"].(string); ok {
+				if items, found := itemsByOrder[id]; found {
+					row["items"] = items
 				}
 			}
 		}
@@ -645,26 +730,31 @@ func (r *PgDashboardRepository) GetHeatmap(ctx context.Context, tenantID, branch
 		args = append(args, branchID)
 	}
 	// customerVisits: top customers with per-day-of-week visit distribution
-	cvRows, _ := r.db.QueryContext(ctx, fmt.Sprintf(`
+	cvRows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
 		SELECT COALESCE(c.id,''), COALESCE(c.name,'Unknown'), COUNT(DISTINCT o.id) AS visits
 		FROM "Order" o JOIN "Branch" b ON b.id=o."branchId"
 		LEFT JOIN "Customer" c ON c.id=o."customerId"
 		%s GROUP BY c.id, c.name ORDER BY visits DESC LIMIT 10`, where), args...)
+	if err != nil {
+		return nil, fmt.Errorf("querying heatmap customer visits: %w", err)
+	}
 	type cvAgg struct {
 		cid, name string
 		visits    int64
 		dayDist   []int64
 	}
 	var cvAggs []cvAgg
-	if cvRows != nil {
-		for cvRows.Next() {
-			var a cvAgg
-			if cvRows.Scan(&a.cid, &a.name, &a.visits) == nil {
-				cvAggs = append(cvAggs, a)
-			}
+	for cvRows.Next() {
+		var a cvAgg
+		if cvRows.Scan(&a.cid, &a.name, &a.visits) == nil {
+			cvAggs = append(cvAggs, a)
 		}
-		cvRows.Close()
 	}
+	if err := cvRows.Err(); err != nil {
+		cvRows.Close()
+		return nil, fmt.Errorf("iterating heatmap customer visits: %w", err)
+	}
+	cvRows.Close()
 	// day distribution per customer
 	for i := range cvAggs {
 		ddArgs := []interface{}{cvAggs[i].cid, tenantID}
@@ -673,20 +763,25 @@ func (r *PgDashboardRepository) GetHeatmap(ctx context.Context, tenantID, branch
 			ddWhere += fmt.Sprintf(` AND o."branchId" = $%d`, len(ddArgs)+1)
 			ddArgs = append(ddArgs, branchID)
 		}
-		ddRows, _ := r.db.QueryContext(ctx, fmt.Sprintf(`
+		ddRows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
 			SELECT EXTRACT(DOW FROM COALESCE(o."receivedAt", o."createdAt"))::int AS dow, COUNT(*) AS cnt
 			FROM "Order" o JOIN "Branch" b ON b.id=o."branchId"
 			%s GROUP BY 1 ORDER BY 1`, ddWhere), ddArgs...)
-		dist := []int64{}
-		if ddRows != nil {
-			for ddRows.Next() {
-				var dow, cnt int
-				if ddRows.Scan(&dow, &cnt) == nil {
-					dist = append(dist, int64(cnt))
-				}
-			}
-			ddRows.Close()
+		if err != nil {
+			return nil, fmt.Errorf("querying heatmap customer day distribution: %w", err)
 		}
+		dist := []int64{}
+		for ddRows.Next() {
+			var dow, cnt int
+			if ddRows.Scan(&dow, &cnt) == nil {
+				dist = append(dist, int64(cnt))
+			}
+		}
+		if err := ddRows.Err(); err != nil {
+			ddRows.Close()
+			return nil, fmt.Errorf("iterating heatmap customer day distribution: %w", err)
+		}
+		ddRows.Close()
 		cvAggs[i].dayDist = dist
 	}
 	customerVisits := make([]interface{}, 0, len(cvAggs))
@@ -699,42 +794,52 @@ func (r *PgDashboardRepository) GetHeatmap(ctx context.Context, tenantID, branch
 		})
 	}
 	// hourlyByDay: 7×24 matrix of order counts
-	hbdRows, _ := r.db.QueryContext(ctx, fmt.Sprintf(`
+	hbdRows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
 		SELECT EXTRACT(DOW FROM COALESCE(o."receivedAt", o."createdAt"))::int,
 		       EXTRACT(HOUR FROM COALESCE(o."receivedAt", o."createdAt"))::int,
 		       COUNT(*)
 		FROM "Order" o JOIN "Branch" b ON b.id=o."branchId" %s GROUP BY 1, 2`, where), args...)
+	if err != nil {
+		return nil, fmt.Errorf("querying heatmap hourly by day: %w", err)
+	}
 	hourlyByDay := [][]int{}
 	for i := 0; i < 7; i++ {
 		hourlyByDay = append(hourlyByDay, make([]int, 24))
 	}
-	if hbdRows != nil {
-		for hbdRows.Next() {
-			var dow, hr, cnt int
-			if hbdRows.Scan(&dow, &hr, &cnt) == nil {
-				if dow >= 0 && dow < 7 && hr >= 0 && hr < 24 {
-					hourlyByDay[dow][hr] = cnt
-				}
+	for hbdRows.Next() {
+		var dow, hr, cnt int
+		if hbdRows.Scan(&dow, &hr, &cnt) == nil {
+			if dow >= 0 && dow < 7 && hr >= 0 && hr < 24 {
+				hourlyByDay[dow][hr] = cnt
 			}
 		}
-		hbdRows.Close()
 	}
+	if err := hbdRows.Err(); err != nil {
+		hbdRows.Close()
+		return nil, fmt.Errorf("iterating heatmap hourly by day: %w", err)
+	}
+	hbdRows.Close()
 	// revenueByDay: revenue per day of week
-	rbdRows, _ := r.db.QueryContext(ctx, fmt.Sprintf(`
+	rbdRows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
 		SELECT EXTRACT(DOW FROM COALESCE(o."receivedAt", o."createdAt"))::int,
 		       COALESCE(SUM(o."totalAmount"::float), 0)
 		FROM "Order" o JOIN "Branch" b ON b.id=o."branchId" %s GROUP BY 1 ORDER BY 1`, where), args...)
-	revenueByDay := map[string]float64{}
-	if rbdRows != nil {
-		for rbdRows.Next() {
-			var dow int
-			var rev float64
-			if rbdRows.Scan(&dow, &rev) == nil {
-				revenueByDay[fmt.Sprintf("%d", dow)] = rev
-			}
-		}
-		rbdRows.Close()
+	if err != nil {
+		return nil, fmt.Errorf("querying heatmap revenue by day: %w", err)
 	}
+	revenueByDay := map[string]float64{}
+	for rbdRows.Next() {
+		var dow int
+		var rev float64
+		if rbdRows.Scan(&dow, &rev) == nil {
+			revenueByDay[fmt.Sprintf("%d", dow)] = rev
+		}
+	}
+	if err := rbdRows.Err(); err != nil {
+		rbdRows.Close()
+		return nil, fmt.Errorf("iterating heatmap revenue by day: %w", err)
+	}
+	rbdRows.Close()
 	// revenueTrend: last 14 days (revenue + orders) with week-ago revenue for comparison.
 	rtArgs := []interface{}{tenantID}
 	rtBranch := ""
@@ -742,7 +847,7 @@ func (r *PgDashboardRepository) GetHeatmap(ctx context.Context, tenantID, branch
 		rtBranch = fmt.Sprintf(` AND o."branchId" = $%d`, len(rtArgs)+1)
 		rtArgs = append(rtArgs, branchID)
 	}
-	rtRows, _ := r.db.QueryContext(ctx, fmt.Sprintf(`
+	rtRows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
 		SELECT to_char(d, 'YYYY-MM-DD') AS date,
 		       COUNT(DISTINCT o.id) AS orders,
 		       COALESCE(SUM(o."totalAmount"::float), 0) AS revenue
@@ -751,21 +856,26 @@ func (r *PgDashboardRepository) GetHeatmap(ctx context.Context, tenantID, branch
 		  ON o."branchId" IN (SELECT id FROM "Branch" WHERE "tenantId" = $1%s)
 		 AND COALESCE(o."receivedAt", o."createdAt")::date = d::date
 		GROUP BY d ORDER BY d`, rtBranch), rtArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("querying heatmap revenue trend: %w", err)
+	}
 	type dayAgg struct {
 		date    string
 		orders  int64
 		revenue float64
 	}
 	var days []dayAgg
-	if rtRows != nil {
-		for rtRows.Next() {
-			var da dayAgg
-			if rtRows.Scan(&da.date, &da.orders, &da.revenue) == nil {
-				days = append(days, da)
-			}
+	for rtRows.Next() {
+		var da dayAgg
+		if rtRows.Scan(&da.date, &da.orders, &da.revenue) == nil {
+			days = append(days, da)
 		}
-		rtRows.Close()
 	}
+	if err := rtRows.Err(); err != nil {
+		rtRows.Close()
+		return nil, fmt.Errorf("iterating heatmap revenue trend: %w", err)
+	}
+	rtRows.Close()
 	revenueTrend := []interface{}{}
 	for i := 7; i < len(days); i++ {
 		revenueTrend = append(revenueTrend, map[string]interface{}{

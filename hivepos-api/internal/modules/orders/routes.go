@@ -220,11 +220,15 @@ func (r *Module) recordPayment(w http.ResponseWriter, req *http.Request) {
 
 	var paidAt *time.Time
 	if body.PaidAt != "" {
-		if t, err := time.Parse("2006-01-02", body.PaidAt); err == nil {
-			paidAt = &t
-		} else if t, err := time.Parse(time.RFC3339, body.PaidAt); err == nil {
-			paidAt = &t
+		t, perr := time.Parse("2006-01-02", body.PaidAt)
+		if perr != nil {
+			t, perr = time.Parse(time.RFC3339, body.PaidAt)
 		}
+		if perr != nil {
+			apphttp.ValidationError(w, "paidAt must be YYYY-MM-DD or RFC3339")
+			return
+		}
+		paidAt = &t
 	}
 
 	order, err := r.svc.Repo.RecordPayment(req.Context(), id, tenantID, body.Amount, body.PaymentMethod, body.Notes, paidAt)

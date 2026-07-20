@@ -87,7 +87,9 @@ func (r *PgExpenseRepository) ListExpenses(ctx context.Context, tenantID string,
 	}
 
 	var total int64
-	r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "Expense" e JOIN "Branch" b ON b.id = e."branchId" `+where, args...).Scan(&total)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "Expense" e JOIN "Branch" b ON b.id = e."branchId" `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting expenses: %w", err)
+	}
 
 	offset := (filter.Page - 1) * filter.Limit
 	query := fmt.Sprintf(`
@@ -118,6 +120,9 @@ func (r *PgExpenseRepository) ListExpenses(ctx context.Context, tenantID string,
 			e.Category = &domain.ExpenseCategory{ID: ecID.String, Name: ecName.String, Description: &desc}
 		}
 		list = append(list, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating expenses: %w", err)
 	}
 	return list, total, nil
 }
@@ -193,7 +198,9 @@ func (r *PgExpenseRepository) ListCategories(ctx context.Context, tenantID strin
 	}
 
 	var total int64
-	r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "ExpenseCategory" c JOIN "Branch" b ON b.id = c."branchId" `+where, args...).Scan(&total)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "ExpenseCategory" c JOIN "Branch" b ON b.id = c."branchId" `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting expense categories: %w", err)
+	}
 
 	offset := (filter.Page - 1) * filter.Limit
 	query := fmt.Sprintf(`
@@ -215,6 +222,9 @@ func (r *PgExpenseRepository) ListCategories(ctx context.Context, tenantID strin
 			return nil, 0, err
 		}
 		list = append(list, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating expense categories: %w", err)
 	}
 	return list, total, nil
 }

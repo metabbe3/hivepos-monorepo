@@ -156,7 +156,9 @@ func (r *PgBranchRepository) List(ctx context.Context, tenantID string, filter a
 	}
 
 	var total int64
-	r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "Branch" `+where, args...).Scan(&total)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "Branch" `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting branches: %w", err)
+	}
 
 	offset := (filter.Page - 1) * filter.Limit
 	query := fmt.Sprintf(`SELECT %s FROM "Branch" %s ORDER BY "createdAt" DESC LIMIT $%d OFFSET $%d`, branchColumns, where, idx, idx+1)
@@ -190,6 +192,9 @@ func (r *PgBranchRepository) List(ctx context.Context, tenantID string, filter a
 		nullableJSON(&b.PickupSlots, pickupSlots)
 		b.WorkDays = parseIntArray(string(workDaysText))
 		list = append(list, b)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating branches: %w", err)
 	}
 	return list, total, nil
 }
@@ -230,6 +235,9 @@ func (r *PgBranchRepository) ListItems(ctx context.Context, tenantID string, fil
 			return nil, err
 		}
 		out = append(out, it)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating branch items: %w", err)
 	}
 	return out, nil
 }

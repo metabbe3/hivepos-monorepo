@@ -107,7 +107,9 @@ func (r *PgServiceRepository) List(ctx context.Context, tenantID string, filter 
 	}
 
 	var total int64
-	r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "Service" s JOIN "Branch" b ON b.id = s."branchId" `+where, args...).Scan(&total)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "Service" s JOIN "Branch" b ON b.id = s."branchId" `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting services: %w", err)
+	}
 
 	query := fmt.Sprintf(`
 		SELECT %s
@@ -131,6 +133,9 @@ func (r *PgServiceRepository) List(ctx context.Context, tenantID string, filter 
 			return nil, 0, err
 		}
 		list = append(list, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating services: %w", err)
 	}
 	return list, total, nil
 }
@@ -168,7 +173,9 @@ func (r *PgServiceRepository) ListItems(ctx context.Context, tenantID string, fi
 	}
 
 	var total int64
-	r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "Service" s JOIN "Branch" b ON b.id = s."branchId" `+where, args...).Scan(&total)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "Service" s JOIN "Branch" b ON b.id = s."branchId" `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting services: %w", err)
+	}
 
 	query := fmt.Sprintf(`
 		SELECT s.id, s.name, s.description, s."pricingType", s."basePrice"::float, s."commissionType",
@@ -207,6 +214,9 @@ func (r *PgServiceRepository) ListItems(ctx context.Context, tenantID string, fi
 			it.Group = &application.ServiceGroupRef{ID: sgID.String, Name: sgName.String}
 		}
 		out = append(out, it)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating service items: %w", err)
 	}
 	return out, total, nil
 }
@@ -299,7 +309,9 @@ func (r *PgServiceRepository) ListGroups(ctx context.Context, tenantID string, f
 	}
 
 	var total int64
-	r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "ServiceGroup" g JOIN "Branch" b ON b.id = g."branchId" `+where, args...).Scan(&total)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "ServiceGroup" g JOIN "Branch" b ON b.id = g."branchId" `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting service groups: %w", err)
+	}
 
 	offset := (filter.Page - 1) * filter.Limit
 	query := fmt.Sprintf(`
@@ -321,6 +333,9 @@ func (r *PgServiceRepository) ListGroups(ctx context.Context, tenantID string, f
 			return nil, 0, err
 		}
 		list = append(list, g)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating service groups: %w", err)
 	}
 	return list, total, nil
 }

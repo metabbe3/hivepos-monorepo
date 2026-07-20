@@ -40,20 +40,26 @@ func (r *PgSuperAdminRepository) GetPlatformStats(ctx context.Context) (*domain.
 		return nil, fmt.Errorf("platform stats: %w", err)
 	}
 	// Active users (scoped to active tenants)
-	_ = r.db.QueryRowContext(ctx, `
-		SELECT COUNT(*) FROM "User" u WHERE u."isActive" = true`).Scan(&s.ActiveUsers)
-	_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "User"`).Scan(&s.TotalUsers)
+	if err := r.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM "User" u WHERE u."isActive" = true`).Scan(&s.ActiveUsers); err != nil {
+		return nil, fmt.Errorf("counting active users: %w", err)
+	}
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "User"`).Scan(&s.TotalUsers); err != nil {
+		return nil, fmt.Errorf("counting total users: %w", err)
+	}
 	// MRR = sum of active subscription plan prices (rough)
-	_ = r.db.QueryRowContext(ctx, `
+	if err := r.db.QueryRowContext(ctx, `
 		SELECT COALESCE(SUM(p."priceMonthly"), 0)::float
 		FROM "Subscription" s JOIN "Plan" p ON p.id = s."planId"
-		WHERE s.status = 'ACTIVE'`).Scan(&s.MRR)
+		WHERE s.status = 'ACTIVE'`).Scan(&s.MRR); err != nil {
+		return nil, fmt.Errorf("computing MRR: %w", err)
+	}
 	return s, nil
 }
 
 func (r *PgSuperAdminRepository) GetBillingOverview(ctx context.Context) (*domain.BillingOverview, error) {
 	o := &domain.BillingOverview{}
-	_ = r.db.QueryRowContext(ctx, `
+	if err := r.db.QueryRowContext(ctx, `
 		SELECT
 			COALESCE(SUM(amount) FILTER (WHERE status = 'PAID'), 0)::float,
 			COUNT(*) FILTER (WHERE status = 'PENDING'),
@@ -64,7 +70,9 @@ func (r *PgSuperAdminRepository) GetBillingOverview(ctx context.Context) (*domai
 			COUNT(*) FILTER (WHERE status = 'FAILED' AND "createdAt" >= NOW() - INTERVAL '30 days')
 		FROM "SaaSPayment"`).Scan(
 		&o.TotalRevenue, &o.PendingPayments, &o.RefundedTotal, &o.PaidThisMonth,
-		&o.PaidTenantCount, &o.ActivePaidOutlets, &o.FailedCount30d)
+		&o.PaidTenantCount, &o.ActivePaidOutlets, &o.FailedCount30d); err != nil {
+		return nil, fmt.Errorf("billing overview: %w", err)
+	}
 	o.MRR = o.TotalRevenue
 	o.LifetimeGross = o.TotalRevenue
 	return o, nil
@@ -90,7 +98,9 @@ func (r *PgSuperAdminRepository) ListTenants(ctx context.Context, filter applica
 	}
 
 	var total int64
-	_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "Tenant" `+where, args...).Scan(&total)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "Tenant" `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting tenants: %w", err)
+	}
 
 	offset := (filter.Page - 1) * filter.Limit
 	args = append(args, filter.Limit, offset)
@@ -115,6 +125,9 @@ func (r *PgSuperAdminRepository) ListTenants(ctx context.Context, filter applica
 			return nil, 0, err
 		}
 		list = append(list, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating tenants: %w", err)
 	}
 	return list, total, nil
 }
@@ -225,9 +238,14 @@ func (r *PgSuperAdminRepository) GetTenantBilling(ctx context.Context, id string
 		defer rows.Close()
 		for rows.Next() {
 			p := &SaaSPaymentRow{}
-			rows.Scan(&p.ID, &p.TenantID, &p.Amount, &p.OutletCount, &p.UnitPrice, &p.MonthsPurchased,
-				&p.Kind, &p.Status, &p.MidtransOrderID, &p.CoverageStart, &p.CoverageEnd, &p.CreatedAt, &p.PaidAt)
+			if err := rows.Scan(&p.ID, &p.TenantID, &p.Amount, &p.OutletCount, &p.UnitPrice, &p.MonthsPurchased,
+				&p.Kind, &p.Status, &p.MidtransOrderID, &p.CoverageStart, &p.CoverageEnd, &p.CreatedAt, &p.PaidAt); err != nil {
+				return nil, fmt.Errorf("scanning tenant billing payment: %w", err)
+			}
 			payments = append(payments, p)
+		}
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("iterating tenant billing payments: %w", err)
 		}
 	}
 	return map[string]interface{}{"subscription": sub, "payments": payments}, nil
@@ -283,12 +301,14 @@ func (r *PgSuperAdminRepository) UpdateTenantSubscription(ctx context.Context, i
 		return nil, err
 	}
 	s := &domain.Subscription{}
-	_ = r.db.QueryRowContext(ctx, `
+	if err := r.db.QueryRowContext(ctx, `
 		SELECT id, "tenantId", "planId", status, "currentPeriodStart", "currentPeriodEnd",
 		       "paidOutletCount", "createdAt", "updatedAt"
 		FROM "Subscription" WHERE "tenantId" = $1`, id,
 	).Scan(&s.ID, &s.TenantID, &s.PlanID, &s.Status, &s.CurrentPeriodStart, &s.CurrentPeriodEnd,
-		&s.PaidOutletCount, &s.CreatedAt, &s.UpdatedAt)
+		&s.PaidOutletCount, &s.CreatedAt, &s.UpdatedAt); err != nil {
+		return nil, fmt.Errorf("reloading subscription after update: %w", err)
+	}
 	return s, nil
 }
 
@@ -312,7 +332,9 @@ func (r *PgSuperAdminRepository) ExtendTrial(ctx context.Context, tenantID strin
 
 	// Base = current currentPeriodEnd if set, else now.
 	var base sql.NullTime
-	_ = tx.QueryRowContext(ctx, `SELECT "currentPeriodEnd" FROM "Subscription" WHERE "tenantId" = $1`, tenantID).Scan(&base)
+	if err := tx.QueryRowContext(ctx, `SELECT "currentPeriodEnd" FROM "Subscription" WHERE "tenantId" = $1`, tenantID).Scan(&base); err != nil && err != sql.ErrNoRows {
+		return nil, fmt.Errorf("loading subscription period end: %w", err)
+	}
 	next := time.Now()
 	if base.Valid {
 		next = base.Time
@@ -334,12 +356,14 @@ func (r *PgSuperAdminRepository) ExtendTrial(ctx context.Context, tenantID strin
 
 	id := tenantID
 	s := &domain.Subscription{}
-	_ = r.db.QueryRowContext(ctx, `
+	if err := r.db.QueryRowContext(ctx, `
 		SELECT id, "tenantId", "planId", status, "currentPeriodStart", "currentPeriodEnd",
 		       "paidOutletCount", "createdAt", "updatedAt"
 		FROM "Subscription" WHERE "tenantId" = $1`, id,
 	).Scan(&s.ID, &s.TenantID, &s.PlanID, &s.Status, &s.CurrentPeriodStart, &s.CurrentPeriodEnd,
-		&s.PaidOutletCount, &s.CreatedAt, &s.UpdatedAt)
+		&s.PaidOutletCount, &s.CreatedAt, &s.UpdatedAt); err != nil {
+		return nil, fmt.Errorf("reloading subscription after trial extend: %w", err)
+	}
 	return s, nil
 }
 
@@ -356,7 +380,9 @@ func (r *PgSuperAdminRepository) ListUsers(ctx context.Context, filter applicati
 	}
 
 	var total int64
-	_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "User" `+where, args...).Scan(&total)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "User" `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting users: %w", err)
+	}
 
 	offset := (filter.Page - 1) * filter.Limit
 	args = append(args, filter.Limit, offset)
@@ -379,6 +405,9 @@ func (r *PgSuperAdminRepository) ListUsers(ctx context.Context, filter applicati
 		}
 		list = append(list, u)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating users: %w", err)
+	}
 	return list, total, nil
 }
 
@@ -388,8 +417,10 @@ func (r *PgSuperAdminRepository) SuspendUser(ctx context.Context, id string, sus
 		return nil, err
 	}
 	u := &domain.User{}
-	_ = r.db.QueryRowContext(ctx, `SELECT id, email, name, phone, role, "roleId", "tenantId", "branchId", "isActive", "createdAt", "updatedAt" FROM "User" WHERE id = $1`, id).
-		Scan(&u.ID, &u.Email, &u.Name, &u.Phone, &u.Role, &u.RoleID, &u.TenantID, &u.BranchID, &u.IsActive, &u.CreatedAt, &u.UpdatedAt)
+	if err := r.db.QueryRowContext(ctx, `SELECT id, email, name, phone, role, "roleId", "tenantId", "branchId", "isActive", "createdAt", "updatedAt" FROM "User" WHERE id = $1`, id).
+		Scan(&u.ID, &u.Email, &u.Name, &u.Phone, &u.Role, &u.RoleID, &u.TenantID, &u.BranchID, &u.IsActive, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		return nil, fmt.Errorf("reloading user after suspend: %w", err)
+	}
 	return u, nil
 }
 
@@ -418,7 +449,9 @@ func (r *PgSuperAdminRepository) ListPayments(ctx context.Context, filter applic
 	}
 
 	var total int64
-	_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "SaaSPayment" `+where, args...).Scan(&total)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "SaaSPayment" `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting SaaS payments: %w", err)
+	}
 
 	offset := (filter.Page - 1) * filter.Limit
 	args = append(args, filter.Limit, offset)
@@ -441,6 +474,9 @@ func (r *PgSuperAdminRepository) ListPayments(ctx context.Context, filter applic
 		}
 		list = append(list, p)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating SaaS payments: %w", err)
+	}
 	return list, total, nil
 }
 
@@ -450,8 +486,10 @@ func (r *PgSuperAdminRepository) RefundPayment(ctx context.Context, id string) (
 		return nil, err
 	}
 	p := &domain.SaaSPayment{}
-	_ = r.db.QueryRowContext(ctx, `SELECT id, "tenantId", amount::float, "outletCount", "unitPrice"::float, "monthsPurchased", kind, status, "createdAt", "paidAt" FROM "SaaSPayment" WHERE id = $1`, id).
-		Scan(&p.ID, &p.TenantID, &p.Amount, &p.OutletCount, &p.UnitPrice, &p.MonthsPurchased, &p.Kind, &p.Status, &p.CreatedAt, &p.PaidAt)
+	if err := r.db.QueryRowContext(ctx, `SELECT id, "tenantId", amount::float, "outletCount", "unitPrice"::float, "monthsPurchased", kind, status, "createdAt", "paidAt" FROM "SaaSPayment" WHERE id = $1`, id).
+		Scan(&p.ID, &p.TenantID, &p.Amount, &p.OutletCount, &p.UnitPrice, &p.MonthsPurchased, &p.Kind, &p.Status, &p.CreatedAt, &p.PaidAt); err != nil {
+		return nil, fmt.Errorf("reloading payment after refund: %w", err)
+	}
 	return p, nil
 }
 
@@ -474,6 +512,9 @@ func (r *PgSuperAdminRepository) ListPlans(ctx context.Context) ([]*domain.Plan,
 			return nil, err
 		}
 		list = append(list, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating plans: %w", err)
 	}
 	return list, nil
 }
@@ -555,8 +596,13 @@ func (r *PgSuperAdminRepository) UpdatePlan(ctx context.Context, id string, inpu
 	defer rows.Close()
 	if rows.Next() {
 		p := &domain.Plan{}
-		rows.Scan(&p.ID, &p.Name, &p.Description, &p.MaxOutlets, &p.MaxUsers, &p.MaxOrders, &p.PriceMonthly, &p.PriceYearly, &p.IsActive, &p.Tier, &p.CreatedAt, &p.UpdatedAt)
+		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.MaxOutlets, &p.MaxUsers, &p.MaxOrders, &p.PriceMonthly, &p.PriceYearly, &p.IsActive, &p.Tier, &p.CreatedAt, &p.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scanning plan after update: %w", err)
+		}
 		return p, nil
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating plan after update: %w", err)
 	}
 	return &domain.Plan{ID: id}, nil
 }
@@ -582,7 +628,9 @@ func (r *PgSuperAdminRepository) ListPromoCodes(ctx context.Context, filter appl
 	}
 
 	var total int64
-	_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "PromoCode" `+where, args...).Scan(&total)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "PromoCode" `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting promo codes: %w", err)
+	}
 
 	offset := (filter.Page - 1) * filter.Limit
 	args = append(args, filter.Limit, offset)
@@ -604,6 +652,9 @@ func (r *PgSuperAdminRepository) ListPromoCodes(ctx context.Context, filter appl
 			return nil, 0, err
 		}
 		list = append(list, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating promo codes: %w", err)
 	}
 	return list, total, nil
 }
@@ -666,8 +717,10 @@ func (r *PgSuperAdminRepository) UpdatePromoCode(ctx context.Context, id string,
 		return nil, err
 	}
 	p := &domain.PromoCode{}
-	_ = r.db.QueryRowContext(ctx, `SELECT id, code, description, type, value::float, "maxRedemptions", "redemptionCount", "validFrom", "validUntil", "isActive", "applicablePlan", "createdAt" FROM "PromoCode" WHERE id = $1`, id).
-		Scan(&p.ID, &p.Code, &p.Description, &p.Type, &p.Value, &p.MaxRedemptions, &p.RedemptionCount, &p.ValidFrom, &p.ValidUntil, &p.IsActive, &p.ApplicablePlan, &p.CreatedAt)
+	if err := r.db.QueryRowContext(ctx, `SELECT id, code, description, type, value::float, "maxRedemptions", "redemptionCount", "validFrom", "validUntil", "isActive", "applicablePlan", "createdAt" FROM "PromoCode" WHERE id = $1`, id).
+		Scan(&p.ID, &p.Code, &p.Description, &p.Type, &p.Value, &p.MaxRedemptions, &p.RedemptionCount, &p.ValidFrom, &p.ValidUntil, &p.IsActive, &p.ApplicablePlan, &p.CreatedAt); err != nil {
+		return nil, fmt.Errorf("reloading promo code after update: %w", err)
+	}
 	return p, nil
 }
 
@@ -691,6 +744,9 @@ func (r *PgSuperAdminRepository) ListFeatureFlags(ctx context.Context) ([]*domai
 			return nil, err
 		}
 		list = append(list, f)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating feature flags: %w", err)
 	}
 	return list, nil
 }
@@ -758,8 +814,10 @@ func (r *PgSuperAdminRepository) UpdateFeatureFlag(ctx context.Context, id strin
 		return nil, err
 	}
 	f := &domain.FeatureFlag{}
-	_ = r.db.QueryRowContext(ctx, `SELECT id, key, name, description, enabled, category, "createdAt", "updatedAt" FROM "FeatureFlag" WHERE id = $1`, id).
-		Scan(&f.ID, &f.Key, &f.Name, &f.Description, &f.Enabled, &f.Category, &f.CreatedAt, &f.UpdatedAt)
+	if err := r.db.QueryRowContext(ctx, `SELECT id, key, name, description, enabled, category, "createdAt", "updatedAt" FROM "FeatureFlag" WHERE id = $1`, id).
+		Scan(&f.ID, &f.Key, &f.Name, &f.Description, &f.Enabled, &f.Category, &f.CreatedAt, &f.UpdatedAt); err != nil {
+		return nil, fmt.Errorf("reloading feature flag after update: %w", err)
+	}
 	return f, nil
 }
 
@@ -787,6 +845,9 @@ func (r *PgSuperAdminRepository) ListTenantFlags(ctx context.Context, flagID str
 			return nil, err
 		}
 		list = append(list, tf)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating tenant feature flags: %w", err)
 	}
 	return list, nil
 }
@@ -860,6 +921,9 @@ func (r *PgSuperAdminRepository) ListAllTenantFlags(ctx context.Context, flagID,
 			"effective":       effective,
 		})
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating all tenant flags: %w", err)
+	}
 	return list, nil
 }
 
@@ -900,7 +964,9 @@ func (r *PgSuperAdminRepository) ListReferrals(ctx context.Context, filter appli
 	}
 
 	var total int64
-	_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "Referral" r `+where, args...).Scan(&total)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "Referral" r `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting referrals: %w", err)
+	}
 
 	offset := (filter.Page - 1) * filter.Limit
 	args = append(args, filter.Limit, offset)
@@ -926,6 +992,9 @@ func (r *PgSuperAdminRepository) ListReferrals(ctx context.Context, filter appli
 		}
 		list = append(list, ref)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating referrals: %w", err)
+	}
 	return list, total, nil
 }
 
@@ -945,8 +1014,10 @@ func (r *PgSuperAdminRepository) UpdateReferral(ctx context.Context, id, status,
 		return nil, err
 	}
 	ref := &domain.Referral{}
-	_ = r.db.QueryRowContext(ctx, `SELECT id, "referrerId", "referredId", status, "rewardMonths", reason, "createdAt", "rewardedAt" FROM "Referral" WHERE id = $1`, id).
-		Scan(&ref.ID, &ref.ReferrerID, &ref.ReferredID, &ref.Status, &ref.RewardMonths, &ref.Reason, &ref.CreatedAt, &ref.RewardedAt)
+	if err := r.db.QueryRowContext(ctx, `SELECT id, "referrerId", "referredId", status, "rewardMonths", reason, "createdAt", "rewardedAt" FROM "Referral" WHERE id = $1`, id).
+		Scan(&ref.ID, &ref.ReferrerID, &ref.ReferredID, &ref.Status, &ref.RewardMonths, &ref.Reason, &ref.CreatedAt, &ref.RewardedAt); err != nil {
+		return nil, fmt.Errorf("reloading referral after update: %w", err)
+	}
 	return ref, nil
 }
 
@@ -968,7 +1039,9 @@ func (r *PgSuperAdminRepository) ListTickets(ctx context.Context, filter applica
 	}
 
 	var total int64
-	_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "SupportTicket" `+where, args...).Scan(&total)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "SupportTicket" `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting support tickets: %w", err)
+	}
 
 	offset := (filter.Page - 1) * filter.Limit
 	args = append(args, filter.Limit, offset)
@@ -992,6 +1065,9 @@ func (r *PgSuperAdminRepository) ListTickets(ctx context.Context, filter applica
 			return nil, 0, err
 		}
 		list = append(list, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating support tickets: %w", err)
 	}
 	return list, total, nil
 }
@@ -1018,7 +1094,9 @@ func (r *PgSuperAdminRepository) GetTicket(ctx context.Context, id string) (*dom
 func (r *PgSuperAdminRepository) AddTicketComment(ctx context.Context, ticketID, body, authorID, authorEmail string) (*domain.TicketComment, error) {
 	// Fetch author name from SuperAdmin table.
 	var authorName string
-	_ = r.db.QueryRowContext(ctx, `SELECT name FROM "SuperAdmin" WHERE id = $1`, authorID).Scan(&authorName)
+	if err := r.db.QueryRowContext(ctx, `SELECT name FROM "SuperAdmin" WHERE id = $1`, authorID).Scan(&authorName); err != nil && err != sql.ErrNoRows {
+		return nil, fmt.Errorf("fetching comment author: %w", err)
+	}
 	if authorName == "" {
 		authorName = authorEmail
 	}
@@ -1112,7 +1190,9 @@ func (r *PgSuperAdminRepository) ListErrorLogs(ctx context.Context, filter appli
 	}
 
 	var total int64
-	_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "ErrorLog" `+where, args...).Scan(&total)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "ErrorLog" `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting error logs: %w", err)
+	}
 
 	offset := (filter.Page - 1) * filter.Limit
 	args = append(args, filter.Limit, offset)
@@ -1134,6 +1214,9 @@ func (r *PgSuperAdminRepository) ListErrorLogs(ctx context.Context, filter appli
 			return nil, 0, err
 		}
 		list = append(list, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating error logs: %w", err)
 	}
 	return list, total, nil
 }
@@ -1161,7 +1244,9 @@ func (r *PgSuperAdminRepository) ListBlogPosts(ctx context.Context, filter appli
 	}
 
 	var total int64
-	_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "BlogPost" `+where, args...).Scan(&total)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "BlogPost" `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting blog posts: %w", err)
+	}
 
 	offset := (filter.Page - 1) * filter.Limit
 	args = append(args, filter.Limit, offset)
@@ -1183,6 +1268,9 @@ func (r *PgSuperAdminRepository) ListBlogPosts(ctx context.Context, filter appli
 			return nil, 0, err
 		}
 		list = append(list, b)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating blog posts: %w", err)
 	}
 	return list, total, nil
 }
@@ -1287,7 +1375,9 @@ func (r *PgSuperAdminRepository) ListAuditLogs(ctx context.Context, filter appli
 	}
 
 	var total int64
-	_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "AuditLog" `+where, args...).Scan(&total)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "AuditLog" `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting audit logs: %w", err)
+	}
 
 	offset := (filter.Page - 1) * filter.Limit
 	args = append(args, filter.Limit, offset)
@@ -1307,6 +1397,9 @@ func (r *PgSuperAdminRepository) ListAuditLogs(ctx context.Context, filter appli
 			return nil, 0, err
 		}
 		list = append(list, a)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating audit logs: %w", err)
 	}
 	return list, total, nil
 }
@@ -1386,10 +1479,17 @@ func (r *PgSuperAdminRepository) GetTenantPerformance(ctx context.Context, sort 
 		}
 		outlets[tid] = [2]int{int(total), int(act)}
 	}
+	if err := oRows.Err(); err != nil {
+		oRows.Close()
+		return nil, fmt.Errorf("iterating performance outlets: %w", err)
+	}
 	oRows.Close()
 
 	// q3 — orders per tenant (via branch): all, 30d, last
-	type ord struct{ all, d30 int64; last sql.NullTime }
+	type ord struct {
+		all, d30 int64
+		last     sql.NullTime
+	}
 	orders := map[string]ord{}
 	r3, err := r.db.QueryContext(ctx, `
 		SELECT b."tenantId",
@@ -1408,6 +1508,10 @@ func (r *PgSuperAdminRepository) GetTenantPerformance(ctx context.Context, sort 
 			return nil, err
 		}
 		orders[tid] = o
+	}
+	if err := r3.Err(); err != nil {
+		r3.Close()
+		return nil, fmt.Errorf("iterating performance orders: %w", err)
 	}
 	r3.Close()
 
@@ -1434,6 +1538,10 @@ func (r *PgSuperAdminRepository) GetTenantPerformance(ctx context.Context, sort 
 		}
 		revs[tid] = rv
 	}
+	if err := r4.Err(); err != nil {
+		r4.Close()
+		return nil, fmt.Errorf("iterating performance revenue: %w", err)
+	}
 	r4.Close()
 
 	// q5 — SaaS paid per tenant
@@ -1450,6 +1558,10 @@ func (r *PgSuperAdminRepository) GetTenantPerformance(ctx context.Context, sort 
 			return nil, err
 		}
 		saas[tid] = amt
+	}
+	if err := r5.Err(); err != nil {
+		r5.Close()
+		return nil, fmt.Errorf("iterating performance saas: %w", err)
 	}
 	r5.Close()
 
@@ -1642,6 +1754,10 @@ func (r *PgSuperAdminRepository) GetPickupInsights(ctx context.Context, from, to
 				Reason: reason, Count: count, Pct: float64(count) / float64(out.TotalRejected),
 			})
 		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("iterating pickup reasons: %w", err)
+		}
 		rows.Close()
 	}
 
@@ -1664,6 +1780,10 @@ func (r *PgSuperAdminRepository) GetPickupInsights(ctx context.Context, from, to
 			t.Rate = float64(t.Rejected) / float64(t.Total)
 		}
 		out.TopTenantsByRate = append(out.TopTenantsByRate, t)
+	}
+	if err := tRows.Err(); err != nil {
+		tRows.Close()
+		return nil, fmt.Errorf("iterating pickup tenants: %w", err)
 	}
 	tRows.Close()
 

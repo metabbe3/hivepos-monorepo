@@ -102,6 +102,9 @@ func (r *PgOrderRepository) List(ctx context.Context, tenantID string, filter ap
 		o.Notes = notes.String
 		orders = append(orders, o)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating orders: %w", err)
+	}
 
 	return orders, total, nil
 }
@@ -186,6 +189,9 @@ func (r *PgOrderRepository) ListItems(ctx context.Context, tenantID string, filt
 			it.Notes = &n
 		}
 		out = append(out, it)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating order items: %w", err)
 	}
 	return out, total, nil
 }
@@ -282,6 +288,9 @@ func (r *PgOrderRepository) FindDetailByID(ctx context.Context, id, tenantID str
 		}
 		d.OrderItems = append(d.OrderItems, it)
 	}
+	if err := irows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating order items: %w", err)
+	}
 
 	prows, err := r.db.QueryContext(ctx, `
 		SELECT id, amount::float, "paymentMethod"::text, notes, "paidAt"
@@ -302,6 +311,9 @@ func (r *PgOrderRepository) FindDetailByID(ctx context.Context, id, tenantID str
 			p.PaidAt = paidAt.Time.UTC().Format(time.RFC3339)
 		}
 		d.Payments = append(d.Payments, p)
+	}
+	if err := prows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating payments: %w", err)
 	}
 	return d, nil
 }
@@ -381,6 +393,10 @@ func (r *PgOrderRepository) Create(ctx context.Context, order *domain.Order, ite
 				return fmt.Errorf("scanning service price: %w", err)
 			}
 			priceMap[id] = svcPrice{base: base, pt: pt}
+		}
+		if err := prRows.Err(); err != nil {
+			prRows.Close()
+			return fmt.Errorf("iterating service prices: %w", err)
 		}
 		prRows.Close()
 	}
@@ -791,6 +807,10 @@ func (r *PgOrderRepository) Update(ctx context.Context, id, tenantID string, in 
 			}
 			priceMap[id] = svcPrice{base: base, pt: pt}
 		}
+		if err := prRows.Err(); err != nil {
+			prRows.Close()
+			return nil, fmt.Errorf("iterating service prices: %w", err)
+		}
 		prRows.Close()
 	}
 	var items []priced
@@ -809,9 +829,11 @@ func (r *PgOrderRepository) Update(ctx context.Context, id, tenantID string, in 
 
 	var recv any
 	if in.ReceivedAt != nil && *in.ReceivedAt != "" {
-		if t, perr := time.Parse(time.RFC3339, *in.ReceivedAt); perr == nil {
-			recv = t
+		t, perr := time.Parse(time.RFC3339, *in.ReceivedAt)
+		if perr != nil {
+			return nil, fmt.Errorf("invalid receivedAt %q: expected RFC3339", *in.ReceivedAt)
 		}
+		recv = t
 	}
 	if _, err := tx.ExecContext(ctx, `
 		UPDATE "Order" SET "customerId" = $1, notes = $2, "receivedAt" = COALESCE($3, "receivedAt"),

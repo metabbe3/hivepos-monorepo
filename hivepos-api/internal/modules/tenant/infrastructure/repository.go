@@ -223,11 +223,15 @@ func (r *PgTenantRepository) GetWhatsAppTemplates(ctx context.Context, tenantID 
 
 func (r *PgTenantRepository) UpdateWhatsAppTemplates(ctx context.Context, tenantID string, templates domain.WhatsAppTemplates) (*domain.WhatsAppTemplates, error) {
 	var settings sql.NullString
-	_ = r.db.QueryRowContext(ctx, `SELECT settings FROM "Tenant" WHERE id = $1`, tenantID).Scan(&settings)
+	if err := r.db.QueryRowContext(ctx, `SELECT settings FROM "Tenant" WHERE id = $1`, tenantID).Scan(&settings); err != nil && err != sql.ErrNoRows {
+		return nil, fmt.Errorf("loading tenant settings: %w", err)
+	}
 
 	raw := map[string]interface{}{}
 	if settings.Valid && settings.String != "" {
-		_ = json.Unmarshal([]byte(settings.String), &raw)
+		if err := json.Unmarshal([]byte(settings.String), &raw); err != nil {
+			return nil, fmt.Errorf("decoding tenant settings: %w", err)
+		}
 	}
 	raw["whatsappTemplates"] = templates
 
@@ -256,10 +260,12 @@ func (r *PgTenantRepository) GetReferral(ctx context.Context, tenantID string) (
 	}
 	// Count referrals: rewarded vs pending.
 	var rewarded, total int64
-	_ = r.db.QueryRowContext(ctx, `
+	if err := r.db.QueryRowContext(ctx, `
 		SELECT COALESCE(SUM(CASE WHEN status = 'REWARDED' THEN 1 ELSE 0 END), 0), COUNT(*)
 		FROM "Referral" WHERE "referrerId" = $1`, tenantID,
-	).Scan(&rewarded, &total)
+	).Scan(&rewarded, &total); err != nil {
+		return nil, fmt.Errorf("counting referrals: %w", err)
+	}
 	info.Rewarded = rewarded
 	info.Pending = total - rewarded
 	return info, nil

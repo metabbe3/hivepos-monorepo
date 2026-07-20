@@ -73,7 +73,9 @@ func (r *PgStockItemRepository) List(ctx context.Context, tenantID string, filte
 	}
 
 	var total int64
-	r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "StockItem" s JOIN "Branch" b ON b.id = s."branchId" `+where, args...).Scan(&total)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "StockItem" s JOIN "Branch" b ON b.id = s."branchId" `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting stock items: %w", err)
+	}
 
 	offset := (filter.Page - 1) * filter.Limit
 	query := fmt.Sprintf(`
@@ -98,6 +100,9 @@ func (r *PgStockItemRepository) List(ctx context.Context, tenantID string, filte
 			return nil, 0, err
 		}
 		list = append(list, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating stock items: %w", err)
 	}
 	return list, total, nil
 }
@@ -136,6 +141,9 @@ func (r *PgStockItemRepository) ListMovements(ctx context.Context, stockItemID, 
 			return nil, err
 		}
 		list = append(list, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating stock movements: %w", err)
 	}
 	return list, nil
 }
@@ -178,11 +186,14 @@ func (r *PgStockItemRepository) AddMovement(ctx context.Context, stockItemID, te
 	// Honor a caller-supplied movement date (backdating); default to NOW().
 	var dateVal interface{}
 	if input.Date != nil && *input.Date != "" {
-		if t, perr := time.Parse("2006-01-02", *input.Date); perr == nil {
-			dateVal = t
-		} else if t, perr := time.Parse(time.RFC3339, *input.Date); perr == nil {
-			dateVal = t
+		t, perr := time.Parse("2006-01-02", *input.Date)
+		if perr != nil {
+			t, perr = time.Parse(time.RFC3339, *input.Date)
 		}
+		if perr != nil {
+			return nil, fmt.Errorf("invalid movement date %q: expected YYYY-MM-DD or RFC3339", *input.Date)
+		}
+		dateVal = t
 	}
 	err = tx.QueryRowContext(ctx, `
 		INSERT INTO "StockMovement" (id, "stockItemId", type, quantity, date, notes, "createdAt")
@@ -192,5 +203,8 @@ func (r *PgStockItemRepository) AddMovement(ctx context.Context, stockItemID, te
 		return nil, fmt.Errorf("inserting stock movement: %w", err)
 	}
 
-	return m, tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("committing stock movement: %w", err)
+	}
+	return m, nil
 }

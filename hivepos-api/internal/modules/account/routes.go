@@ -3,6 +3,7 @@ package account
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -30,14 +31,22 @@ func (m *Module) OnboardingStatus(w http.ResponseWriter, req *http.Request) {
 	}
 	var serviceCount, customerCount, orderCount int
 	var addr, phone sql.NullString
-	_ = m.db.QueryRowContext(req.Context(),
-		`SELECT count(*) FROM "Service" s JOIN "Branch" b ON b.id=s."branchId" WHERE b."tenantId"=$1`, tenantID).Scan(&serviceCount)
-	_ = m.db.QueryRowContext(req.Context(),
-		`SELECT count(*) FROM "Customer" c JOIN "Branch" b ON b.id=c."branchId" WHERE b."tenantId"=$1`, tenantID).Scan(&customerCount)
-	_ = m.db.QueryRowContext(req.Context(),
-		`SELECT count(*) FROM "Order" o JOIN "Branch" b ON b.id=o."branchId" WHERE b."tenantId"=$1`, tenantID).Scan(&orderCount)
-	_ = m.db.QueryRowContext(req.Context(),
-		`SELECT address, phone FROM "Branch" WHERE "tenantId"=$1 AND "isActive"=true LIMIT 1`, tenantID).Scan(&addr, &phone)
+	if err := m.db.QueryRowContext(req.Context(),
+		`SELECT count(*) FROM "Service" s JOIN "Branch" b ON b.id=s."branchId" WHERE b."tenantId"=$1`, tenantID).Scan(&serviceCount); err != nil {
+		log.Printf("onboarding: service count: %v", err)
+	}
+	if err := m.db.QueryRowContext(req.Context(),
+		`SELECT count(*) FROM "Customer" c JOIN "Branch" b ON b.id=c."branchId" WHERE b."tenantId"=$1`, tenantID).Scan(&customerCount); err != nil {
+		log.Printf("onboarding: customer count: %v", err)
+	}
+	if err := m.db.QueryRowContext(req.Context(),
+		`SELECT count(*) FROM "Order" o JOIN "Branch" b ON b.id=o."branchId" WHERE b."tenantId"=$1`, tenantID).Scan(&orderCount); err != nil {
+		log.Printf("onboarding: order count: %v", err)
+	}
+	if err := m.db.QueryRowContext(req.Context(),
+		`SELECT address, phone FROM "Branch" WHERE "tenantId"=$1 AND "isActive"=true LIMIT 1`, tenantID).Scan(&addr, &phone); err != nil && err != sql.ErrNoRows {
+		log.Printf("onboarding: branch contact: %v", err)
+	}
 
 	servicesExist := serviceCount > 0
 	outletConfigured := addr.Valid && addr.String != "" || phone.Valid && phone.String != ""
