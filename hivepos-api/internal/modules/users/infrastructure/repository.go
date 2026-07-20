@@ -32,9 +32,9 @@ func (r *PgUserRepository) CreateUser(ctx context.Context, u *domain.User) error
 		return fmt.Errorf("branch does not belong to tenant")
 	}
 	return r.db.QueryRowContext(ctx, `
-		INSERT INTO "User" (email, "passwordHash", name, phone, role, "roleId",
+		INSERT INTO "User" (id, email, "passwordHash", name, phone, role, "roleId",
 			"tenantId", "branchId", "sessionVersion", "isActive", "pinHash", "qrToken", "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9, $10, NULL, NOW(), NOW())
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, 0, $9, $10, NULL, NOW(), NOW())
 		RETURNING id, "sessionVersion", "createdAt", "updatedAt"`,
 		u.Email, u.PasswordHash, u.Name, u.Phone, u.Role, u.RoleID,
 		u.TenantID, u.BranchID, u.IsActive, u.PinHash,
@@ -284,8 +284,8 @@ func (r *PgUserRepository) ResetUserPassword(ctx context.Context, id, tenantID, 
 
 func (r *PgUserRepository) CreateRole(ctx context.Context, role *domain.Role) error {
 	return r.db.QueryRowContext(ctx, `
-		INSERT INTO "Role" (name, description, "isSystem", color, permissions, "tenantId", "createdAt", "updatedAt")
-		VALUES ($1, $2, false, $3, $4, $5, NOW(), NOW())
+		INSERT INTO "Role" (id, name, description, "isSystem", color, permissions, "tenantId", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, false, $3, $4, $5, NOW(), NOW())
 		RETURNING id, "isSystem", "createdAt", "updatedAt"`,
 		role.Name, role.Description, role.Color, role.Permissions, role.TenantID,
 	).Scan(&role.ID, &role.IsSystem, &role.CreatedAt, &role.UpdatedAt)

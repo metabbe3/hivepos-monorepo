@@ -22,8 +22,8 @@ func NewPgCustomerRepository(db *sql.DB) *PgCustomerRepository {
 
 func (r *PgCustomerRepository) Create(ctx context.Context, c *domain.Customer) error {
 	return r.db.QueryRowContext(ctx, `
-		INSERT INTO "Customer" (name, phone, email, notes, balance, "branchId", "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, $4, 0, $5, NOW(), NOW()) RETURNING id, "createdAt", "updatedAt"`,
+		INSERT INTO "Customer" (id, name, phone, email, notes, balance, "branchId", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, 0, $5, NOW(), NOW()) RETURNING id, "createdAt", "updatedAt"`,
 		c.Name, c.Phone, c.Email, c.Notes, c.BranchID,
 	).Scan(&c.ID, &c.CreatedAt, &c.UpdatedAt)
 }
@@ -345,8 +345,8 @@ func (r *PgCustomerRepository) TopUpDeposit(ctx context.Context, customerID, ten
 		notesVal = notes
 	}
 	err = tx.QueryRowContext(ctx, `
-		INSERT INTO "DepositTransaction" ("customerId", "branchId", type, amount, "balanceAfter", notes, description, "createdAt")
-		VALUES ($1, $2, $3, $4, $5, $6, $6, NOW()) RETURNING id, "createdAt"`,
+		INSERT INTO "DepositTransaction" (id, "customerId", "branchId", type, amount, "balanceAfter", notes, description, "createdAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $6, NOW()) RETURNING id, "createdAt"`,
 		customerID, branchID, tType, amount, balanceAfter, notesVal).Scan(&d.ID, &d.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("inserting deposit tx: %w", err)

@@ -175,8 +175,8 @@ func (r *PgAttendanceRepository) LastEvent(ctx context.Context, userID string) (
 // CreateEvent inserts a new clock event.
 func (r *PgAttendanceRepository) CreateEvent(ctx context.Context, e *domain.ClockEvent) error {
 	return r.db.QueryRowContext(ctx, `
-		INSERT INTO "ClockEvent" ("userId", "tenantId", "branchId", type, timestamp, "createdAt")
-		VALUES ($1, $2, $3, $4, CASE WHEN $5 > '1900-01-01'::timestamptz THEN $5 ELSE NOW() END, NOW())
+		INSERT INTO "ClockEvent" (id, "userId", "tenantId", "branchId", type, timestamp, "createdAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, CASE WHEN $5 > '1900-01-01'::timestamptz THEN $5 ELSE NOW() END, NOW())
 		RETURNING id, timestamp`,
 		e.UserID, e.TenantID, e.BranchID, e.Type, e.Timestamp,
 	).Scan(&e.ID, &e.Timestamp)
@@ -296,8 +296,8 @@ func (r *PgAttendanceRepository) DeleteEvent(ctx context.Context, id, tenantID s
 func (r *PgAttendanceRepository) CreateQuickStaff(ctx context.Context, name, pinHash, branchID string) (*domain.StaffMember, error) {
 	s := &domain.StaffMember{PinHash: &pinHash, IsActive: true}
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO "User" (name, "pinHash", "branchId", "isActive", "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, true, NOW(), NOW())
+		INSERT INTO "User" (id, name, "pinHash", "branchId", "isActive", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, true, NOW(), NOW())
 		RETURNING id, "createdAt"`, name, pinHash, branchID,
 	).Scan(&s.ID, &s.CreatedAt)
 	if err != nil {

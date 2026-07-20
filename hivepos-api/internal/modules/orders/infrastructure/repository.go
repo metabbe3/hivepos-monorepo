@@ -432,10 +432,10 @@ func (r *PgOrderRepository) Create(ctx context.Context, order *domain.Order, ite
 
 	// Insert order (Order has NO tenantId column — tenant lives on Branch; omitted here)
 	err = tx.QueryRowContext(ctx, `
-		INSERT INTO "Order" ("orderNumber", "customerId", status, "paymentStatus",
+		INSERT INTO "Order" (id, "orderNumber", "customerId", status, "paymentStatus",
 			"totalAmount", "discountAmount", "discountType", notes, "branchId",
 			module, "clientId", "receivedAt", "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7,''), $8, $9, $10, $11, COALESCE($12, NOW()), NOW(), NOW())
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, NULLIF($7,''), $8, $9, $10, $11, COALESCE($12, NOW()), NOW(), NOW())
 		RETURNING id`,
 		order.OrderNumber, order.CustomerID, order.Status, order.PaymentStatus,
 		order.TotalAmount, order.DiscountAmount, order.DiscountType,
@@ -453,8 +453,8 @@ func (r *PgOrderRepository) Create(ctx context.Context, order *domain.Order, ite
 			gbArg = string(item.GarmentBreakdown) // text → jsonb
 		}
 		_, err = tx.ExecContext(ctx, `
-			INSERT INTO "OrderItem" ("orderId", "serviceId", quantity, "weightKg", "pricePerUnit", subtotal, "garmentBreakdown")
-			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+			INSERT INTO "OrderItem" (id, "orderId", "serviceId", quantity, "weightKg", "pricePerUnit", subtotal, "garmentBreakdown")
+			VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7)`,
 			order.ID, item.ServiceID, item.Quantity, item.WeightKg, item.PricePerUnit, item.Subtotal, gbArg,
 		)
 		if err != nil {
@@ -830,8 +830,8 @@ func (r *PgOrderRepository) Update(ctx context.Context, id, tenantID string, in 
 			gbArg = string(it.gb)
 		}
 		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO "OrderItem" ("orderId", "serviceId", quantity, "weightKg", "pricePerUnit", subtotal, "garmentBreakdown")
-			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+			INSERT INTO "OrderItem" (id, "orderId", "serviceId", quantity, "weightKg", "pricePerUnit", subtotal, "garmentBreakdown")
+			VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7)`,
 			id, it.svcID, it.qty, it.weight, it.price, it.sub, gbArg); err != nil {
 			return nil, fmt.Errorf("inserting item: %w", err)
 		}

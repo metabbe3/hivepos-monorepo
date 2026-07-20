@@ -36,9 +36,9 @@ func (r *PgPickupRepository) Create(ctx context.Context, p *domain.PickupRequest
 		requestedDate = *p.RequestedDate
 	}
 	return r.db.QueryRowContext(ctx, `
-		INSERT INTO "PickupRequest" ("tenantId", "branchId", status, "customerName",
+		INSERT INTO "PickupRequest" (id, "tenantId", "branchId", status, "customerName",
 			"customerPhone", "customerId", "addressText", "requestedDate", "requestedSlot", notes, "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
 		RETURNING id, "createdAt", "updatedAt"`,
 		p.TenantID, p.BranchID, p.Status, p.CustomerName,
 		p.CustomerPhone, p.CustomerID, p.Address, requestedDate, p.RequestedSlot, p.Notes,

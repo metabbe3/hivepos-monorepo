@@ -483,8 +483,8 @@ func (r *PgSuperAdminRepository) CreatePlan(ctx context.Context, input applicati
 	}
 	p := &domain.Plan{}
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO "Plan" (name, description, "maxOutlets", "maxUsers", "maxOrders", "priceMonthly", "priceYearly", "isActive", tier, "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+		INSERT INTO "Plan" (id, name, description, "maxOutlets", "maxUsers", "maxOrders", "priceMonthly", "priceYearly", "isActive", tier, "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
 		RETURNING id, "createdAt", "updatedAt"`,
 		name, input.Description, maxOutlets, maxUsers, maxOrders, priceMonthly, priceYearly, isActive, input.Tier,
 	).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
@@ -601,8 +601,8 @@ func (r *PgSuperAdminRepository) CreatePromoCode(ctx context.Context, input appl
 	}
 	p := &domain.PromoCode{}
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO "PromoCode" (code, description, type, value, "maxRedemptions", "validFrom", "validUntil", "isActive", "applicablePlan", "createdAt")
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+		INSERT INTO "PromoCode" (id, code, description, type, value, "maxRedemptions", "validFrom", "validUntil", "isActive", "applicablePlan", "createdAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
 		RETURNING id, "createdAt"`,
 		code, input.Description, pType, value, input.MaxRedemptions, input.ValidFrom, input.ValidUntil, isActive, input.ApplicablePlan,
 	).Scan(&p.ID, &p.CreatedAt)
@@ -702,8 +702,8 @@ func (r *PgSuperAdminRepository) CreateFeatureFlag(ctx context.Context, input ap
 	}
 	f := &domain.FeatureFlag{}
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO "FeatureFlag" (key, name, description, enabled, category, "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) RETURNING id, "createdAt", "updatedAt"`,
+		INSERT INTO "FeatureFlag" (id, key, name, description, enabled, category, "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, NOW(), NOW()) RETURNING id, "createdAt", "updatedAt"`,
 		key, name, input.Description, enabled, category,
 	).Scan(&f.ID, &f.CreatedAt, &f.UpdatedAt)
 	if err != nil {
@@ -844,8 +844,8 @@ func (r *PgSuperAdminRepository) UpsertTenantFlag(ctx context.Context, flagID st
 		reasonVal = input.Reason
 	}
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO "TenantFeatureFlag" ("flagId", "tenantId", enabled, reason, "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, $4, NOW(), NOW())
+		INSERT INTO "TenantFeatureFlag" (id, "flagId", "tenantId", enabled, reason, "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, NOW(), NOW())
 		ON CONFLICT ("flagId", "tenantId") DO UPDATE SET enabled = EXCLUDED.enabled, reason = EXCLUDED.reason, "updatedAt" = NOW()
 		RETURNING id, "createdAt", "updatedAt"`,
 		flagID, input.TenantID, input.Enabled, reasonVal,
@@ -998,8 +998,8 @@ func (r *PgSuperAdminRepository) AddTicketComment(ctx context.Context, ticketID,
 	}
 	c := &domain.TicketComment{TicketID: ticketID, AuthorName: authorName, AuthorEmail: authorEmail, AuthorRole: "SUPER_ADMIN", Body: body}
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO "TicketComment" ("ticketId", "authorName", "authorEmail", "authorRole", body, "createdAt")
-		VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id, "createdAt"`,
+		INSERT INTO "TicketComment" (id, "ticketId", "authorName", "authorEmail", "authorRole", body, "createdAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, NOW()) RETURNING id, "createdAt"`,
 		ticketID, authorName, authorEmail, "SUPER_ADMIN", body,
 	).Scan(&c.ID, &c.CreatedAt)
 	if err != nil {
@@ -1189,8 +1189,8 @@ func (r *PgSuperAdminRepository) CreateBlogPost(ctx context.Context, input appli
 		publishedAt = time.Now()
 	}
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO "BlogPost" (slug, title, description, keywords, content, "coverImage", published, "publishedAt", "authorId", "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+		INSERT INTO "BlogPost" (id, slug, title, description, keywords, content, "coverImage", published, "publishedAt", "authorId", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
 		RETURNING id, "createdAt", "updatedAt"`,
 		slug, title, description, input.Keywords, content, input.CoverImage, published, publishedAt, authorID,
 	).Scan(&b.ID, &b.CreatedAt, &b.UpdatedAt)
@@ -1521,8 +1521,8 @@ func (r *PgSuperAdminRepository) CreateAdmin(ctx context.Context, email, name, p
 	var id string
 	var createdAt time.Time
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO "SuperAdmin" (email, name, "passwordHash", role, "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, $4, NOW(), NOW()) RETURNING id, "createdAt"`,
+		INSERT INTO "SuperAdmin" (id, email, name, "passwordHash", role, "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, NOW(), NOW()) RETURNING id, "createdAt"`,
 		email, name, passwordHash, role).Scan(&id, &createdAt)
 	if err != nil {
 		return nil, fmt.Errorf("creating admin: %w", err)

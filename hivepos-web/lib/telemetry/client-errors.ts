@@ -28,7 +28,10 @@ export function reportClientError(err: unknown, ctx?: Record<string, unknown>): 
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const token = getAuthToken();
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  // ponytail: no JWT (logged-out / pre-login page) → /api/telemetry 401s and just
+  // noise up ErrorLog. There's no user to attribute the error to anyway.
+  if (!token) return;
+  headers["Authorization"] = `Bearer ${token}`;
 
   // ponytail: fire-and-forget; .catch swallows so a bad receiver never throws.
   fetch(`${BASE}/telemetry`, {

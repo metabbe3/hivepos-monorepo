@@ -111,7 +111,7 @@ func main() {
 
 	// Auth (login, register)
 	authModule := auth.NewModule(db, jwtMgr, cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleRedirectURI, cfg.WebOrigin, cfg.JWTSecret)
-	r.Route("/api/auth", func(r chi.Router) { r.Use(middleware.RateLimit(20, time.Minute)); authModule.Register(r) })
+	r.Route("/api/auth", func(r chi.Router) { authModule.Register(r, middleware.RateLimit(20, time.Minute)) })
 	r.With(middleware.RateLimit(5, time.Hour)).Post("/api/register", authModule.RegisterHandler)
 
 	// Demo entrypoint (public): returns shared demo creds for the web /demo auto-signin.

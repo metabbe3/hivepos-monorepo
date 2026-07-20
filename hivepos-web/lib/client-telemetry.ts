@@ -15,6 +15,7 @@
 // components/shared/telemetry-flusher.tsx for the gate.
 
 import type { TelemetryKind } from "@/lib/telemetry";
+import { getAuthToken } from "@/lib/api/token";
 
 interface QueuedEvent {
   kind: TelemetryKind;
@@ -35,13 +36,21 @@ function isProd(): boolean {
 
 async function flush(): Promise<void> {
   if (queue.length === 0) return;
+  // ponytail: /api/telemetry is authed — skip when no JWT (pre-login / logged-out)
+  // so the 10s flush loop doesn't generate a 401 on every page. Vitals are per-user
+  // analytics; an unauthed batch has no one to attribute to anyway.
+  const token = getAuthToken();
+  if (!token) {
+    queue.length = 0;
+    return;
+  }
   const batch = queue.splice(0, queue.length);
   try {
     // Best-effort. Failures drop the batch — telemetry is fire-and-forget,
     // retrying risks amplifying a bad endpoint.
     await fetch(ENDPOINT, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ events: batch }),
       keepalive: true,
     });
@@ -52,6 +61,10 @@ async function flush(): Promise<void> {
 
 function flushBeacon(): void {
   if (queue.length === 0) return;
+  if (!getAuthToken()) {
+    queue.length = 0;
+    return;
+  }
   const batch = queue.splice(0, queue.length);
   try {
     navigator.sendBeacon(
