@@ -221,10 +221,8 @@ func (r *PgServiceRepository) Update(ctx context.Context, s *domain.Service) err
 		descVal = s.Description
 	}
 	_, err := r.db.ExecContext(ctx, `
-		UPDATE "Service" SET name=$1, description=$2,
-			"pricingType"=COALESCE(NULLIF($3,'')::"PricingType",'PER_ITEM'::"PricingType"), "basePrice"=$4,
-		"commissionType"=$5, "commissionValue"=$6,
-			module=COALESCE(NULLIF($7,'')::"BusinessModule",'LAUNDRY'::"BusinessModule"), "isActive"=$8,
+		UPDATE "Service" SET name=$1, description=$2, "pricingType"=$3, "basePrice"=$4,
+		"commissionType"=$5, "commissionValue"=$6, module=$7, "isActive"=$8,
 		"isDefaultSpeed"=$9, "groupId"=$10, "updatedAt"=NOW() WHERE id=$11`,
 		s.Name, descVal, s.PricingType, s.BasePrice, s.CommissionType,
 		s.CommissionValue, s.Module, s.IsActive, s.IsDefaultSpeed, groupVal, s.ID)

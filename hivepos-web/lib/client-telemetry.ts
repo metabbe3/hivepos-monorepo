@@ -34,16 +34,22 @@ function isProd(): boolean {
   return typeof window !== "undefined" && process.env.NODE_ENV === "production";
 }
 
-async function flush(): Promise<void> {
-  if (queue.length === 0) return;
-  // ponytail: /api/telemetry is authed — skip when no JWT (pre-login / logged-out)
-  // so the 10s flush loop doesn't generate a 401 on every page. Vitals are per-user
-  // analytics; an unauthed batch has no one to attribute to anyway.
-  const token = getAuthToken();
+// ponytail: /api/telemetry is authed — skip when no JWT (pre-login / logged-out)
+// so the flush loop doesn't generate a 401 on every page. Vitals are per-user
+// analytics; an unauthed batch has no one to attribute to anyway. Drop the queue
+// too so it can't grow unbounded while logged out.
+function dropIfUnauthed(token: string | null): boolean {
   if (!token) {
     queue.length = 0;
-    return;
+    return true;
   }
+  return false;
+}
+
+async function flush(): Promise<void> {
+  if (queue.length === 0) return;
+  const token = getAuthToken();
+  if (dropIfUnauthed(token)) return;
   const batch = queue.splice(0, queue.length);
   try {
     // Best-effort. Failures drop the batch — telemetry is fire-and-forget,
@@ -61,10 +67,7 @@ async function flush(): Promise<void> {
 
 function flushBeacon(): void {
   if (queue.length === 0) return;
-  if (!getAuthToken()) {
-    queue.length = 0;
-    return;
-  }
+  if (dropIfUnauthed(getAuthToken())) return;
   const batch = queue.splice(0, queue.length);
   try {
     navigator.sendBeacon(

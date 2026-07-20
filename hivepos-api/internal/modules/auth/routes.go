@@ -186,7 +186,7 @@ func (m *Module) register(w http.ResponseWriter, req *http.Request) {
 	// satisfied AND credential login always fails (the plaintext is discarded).
 	// The account authenticates only via Google (FindUserByGoogleID).
 	plain := input.Password
-	if plain == "" {
+	if !needsPassword {
 		plain = randHex(32)
 	}
 	hash, err := appauth.HashPassword(plain)
