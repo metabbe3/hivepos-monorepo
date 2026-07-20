@@ -307,6 +307,29 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 		pbRows.Close()
 	}
 
+	// Service breakdown: top services by revenue in the period (ServiceCompositionCard).
+	sbRows, sbErr := r.db.QueryContext(ctx, fmt.Sprintf(`
+		SELECT svc.id, svc.name, COUNT(oi.id) AS orders, COALESCE(SUM(oi.subtotal::float), 0) AS revenue
+		FROM "OrderItem" oi
+		JOIN "Order" o ON o.id = oi."orderId"
+		JOIN "Branch" b ON b.id = o."branchId"
+		JOIN "Service" svc ON svc.id = oi."serviceId"
+		WHERE %s
+		GROUP BY svc.id, svc.name
+		ORDER BY revenue DESC
+		LIMIT 10`, periodFilter), baseArgs...)
+	if sbErr == nil {
+		for sbRows.Next() {
+			var sb domain.DashboardService
+			if err := sbRows.Scan(&sb.ServiceID, &sb.Name, &sb.Orders, &sb.Revenue); err != nil {
+				sbRows.Close()
+				return nil, fmt.Errorf("scanning service breakdown: %w", err)
+			}
+			s.ServiceBreakdown = append(s.ServiceBreakdown, sb)
+		}
+		sbRows.Close()
+	}
+
 	// 8. Comparison metrics
 	s.Comparison = domain.DashboardComparison{
 		Revenue:     domain.ComparisonMetric{Current: currentRevenue, Previous: previousRevenue, ChangePercent: calcChange(currentRevenue, previousRevenue)},
@@ -478,13 +501,7 @@ func (r *PgDashboardRepository) GetStats(ctx context.Context, tenantID string, f
 		spRows.Close()
 	}
 
-	// 14. Service breakdown (OrderItem groupBy serviceId)
-	sbArgs := append([]interface{}{}, baseArgs...)
-	sbRows, _ := r.db.QueryContext(ctx, fmt.Sprintf(
-		`SELECT oi."serviceId", COUNT(*), COALESCE(SUM(oi.subtotal::float),0)
-		 FROM "OrderItem" oi JOIN "Order" o ON o.id=oi."orderId" JOIN "Branch" b ON b.id=o."branchId"
-		 WHERE %s GROUP BY oi."serviceId" ORDER BY SUM(oi.subtotal::float) DESC`, periodFilter), sbArgs...)
-	_ = sbRows // skip — service breakdown not critical for shape match
+	// 14. Service breakdown populated above (section after payment breakdown).
 
 	return s, nil
 }
@@ -718,11 +735,51 @@ func (r *PgDashboardRepository) GetHeatmap(ctx context.Context, tenantID, branch
 		}
 		rbdRows.Close()
 	}
+	// revenueTrend: last 14 days (revenue + orders) with week-ago revenue for comparison.
+	rtArgs := []interface{}{tenantID}
+	rtBranch := ""
+	if branchID != "" && branchID != "ALL" {
+		rtBranch = fmt.Sprintf(` AND o."branchId" = $%d`, len(rtArgs)+1)
+		rtArgs = append(rtArgs, branchID)
+	}
+	rtRows, _ := r.db.QueryContext(ctx, fmt.Sprintf(`
+		SELECT to_char(d, 'YYYY-MM-DD') AS date,
+		       COUNT(DISTINCT o.id) AS orders,
+		       COALESCE(SUM(o."totalAmount"::float), 0) AS revenue
+		FROM generate_series(NOW() - interval '20 days', NOW(), '1 day') d
+		LEFT JOIN "Order" o
+		  ON o."branchId" IN (SELECT id FROM "Branch" WHERE "tenantId" = $1%s)
+		 AND COALESCE(o."receivedAt", o."createdAt")::date = d::date
+		GROUP BY d ORDER BY d`, rtBranch), rtArgs...)
+	type dayAgg struct {
+		date    string
+		orders  int64
+		revenue float64
+	}
+	var days []dayAgg
+	if rtRows != nil {
+		for rtRows.Next() {
+			var da dayAgg
+			if rtRows.Scan(&da.date, &da.orders, &da.revenue) == nil {
+				days = append(days, da)
+			}
+		}
+		rtRows.Close()
+	}
+	revenueTrend := []interface{}{}
+	for i := 7; i < len(days); i++ {
+		revenueTrend = append(revenueTrend, map[string]interface{}{
+			"date":            days[i].date,
+			"orders":          days[i].orders,
+			"revenue":         days[i].revenue,
+			"previousRevenue": days[i-7].revenue,
+		})
+	}
 	return map[string]interface{}{
 		"customerVisits": customerVisits,
 		"hourlyByDay":    hourlyByDay,
-		"revenueByDay":   map[string]float64{},
-		"revenueTrend":   []interface{}{},
+		"revenueByDay":   revenueByDay,
+		"revenueTrend":   revenueTrend,
 	}, nil
 }
 
