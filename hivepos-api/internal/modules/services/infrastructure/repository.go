@@ -47,8 +47,8 @@ func (r *PgServiceRepository) Create(ctx context.Context, s *domain.Service) err
 		descVal = s.Description
 	}
 	return r.db.QueryRowContext(ctx, `
-		INSERT INTO "Service" (name, description, "pricingType", "basePrice", "commissionType", "commissionValue", module, "isActive", "isDefaultSpeed", "branchId", "groupId", "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+		INSERT INTO "Service" (id, name, description, "pricingType", "basePrice", "commissionType", "commissionValue", module, "isActive", "isDefaultSpeed", "branchId", "groupId", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
 		RETURNING id, "createdAt", "updatedAt"`,
 		s.Name, descVal, s.PricingType, s.BasePrice, s.CommissionType, s.CommissionValue,
 		s.Module, s.IsActive, s.IsDefaultSpeed, s.BranchID, groupVal,
@@ -234,6 +234,20 @@ func (r *PgServiceRepository) Delete(ctx context.Context, id, tenantID string) e
 	return err
 }
 
+// CountUsage reports how many OrderItems reference the service (tenant-scoped). Used by the
+// service layer to block delete with a clear 409 instead of a raw FK-violation 500.
+// ponytail: pre-check only — admin op, low concurrency; a racing insert would still surface as
+// the original FK 500, acceptable.
+func (r *PgServiceRepository) CountUsage(ctx context.Context, id, tenantID string) (int, error) {
+	var n int
+	err := r.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM "OrderItem" oi
+		JOIN "Order" o ON o.id = oi."orderId"
+		JOIN "Branch" b ON b.id = o."branchId"
+		WHERE oi."serviceId" = $1 AND b."tenantId" = $2`, id, tenantID).Scan(&n)
+	return n, err
+}
+
 // --- ServiceGroup ---
 
 // groupColumns lists ServiceGroup columns qualified with the "g." alias (the
@@ -246,8 +260,8 @@ func (r *PgServiceRepository) CreateGroup(ctx context.Context, g *domain.Service
 		descVal = g.Description
 	}
 	return r.db.QueryRowContext(ctx, `
-		INSERT INTO "ServiceGroup" (name, description, "sortOrder", module, "branchId", "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) RETURNING id, "createdAt", "updatedAt"`,
+		INSERT INTO "ServiceGroup" (id, name, description, "sortOrder", module, "branchId", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, NOW(), NOW()) RETURNING id, "createdAt", "updatedAt"`,
 		g.Name, descVal, g.SortOrder, g.Module, g.BranchID,
 	).Scan(&g.ID, &g.CreatedAt, &g.UpdatedAt)
 }

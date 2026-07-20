@@ -133,8 +133,8 @@ func (r *PgPublicRepository) CreateSupportTicket(ctx context.Context, input doma
 	var id string
 	// status defaults to OPEN and priority to NORMAL at the DB level; we pass them explicitly for clarity.
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO "SupportTicket" (name, email, subject, message, status, priority, "tenantId", "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, $4, 'OPEN', 'NORMAL', $5, NOW(), NOW())
+		INSERT INTO "SupportTicket" (id, name, email, subject, message, status, priority, "tenantId", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, 'OPEN', 'NORMAL', $5, NOW(), NOW())
 		RETURNING id`,
 		input.Name, input.Email, input.Subject, input.Message, tenantID,
 	).Scan(&id)
@@ -239,9 +239,9 @@ func (r *PgPublicRepository) CreatePickupRequest(ctx context.Context, input doma
 	}
 
 	err = r.db.QueryRowContext(ctx, `
-		INSERT INTO "PickupRequest" ("tenantId", "branchId", module, status, "customerName", "customerPhone",
+		INSERT INTO "PickupRequest" (id, "tenantId", "branchId", module, status, "customerName", "customerPhone",
 			"customerEmail", "addressText", "mapsLink", latitude, longitude, "requestedSlot", notes, "createdAt", "updatedAt")
-		VALUES ($1, $2, 'LAUNDRY', 'PENDING', $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+		VALUES (gen_random_uuid()::text, $1, $2, 'LAUNDRY', 'PENDING', $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
 		RETURNING id`,
 		tenantID, branchID, input.Name, input.Phone, emailArg, input.Address, mapsArg, latArg, lngArg, slotArg, notesArg,
 	).Scan(&id)

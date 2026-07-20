@@ -50,6 +50,7 @@ func (f *fakeRepo) ListItems(_ context.Context, _ string, fl application.ListFil
 }
 func (f *fakeRepo) Update(_ context.Context, _ *domain.Service) error  { return nil }
 func (f *fakeRepo) Delete(_ context.Context, _, _ string) error         { return nil }
+func (f *fakeRepo) CountUsage(_ context.Context, _, _ string) (int, error) { return 0, nil }
 func (f *fakeRepo) CreateGroup(_ context.Context, g *domain.ServiceGroup) error {
 	g.ID = "grp-new"
 	f.groups[g.ID] = g

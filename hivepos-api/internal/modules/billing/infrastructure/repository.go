@@ -131,9 +131,9 @@ func (r *PgBillingRepository) CreatePayment(ctx context.Context, p *domain.SaaSP
 		unitPrice = p.Amount / float64(outlets*months) // best-effort fallback
 	}
 	return r.db.QueryRowContext(ctx, `
-		INSERT INTO "SaaSPayment" ("tenantId", amount, "outletCount", "unitPrice", "monthsPurchased",
+		INSERT INTO "SaaSPayment" (id, "tenantId", amount, "outletCount", "unitPrice", "monthsPurchased",
 			"midtransOrderId", status, kind, "promoCodeId", "createdAt")
-		VALUES ($1, $2, $3, $4, $5, $6, $7, 'INITIAL', $8, NOW()) RETURNING id, "createdAt"`,
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, 'INITIAL', $8, NOW()) RETURNING id, "createdAt"`,
 		p.TenantID, p.Amount, outlets, unitPrice, months, p.ProviderOrderID, p.Status, p.PromoCodeID,
 	).Scan(&p.ID, &p.CreatedAt)
 }

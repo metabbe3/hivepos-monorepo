@@ -60,9 +60,13 @@ func NewModule(db interface{}, jwt *appauth.JWTManager, googleClientID, googleSe
 }
 
 // Register mounts the auth sub-router: /login, /session-version, /me, /google.
-// Mount this under /api/auth in main.go.
-func (m *Module) Register(r chi.Router) {
-	r.Post("/login", m.login)
+// Mount this under /api/auth in main.go. loginLimiter is applied ONLY to /login
+// (the credential-submission / brute-force target); /me, /session-version, and the
+// Google routes are high-frequency or already CSRF/Google-guarded, so throttling
+// them (as a blanket group limit did) locks out normal browsing — the web hits
+// /me on every page load and polls /session-version.
+func (m *Module) Register(r chi.Router, loginLimiter func(http.Handler) http.Handler) {
+	r.With(loginLimiter).Post("/login", m.login)
 	r.Post("/logout", m.logout)
 	r.Post("/session-version", m.bumpSessionVersion)
 	r.Get("/session-version", m.getSessionVersion)
@@ -166,13 +170,26 @@ func (m *Module) register(w http.ResponseWriter, req *http.Request) {
 		apphttp.ValidationError(w, "Invalid JSON body")
 		return
 	}
+	// Password is required only for the email flow. The Google flow sends a
+	// googleId and no password (the FE hides the field), so the account must
+	// authenticate via Google OAuth only — see the unusable-hash handling below.
+	needsPassword := input.GoogleID == ""
 	if input.TenantName == "" || input.TenantSlug == "" || input.OwnerName == "" ||
-		input.Email == "" || input.Password == "" || input.Module == "" || input.BranchName == "" {
-		apphttp.ValidationError(w, "tenantName, tenantSlug, ownerName, email, password, module, branchName are required")
+		input.Email == "" || input.Module == "" || input.BranchName == "" ||
+		(needsPassword && input.Password == "") {
+		apphttp.ValidationError(w, "tenantName, tenantSlug, ownerName, email, module, branchName are required (password required unless googleId is present)")
 		return
 	}
 
-	hash, err := appauth.HashPassword(input.Password)
+	// Google-only accounts have no user-supplied password. Hash a random
+	// never-revealed secret instead so the NOT NULL passwordHash column is
+	// satisfied AND credential login always fails (the plaintext is discarded).
+	// The account authenticates only via Google (FindUserByGoogleID).
+	plain := input.Password
+	if plain == "" {
+		plain = randHex(32)
+	}
+	hash, err := appauth.HashPassword(plain)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, "Failed to hash password")
 		return

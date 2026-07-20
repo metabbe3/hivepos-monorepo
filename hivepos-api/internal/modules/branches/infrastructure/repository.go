@@ -87,11 +87,11 @@ func (r *PgBranchRepository) Create(ctx context.Context, b *domain.Branch) error
 	}
 	workDays := workDaysOrDefault(b.WorkDays)
 	return r.db.QueryRowContext(ctx, `
-		INSERT INTO "Branch" (name, address, phone, "invoiceFooter", "isActive", "tenantId",
+		INSERT INTO "Branch" (id, name, address, phone, "invoiceFooter", "isActive", "tenantId",
 			latitude, longitude, "operatingHours", "whatsappLink", "googleMapsLink",
 			"printerHost", "printerPort", "printerName", "printerEnabled",
 			"printerPaperSize", "isFreeTier", slug, "pickupSlots", "workDays", "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW(), NOW())
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW(), NOW())
 		RETURNING id, "createdAt", "updatedAt"`,
 		b.Name, b.Address, b.Phone, b.InvoiceFooter, b.IsActive, b.TenantID,
 		b.Latitude, b.Longitude, operatingHours, b.WhatsappLink, b.GoogleMapsLink,

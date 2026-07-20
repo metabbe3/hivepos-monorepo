@@ -33,8 +33,8 @@ func (r *PgExpenseRepository) CreateExpense(ctx context.Context, e *domain.Expen
 		catVal = e.CategoryID
 	}
 	return r.db.QueryRowContext(ctx, `
-		INSERT INTO "Expense" (amount, description, date, "branchId", "categoryId", "createdAt")
-		VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id, date, "createdAt"`,
+		INSERT INTO "Expense" (id, amount, description, date, "branchId", "categoryId", "createdAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, NOW()) RETURNING id, date, "createdAt"`,
 		e.Amount, descVal, e.Date, e.BranchID, catVal,
 	).Scan(&e.ID, &e.Date, &e.CreatedAt)
 }
@@ -154,8 +154,8 @@ func (r *PgExpenseRepository) CreateCategory(ctx context.Context, c *domain.Expe
 		descVal = c.Description
 	}
 	return r.db.QueryRowContext(ctx, `
-		INSERT INTO "ExpenseCategory" (name, description, "branchId", "createdAt")
-		VALUES ($1, $2, $3, NOW()) RETURNING id, "createdAt"`,
+		INSERT INTO "ExpenseCategory" (id, name, description, "branchId", "createdAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, NOW()) RETURNING id, "createdAt"`,
 		c.Name, descVal, c.BranchID,
 	).Scan(&c.ID, &c.CreatedAt)
 }

@@ -877,8 +877,8 @@ func (m *Module) forceUpdate(w http.ResponseWriter, req *http.Request) {
 	// Bump the PWA nonce in SystemSetting → clients polling /api/pwa/nonce see the new value,
 	// mismatch against localStorage → nuke caches + reload. Propagates within the 3min poll window.
 	if _, err := m.db.ExecContext(req.Context(), `
-		INSERT INTO "SystemSetting" (key, value, "updatedAt")
-		VALUES ('pwaNonce', gen_random_uuid()::text, NOW())
+		INSERT INTO "SystemSetting" (id, key, value, "updatedAt")
+		VALUES (gen_random_uuid()::text, 'pwaNonce', gen_random_uuid()::text, NOW())
 		ON CONFLICT (key) DO UPDATE SET value = gen_random_uuid()::text, "updatedAt" = NOW()
 	`); err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, "bumping PWA nonce: "+err.Error())
@@ -891,8 +891,8 @@ func (m *Module) forceUpdate(w http.ResponseWriter, req *http.Request) {
 // session to revoke; the frontend drops the impersonation token from localStorage.
 func (m *Module) stopImpersonation(w http.ResponseWriter, req *http.Request) {
 	if _, err := m.db.ExecContext(req.Context(),
-		`INSERT INTO "AuditLog" (action, "targetType", reason, "createdAt")
-		 VALUES ('IMPERSONATION_STOP', 'user', 'Super-admin stopped impersonation', NOW())`); err != nil {
+		`INSERT INTO "AuditLog" (id, action, "targetType", reason, "createdAt")
+		 VALUES (gen_random_uuid()::text, 'IMPERSONATION_STOP', 'user', 'Super-admin stopped impersonation', NOW())`); err != nil {
 		// Best-effort — don't fail the stop on audit-log error.
 	}
 	apphttp.Success(w, map[string]bool{"stopped": true})
@@ -964,6 +964,9 @@ func (m *Module) completeChat(ctx context.Context, messages []map[string]string)
 	}
 	hr.Header.Set("Content-Type", "application/json")
 	hr.Header.Set("Authorization", "Bearer "+m.aiKey)
+	// TODO(self-heal): wrap in resilience.CircuitBreaker. Needs status-aware
+	// classification first (count transport + 5xx, not 4xx — a 4xx here is auth/
+	// config, not AI-provider health). See internal/shared/resilience.
 	resp, err := http.DefaultClient.Do(hr)
 	if err != nil {
 		return "", err

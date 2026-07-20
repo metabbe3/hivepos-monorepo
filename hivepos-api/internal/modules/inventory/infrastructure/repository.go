@@ -25,8 +25,8 @@ const stockItemColumns = `s.id, s.name, s.unit, s."currentQuantity"::float, s."l
 
 func (r *PgStockItemRepository) Create(ctx context.Context, s *domain.StockItem) error {
 	return r.db.QueryRowContext(ctx, `
-		INSERT INTO "StockItem" (name, unit, "currentQuantity", "lowStockThreshold", "purchasePricePerUnit", "isActive", "branchId", "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+		INSERT INTO "StockItem" (id, name, unit, "currentQuantity", "lowStockThreshold", "purchasePricePerUnit", "isActive", "branchId", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
 		RETURNING id, "createdAt", "updatedAt"`,
 		s.Name, s.Unit, s.CurrentQuantity, s.LowStockThreshold, s.PurchasePricePerUnit, s.IsActive, s.BranchID,
 	).Scan(&s.ID, &s.CreatedAt, &s.UpdatedAt)
@@ -185,8 +185,8 @@ func (r *PgStockItemRepository) AddMovement(ctx context.Context, stockItemID, te
 		}
 	}
 	err = tx.QueryRowContext(ctx, `
-		INSERT INTO "StockMovement" ("stockItemId", type, quantity, date, notes, "createdAt")
-		VALUES ($1, $2, $3, COALESCE($4, NOW()), $5, NOW()) RETURNING id, date, "createdAt"`,
+		INSERT INTO "StockMovement" (id, "stockItemId", type, quantity, date, notes, "createdAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, COALESCE($4, NOW()), $5, NOW()) RETURNING id, date, "createdAt"`,
 		stockItemID, input.Type, input.Quantity, dateVal, notesVal).Scan(&m.ID, &m.Date, &m.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("inserting stock movement: %w", err)

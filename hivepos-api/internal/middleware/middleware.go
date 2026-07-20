@@ -293,9 +293,9 @@ func logErrorToDB(db *sql.DB, r *http.Request, sc *statusCapture) {
 		userID = uid
 	}
 	_, err := db.ExecContext(r.Context(), `
-		INSERT INTO "ErrorLog" ("requestId", method, url, "httpStatus", code, message,
+		INSERT INTO "ErrorLog" (id, "requestId", method, url, "httpStatus", code, message,
 			"tenantId", "userId", "ipAddress", "userAgent", resolved, "createdAt")
-		VALUES ($1, $2, $3, $4, NULLIF($5, ''), NULLIF($6, ''), $7, $8, $9, $10, false, NOW())`,
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, NULLIF($5, ''), NULLIF($6, ''), $7, $8, $9, $10, false, NOW())`,
 		chimw.GetReqID(r.Context()), r.Method, r.URL.Path, sc.status, code, msg,
 		tenantID, userID, r.RemoteAddr, r.UserAgent(),
 	)

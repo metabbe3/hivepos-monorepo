@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/hivepos/api/internal/modules/services/domain"
+	"github.com/hivepos/api/internal/shared/apperror"
 )
 
 // CreateServiceInput is the DTO for creating a service.
@@ -78,6 +79,7 @@ type Repository interface {
 	ListItems(ctx context.Context, tenantID string, filter ListFilter) ([]*ServiceListItem, int64, error)
 	Update(ctx context.Context, s *domain.Service) error
 	Delete(ctx context.Context, id, tenantID string) error
+	CountUsage(ctx context.Context, id, tenantID string) (int, error)
 
 	CreateGroup(ctx context.Context, g *domain.ServiceGroup) error
 	FindGroupByID(ctx context.Context, id, tenantID string) (*domain.ServiceGroup, error)
@@ -163,6 +165,14 @@ func (s *Service) Update(ctx context.Context, svc *domain.Service) error {
 }
 
 func (s *Service) Delete(ctx context.Context, id, tenantID string) error {
+	n, err := s.Repo.CountUsage(ctx, id, tenantID)
+	if err != nil {
+		return apperror.NewDatabase("checking service usage", err)
+	}
+	if n > 0 {
+		return apperror.NewConflict(
+			fmt.Sprintf("service is used by %d order item(s); reassign or remove them first", n))
+	}
 	return s.Repo.Delete(ctx, id, tenantID)
 }
 

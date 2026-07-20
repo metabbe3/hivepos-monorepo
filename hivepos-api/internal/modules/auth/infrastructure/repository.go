@@ -259,6 +259,11 @@ func (r *PgAuthRepository) GetSessionVersion(ctx context.Context, userID string)
 	err := r.db.QueryRowContext(ctx,
 		`SELECT "sessionVersion" FROM "User" WHERE id = $1`, userID,
 	).Scan(&v)
+	if err == sql.ErrNoRows {
+		// ponytail: stale userID (post-logout / pre-login poll) → version 0,
+		// not a 500. useSessionSync treats 0 as "no reload needed".
+		return 0, nil
+	}
 	if err != nil {
 		return 0, fmt.Errorf("reading session version: %w", err)
 	}
@@ -324,8 +329,8 @@ func (r *PgAuthRepository) CreateTenantWithOwner(ctx context.Context, input doma
 
 	// 1. Tenant — auto-approved + 60-day trial (no manual approval needed for self-registration).
 	if err = tx.QueryRowContext(ctx, `
-		INSERT INTO "Tenant" (name, slug, "ownerEmail", "ownerName", "isActive", "websiteEnabled", "isDemo", "approvedAt", "trialEndsAt", "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, $4, true, false, false, NOW(), NOW() + interval '60 days', NOW(), NOW()) RETURNING id`,
+		INSERT INTO "Tenant" (id, name, slug, "ownerEmail", "ownerName", "isActive", "websiteEnabled", "isDemo", "approvedAt", "trialEndsAt", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, true, false, false, NOW(), NOW() + interval '60 days', NOW(), NOW()) RETURNING id`,
 		input.TenantName, input.TenantSlug, input.Email, input.OwnerName,
 	).Scan(&tenantID); err != nil {
 		return "", "", "", fmt.Errorf("inserting tenant: %w", err)
@@ -333,8 +338,8 @@ func (r *PgAuthRepository) CreateTenantWithOwner(ctx context.Context, input doma
 
 	// 2. User (owner) — link googleId on the row when registering via Google.
 	if err = tx.QueryRowContext(ctx, `
-		INSERT INTO "User" (email, name, "passwordHash", "tenantId", "googleId", "emailVerified", "sessionVersion", "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, $4, NULLIF($5, ''), NOW(), 0, NOW(), NOW()) RETURNING id`,
+		INSERT INTO "User" (id, email, name, "passwordHash", "tenantId", "googleId", "emailVerified", "sessionVersion", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, NULLIF($5, ''), NOW(), 0, NOW(), NOW()) RETURNING id`,
 		input.Email, input.OwnerName, passwordHash, tenantID, input.GoogleID,
 	).Scan(&userID); err != nil {
 		return "", "", "", fmt.Errorf("inserting user: %w", err)
@@ -342,8 +347,8 @@ func (r *PgAuthRepository) CreateTenantWithOwner(ctx context.Context, input doma
 
 	// 3. Branch
 	if err = tx.QueryRowContext(ctx, `
-		INSERT INTO "Branch" (name, "tenantId", "createdAt", "updatedAt")
-		VALUES ($1, $2, NOW(), NOW()) RETURNING id`,
+		INSERT INTO "Branch" (id, name, "tenantId", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, NOW(), NOW()) RETURNING id`,
 		input.BranchName, tenantID,
 	).Scan(&branchID); err != nil {
 		return "", "", "", fmt.Errorf("inserting branch: %w", err)
@@ -366,7 +371,7 @@ func (r *PgAuthRepository) CreateTenantWithOwner(ctx context.Context, input doma
 	seedServices(ctx, tx, branchID, input.Module)
 	seedRoles(ctx, tx, tenantID)
 	seedExpenseCategories(ctx, tx, branchID)
-	seedBranchDefaults(ctx, tx, branchID, tenantID, input.BranchName)
+	seedBranchDefaults(ctx, tx, branchID, tenantID, input.TenantSlug)
 
 	if err = tx.Commit(); err != nil {
 		return "", "", "", fmt.Errorf("committing tenant creation: %w", err)
@@ -392,12 +397,12 @@ func seedServices(ctx context.Context, ex executor, branchID, module string) {
 	// 1. Service groups (Kiloan + Satuan).
 	var kiloanID, satuanID string
 	ex.QueryRowContext(ctx, `
-		INSERT INTO "ServiceGroup" (name, "sortOrder", module, "branchId", "createdAt", "updatedAt")
-		VALUES ('Kiloan', 0, 'LAUNDRY', $1, NOW(), NOW()) RETURNING id`, branchID,
+		INSERT INTO "ServiceGroup" (id, name, "sortOrder", module, "branchId", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, 'Kiloan', 0, 'LAUNDRY', $1, NOW(), NOW()) RETURNING id`, branchID,
 	).Scan(&kiloanID)
 	ex.QueryRowContext(ctx, `
-		INSERT INTO "ServiceGroup" (name, "sortOrder", module, "branchId", "createdAt", "updatedAt")
-		VALUES ('Satuan', 1, 'LAUNDRY', $1, NOW(), NOW()) RETURNING id`, branchID,
+		INSERT INTO "ServiceGroup" (id, name, "sortOrder", module, "branchId", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, 'Satuan', 1, 'LAUNDRY', $1, NOW(), NOW()) RETURNING id`, branchID,
 	).Scan(&satuanID)
 
 	// 2. Default services (correct schema: basePrice, branchId, pricingType, etc.).
@@ -424,17 +429,17 @@ func seedServices(ctx context.Context, ex executor, branchID, module string) {
 			gid = s.groupID
 		}
 		_, _ = ex.ExecContext(ctx, `
-			INSERT INTO "Service" (name, "pricingType", "basePrice", "commissionType", "commissionValue",
+			INSERT INTO "Service" (id, name, "pricingType", "basePrice", "commissionType", "commissionValue",
 				module, "isActive", "isDefaultSpeed", "branchId", "groupId", "createdAt", "updatedAt")
-			VALUES ($1, $2, $3, 'NONE', 0, 'LAUNDRY', true, $4, $5, $6, NOW(), NOW())`,
+			VALUES (gen_random_uuid()::text, $1, $2, $3, 'NONE', 0, 'LAUNDRY', true, $4, $5, $6, NOW(), NOW())`,
 			s.name, s.pricingType, s.price, s.isDefault, branchID, gid,
 		)
 	}
 
 	// 3. Walk-in customer — so the tenant can create an order immediately.
 	_, _ = ex.ExecContext(ctx, `
-		INSERT INTO "Customer" (name, phone, "branchId", balance, "createdAt", "updatedAt")
-		VALUES ('Pelanggan Umum', NULL, $1, 0, NOW(), NOW())`, branchID,
+		INSERT INTO "Customer" (id, name, phone, "branchId", balance, "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, 'Pelanggan Umum', NULL, $1, 0, NOW(), NOW())`, branchID,
 	)
 }
 
@@ -486,21 +491,23 @@ func seedExpenseCategories(ctx context.Context, ex executor, branchID string) {
 	categories := []string{"Operasional", "Gaji", "Listrik & Air", "Perlengkapan", "Lainnya"}
 	for _, name := range categories {
 		_, _ = ex.ExecContext(ctx, `
-			INSERT INTO "ExpenseCategory" (name, "branchId", "createdAt")
-			VALUES ($1, $2, NOW())`, name, branchID,
+			INSERT INTO "ExpenseCategory" (id, name, "branchId", "createdAt")
+			VALUES (gen_random_uuid()::text, $1, $2, NOW())`, name, branchID,
 		)
 	}
 }
 
 // seedBranchDefaults sets operating hours, slug, and work days on the branch + enables the
 // public website on the tenant. Without these, the public site shows "closed" and has no URL.
-func seedBranchDefaults(ctx context.Context, ex executor, branchID, tenantID, branchName string) {
-	slug := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(branchName), " ", "-"))
+// The branch slug = tenantSlug (globally unique — Branch.slug @unique — so the public pickup
+// URL /pickup/[slug] is unique per tenant). Previously derived from the generic branchName
+// "Outlet Pusat" → every tenant collided on Branch_slug_key → register 500.
+func seedBranchDefaults(ctx context.Context, ex executor, branchID, tenantID, tenantSlug string) {
 	hours := `{"min":"08:00-21:00","mon":"08:00-21:00","tue":"08:00-21:00","wed":"08:00-21:00","thu":"08:00-21:00","fri":"08:00-21:00","sat":"08:00-21:00"}`
 	_, _ = ex.ExecContext(ctx, `
 		UPDATE "Branch" SET "operatingHours" = $1::jsonb, "workDays" = '{0,1,2,3,4,5,6}', slug = $2
 		WHERE id = $3`,
-		hours, slug, branchID,
+		hours, tenantSlug, branchID,
 	)
 	_, _ = ex.ExecContext(ctx, `
 		UPDATE "Tenant" SET "websiteEnabled" = true WHERE id = $1`,

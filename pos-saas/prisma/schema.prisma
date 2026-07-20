@@ -18,7 +18,7 @@ datasource db {
 
 /// Platform super admins — manage all tenants, plans, billing
 model SuperAdmin {
-  id             String   @id @default(uuid())
+  id             String   @id @default(dbgenerated("gen_random_uuid()::text"))
   email          String   @unique
   passwordHash   String
   name           String
@@ -39,7 +39,7 @@ enum SuperAdminRole {
 /// SEO/long-tail blog posts — authored in the super-admin CMS (Markdown),
 /// served on /blog with ISR so publishing needs no rebuild. docs/specs/blog-cms.md.
 model BlogPost {
-  id          String    @id @default(uuid())
+  id          String    @id @default(dbgenerated("gen_random_uuid()::text"))
   slug        String    @unique
   title       String
   description String
@@ -60,7 +60,7 @@ model BlogPost {
 /// Immutable audit trail of super-admin actions (suspensions, refunds, flag toggles, …).
 /// One row per action. Never updated; only inserted + read.
 model AuditLog {
-  id          String   @id @default(uuid())
+  id          String   @id @default(dbgenerated("gen_random_uuid()::text"))
   /// Dotted string: "tenant.suspend", "tenant.reactivate", "billing.refund", …
   action      String
   /// "Tenant" | "SaaSPayment" | "SuperAdmin" | …
@@ -89,7 +89,7 @@ model AuditLog {
 /// 5xx system errors captured by withErrorHandler. 4xx intentionally excluded.
 /// Written fire-and-forget — DB failure logged to Pino, never thrown.
 model ErrorLog {
-  id          String   @id @default(uuid())
+  id          String   @id @default(dbgenerated("gen_random_uuid()::text"))
   requestId   String
   method      String
   url         String
@@ -135,7 +135,7 @@ enum SupportTicketStatus {
 /// Public-submitted support tickets. tenantId nullable for unauthed submitters.
 /// Not a FK — slug-resolution is best-effort and may fail.
 model SupportTicket {
-  id             String                 @id @default(uuid())
+  id             String                 @id @default(dbgenerated("gen_random_uuid()::text"))
   subject        String
   description    String
   category       SupportTicketCategory  @default(OTHER)
@@ -171,7 +171,7 @@ model SupportTicket {
 
 /// Threaded replies on a ticket — both tenant users and super-admins write rows here.
 model TicketComment {
-  id          String   @id @default(uuid())
+  id          String   @id @default(dbgenerated("gen_random_uuid()::text"))
   ticketId    String
   ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   authorName  String
@@ -186,7 +186,7 @@ model TicketComment {
 
 /// Subscription plans — what each tenant can access
 model Plan {
-  id            String   @id @default(uuid())
+  id            String   @id @default(dbgenerated("gen_random_uuid()::text"))
   name          String   @unique // "Free", "Pro", "Enterprise"
   description   String?
   maxOutlets    Int      @default(1)
@@ -218,7 +218,7 @@ enum PlanTier {
 
 /// A business on the platform (e.g. "Laundry Berkah", "Salon Cantik")
 model Tenant {
-  id            String   @id @default(uuid())
+  id            String   @id @default(dbgenerated("gen_random_uuid()::text"))
   name          String   // "Laundry Berkah Jaya"
   slug          String   @unique // subdomain: berkah.pos.id
   ownerEmail    String
@@ -278,7 +278,7 @@ model Tenant {
 /// PENDING (signed up via a ref code) → REWARDED on the referred tenant's first
 /// PAID payment, or REJECTED (self-referral) / EXPIRED (over cap).
 model Referral {
-  id           String   @id @default(uuid())
+  id           String   @id @default(dbgenerated("gen_random_uuid()::text"))
   referrerId   String   // Tenant who shared the code
   referredId   String   @unique // new Tenant — one referrer per tenant
   status       String   @default("PENDING") // PENDING | REWARDED | REJECTED | EXPIRED
@@ -295,7 +295,7 @@ model Referral {
 
 /// Subscription linking a tenant to a plan
 model Subscription {
-  id                 String              @id @default(uuid())
+  id                 String              @id @default(dbgenerated("gen_random_uuid()::text"))
   tenantId           String              @unique
   planId             String
   status             SubscriptionStatus  @default(TRIAL)
@@ -319,7 +319,7 @@ enum SubscriptionStatus {
 
 /// Branch / Outlet — a tenant can have multiple
 model Branch {
-  id              String   @id @default(uuid())
+  id              String   @id @default(dbgenerated("gen_random_uuid()::text"))
   name            String
   address         String?
   phone           String?
@@ -375,7 +375,7 @@ model Branch {
 
 /// Staff / Employee accounts within a tenant
 model User {
-  id              String   @id @default(uuid())
+  id              String   @id @default(dbgenerated("gen_random_uuid()::text"))
   email           String   @unique
   passwordHash    String
   name            String
@@ -422,7 +422,7 @@ model User {
 // ─────────────────────────────────────────────────────────────────
 
 model ClockEvent {
-  id        String    @id @default(uuid())
+  id        String    @id @default(dbgenerated("gen_random_uuid()::text"))
   userId    String
   tenantId  String   // plain scalar (scoped from session ctx.tenantId; no Tenant relation)
   branchId  String
@@ -463,7 +463,7 @@ enum UserRole {
 
 /// Per-tenant role definitions with granular permissions (RBAC)
 model Role {
-  id          String   @id @default(uuid())
+  id          String   @id @default(dbgenerated("gen_random_uuid()::text"))
   name        String
   description String?
   /// System roles are seeded for every tenant. Cannot be deleted.
@@ -490,7 +490,7 @@ model Role {
 
 /// Customers / Clients
 model Customer {
-  id        String   @id @default(uuid())
+  id        String   @id @default(dbgenerated("gen_random_uuid()::text"))
   name      String
   phone     String?
   email     String?
@@ -519,7 +519,7 @@ model Customer {
 /// For laundry: "Cuci Kering" (per kg), "Cuci Setrika" (per kg), "Cuci Sepatu" (per item)
 /// For salon: "Haircut" (per item), "Manicure" (per item)
 model Service {
-  id              String         @id @default(uuid())
+  id              String         @id @default(dbgenerated("gen_random_uuid()::text"))
   name            String
   description     String?
   pricingType     PricingType
@@ -547,7 +547,7 @@ model Service {
 
 /// Group services together (e.g. "Kiloan", "Satuan", "Special")
 model ServiceGroup {
-  id          String         @id @default(uuid())
+  id          String         @id @default(dbgenerated("gen_random_uuid()::text"))
   name        String
   description String?
   sortOrder   Int            @default(0)
@@ -586,7 +586,7 @@ enum BusinessModule {
 // ── Orders ──
 
 model Order {
-  id              String         @id @default(uuid())
+  id              String         @id @default(dbgenerated("gen_random_uuid()::text"))
   orderNumber     String         @unique
   customerId      String
   status          OrderStatus    @default(RECEIVED)
@@ -635,7 +635,7 @@ model Order {
 /// PHOTO_TTL_DAYS via lib/photo-cleanup.ts. tenantId is denormalized so every
 /// query scopes without a branch join.
 model OrderPhoto {
-  id          String   @id @default(uuid())
+  id          String   @id @default(dbgenerated("gen_random_uuid()::text"))
   tenantId    String
   orderId     String
   branchId    String?
@@ -661,7 +661,7 @@ model OrderPhoto {
 }
 
 model OrderItem {
-  id           String   @id @default(uuid())
+  id           String   @id @default(dbgenerated("gen_random_uuid()::text"))
   orderId      String
   serviceId    String
   quantity     Decimal  @db.Decimal(10, 3)
@@ -680,7 +680,7 @@ model OrderItem {
 }
 
 model Payment {
-  id            String        @id @default(uuid())
+  id            String        @id @default(dbgenerated("gen_random_uuid()::text"))
   orderId       String
   amount        Decimal       @db.Decimal(12, 2)
   paymentMethod PaymentMethod
@@ -719,7 +719,7 @@ enum PaymentStatus {
 // ── Pickup Requests (customer-initiated pickup workflow) ──
 
 model PickupRequest {
-  id              String             @id @default(cuid())
+  id              String             @id @default(dbgenerated("gen_random_uuid()::text"))
   tenantId        String
   branchId        String
   module          BusinessModule     @default(LAUNDRY)
@@ -775,7 +775,7 @@ model PickupRequest {
 // ── Deposits / Prepaid Balance ──
 
 model DepositTransaction {
-  id          String               @id @default(uuid())
+  id          String               @id @default(dbgenerated("gen_random_uuid()::text"))
   customerId  String
   branchId    String
   type        DepositTransactionType
@@ -806,7 +806,7 @@ enum DepositTransactionType {
 // ─────────────────────────────────────────────────────────────────
 
 model StockItem {
-  id                    String   @id @default(uuid())
+  id                    String   @id @default(dbgenerated("gen_random_uuid()::text"))
   name                  String
   unit                  String
   currentQuantity       Decimal  @db.Decimal(12, 3) @default(0)
@@ -824,7 +824,7 @@ model StockItem {
 }
 
 model StockMovement {
-  id        String           @id @default(uuid())
+  id        String           @id @default(dbgenerated("gen_random_uuid()::text"))
   stockItemId String
   type      StockMovementType
   quantity  Decimal          @db.Decimal(12, 3)
@@ -844,7 +844,7 @@ enum StockMovementType {
 }
 
 model ExpenseCategory {
-  id          String   @id @default(uuid())
+  id          String   @id @default(dbgenerated("gen_random_uuid()::text"))
   name        String
   description String?
   branchId    String
@@ -857,7 +857,7 @@ model ExpenseCategory {
 }
 
 model Expense {
-  id          String   @id @default(uuid())
+  id          String   @id @default(dbgenerated("gen_random_uuid()::text"))
   amount      Decimal  @db.Decimal(12, 2)
   description String?
   date        DateTime @default(now())
@@ -893,7 +893,7 @@ enum SaaSPaymentStatus {
 
 /// Promo codes redeemable by tenants for free months or discounts
 model PromoCode {
-  id              String    @id @default(uuid())
+  id              String    @id @default(dbgenerated("gen_random_uuid()::text"))
   code            String    @unique
   description     String?
   type            PromoType
@@ -914,7 +914,7 @@ model PromoCode {
 
 /// Tracks which tenant redeemed which promo code (one per tenant per code)
 model PromoRedemption {
-  id          String   @id @default(uuid())
+  id          String   @id @default(dbgenerated("gen_random_uuid()::text"))
   promoCodeId String
   tenantId    String
   appliedAt   DateTime @default(now())
@@ -928,7 +928,7 @@ model PromoRedemption {
 
 /// SaaS subscription payment records (separate from customer order Payment)
 model SaaSPayment {
-  id                String            @id @default(uuid())
+  id                String            @id @default(dbgenerated("gen_random_uuid()::text"))
   tenantId          String
   amount            Decimal           @db.Decimal(12, 2)
   outletCount       Int                // snapshot of outlets at payment time
@@ -959,7 +959,7 @@ model SaaSPayment {
 // TenantFeatureFlag = per-tenant override (wins over default when present).
 // Resolution: override ?? flag.enabled. One resolver in lib/feature-flags.ts.
 model FeatureFlag {
-  id          String   @id @default(uuid())
+  id          String   @id @default(dbgenerated("gen_random_uuid()::text"))
   /// Stable key referenced in code: "website", "inventory", etc.
   key         String   @unique
   name        String
@@ -978,7 +978,7 @@ model FeatureFlag {
 }
 
 model TenantFeatureFlag {
-  id        String   @id @default(uuid())
+  id        String   @id @default(dbgenerated("gen_random_uuid()::text"))
   flagId    String
   tenantId  String
   /// true = force on (whitelist). false = force off (blacklist).
@@ -1008,7 +1008,7 @@ model SystemSetting {
 /// phases (print, query.slow, web_vitals) and each has different fields.
 /// Indexes cover the 3 access patterns: by kind+time, by tenant+time, by time.
 model TelemetryEvent {
-  id        String   @id @default(uuid())
+  id        String   @id @default(dbgenerated("gen_random_uuid()::text"))
   tenantId  String?
   userId    String?
   kind      String

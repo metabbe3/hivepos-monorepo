@@ -10,6 +10,7 @@ import (
 	"github.com/hivepos/api/internal/middleware"
 	"github.com/hivepos/api/internal/modules/services/application"
 	"github.com/hivepos/api/internal/modules/services/infrastructure"
+	"github.com/hivepos/api/internal/shared/apperror"
 	apphttp "github.com/hivepos/api/internal/shared/http"
 	"github.com/hivepos/api/internal/shared/pagination"
 )
@@ -144,7 +145,7 @@ func (m *Module) update(w http.ResponseWriter, req *http.Request) {
 
 func (m *Module) delete(w http.ResponseWriter, req *http.Request) {
 	if err := m.svc.Delete(req.Context(), chi.URLParam(req, "id"), middleware.GetTenantID(req)); err != nil {
-		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+		apperror.Write(w, err)
 		return
 	}
 	apphttp.NoContent(w)
