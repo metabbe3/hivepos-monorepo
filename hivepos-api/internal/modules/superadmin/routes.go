@@ -247,29 +247,35 @@ func (m *Module) updateTenant(w http.ResponseWriter, req *http.Request) {
 }
 
 func (m *Module) approveTenant(w http.ResponseWriter, req *http.Request) {
-	t, err := m.svc.ApproveTenant(req.Context(), chi.URLParam(req, "id"))
+	id := chi.URLParam(req, "id")
+	t, err := m.svc.ApproveTenant(req.Context(), id)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	m.audit(req, "TENANT_APPROVE", "tenant", id, "approved tenant")
 	apphttp.Success(w, t)
 }
 
 func (m *Module) suspendTenant(w http.ResponseWriter, req *http.Request) {
-	t, err := m.svc.SuspendTenant(req.Context(), chi.URLParam(req, "id"))
+	id := chi.URLParam(req, "id")
+	t, err := m.svc.SuspendTenant(req.Context(), id)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	m.audit(req, "TENANT_SUSPEND", "tenant", id, "suspended tenant")
 	apphttp.Success(w, t)
 }
 
 func (m *Module) reactivateTenant(w http.ResponseWriter, req *http.Request) {
-	t, err := m.svc.ReactivateTenant(req.Context(), chi.URLParam(req, "id"))
+	id := chi.URLParam(req, "id")
+	t, err := m.svc.ReactivateTenant(req.Context(), id)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	m.audit(req, "TENANT_REACTIVATE", "tenant", id, "reactivated tenant")
 	apphttp.Success(w, t)
 }
 
@@ -375,6 +381,7 @@ func (m *Module) createAdmin(w http.ResponseWriter, req *http.Request) {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	m.audit(req, "ADMIN_CREATE", "admin", body.Email, "created super-admin "+body.Role)
 	apphttp.Created(w, a)
 }
 
@@ -399,33 +406,40 @@ func (m *Module) deleteAdmin(w http.ResponseWriter, req *http.Request) {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	m.audit(req, "ADMIN_DELETE", "admin", chi.URLParam(req, "id"), "deleted super-admin")
 	apphttp.Success(w, map[string]any{"ok": true})
 }
 
 func (m *Module) suspendUser(w http.ResponseWriter, req *http.Request) {
-	u, err := m.svc.SuspendUser(req.Context(), chi.URLParam(req, "id"))
+	id := chi.URLParam(req, "id")
+	u, err := m.svc.SuspendUser(req.Context(), id)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	m.audit(req, "USER_SUSPEND", "user", id, "suspended user")
 	apphttp.Success(w, u)
 }
 
 func (m *Module) reactivateUser(w http.ResponseWriter, req *http.Request) {
-	u, err := m.svc.ReactivateUser(req.Context(), chi.URLParam(req, "id"))
+	id := chi.URLParam(req, "id")
+	u, err := m.svc.ReactivateUser(req.Context(), id)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	m.audit(req, "USER_REACTIVATE", "user", id, "reactivated user")
 	apphttp.Success(w, u)
 }
 
 func (m *Module) resetUserPassword(w http.ResponseWriter, req *http.Request) {
-	temp, err := m.svc.ResetUserPassword(req.Context(), chi.URLParam(req, "id"))
+	id := chi.URLParam(req, "id")
+	temp, err := m.svc.ResetUserPassword(req.Context(), id)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	m.audit(req, "USER_RESET_PASSWORD", "user", id, "reset user password")
 	apphttp.Success(w, map[string]string{"tempPassword": temp})
 }
 
@@ -468,11 +482,13 @@ func (m *Module) listPayments(w http.ResponseWriter, req *http.Request) {
 }
 
 func (m *Module) refundPayment(w http.ResponseWriter, req *http.Request) {
-	p, err := m.svc.RefundPayment(req.Context(), chi.URLParam(req, "id"))
+	id := chi.URLParam(req, "id")
+	p, err := m.svc.RefundPayment(req.Context(), id)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	m.audit(req, "PAYMENT_REFUND", "payment", id, "refunded payment")
 	apphttp.Success(w, p)
 }
 
@@ -497,6 +513,7 @@ func (m *Module) createPlan(w http.ResponseWriter, req *http.Request) {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	m.audit(req, "PLAN_CREATE", "plan", ptrStr(input.Name), "created plan")
 	apphttp.Created(w, p)
 }
 
@@ -505,19 +522,23 @@ func (m *Module) updatePlan(w http.ResponseWriter, req *http.Request) {
 	if !decodeJSON(w, req, &input) {
 		return
 	}
-	p, err := m.svc.UpdatePlan(req.Context(), chi.URLParam(req, "id"), input)
+	id := chi.URLParam(req, "id")
+	p, err := m.svc.UpdatePlan(req.Context(), id, input)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	m.audit(req, "PLAN_UPDATE", "plan", id, "updated plan")
 	apphttp.Success(w, p)
 }
 
 func (m *Module) deletePlan(w http.ResponseWriter, req *http.Request) {
-	if err := m.svc.DeletePlan(req.Context(), chi.URLParam(req, "id")); err != nil {
+	id := chi.URLParam(req, "id")
+	if err := m.svc.DeletePlan(req.Context(), id); err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	m.audit(req, "PLAN_DELETE", "plan", id, "deleted plan")
 	apphttp.NoContent(w)
 }
 
@@ -624,11 +645,13 @@ func (m *Module) updateFeatureFlag(w http.ResponseWriter, req *http.Request) {
 	if !decodeJSON(w, req, &input) {
 		return
 	}
-	f, err := m.svc.UpdateFeatureFlag(req.Context(), chi.URLParam(req, "id"), input)
+	id := chi.URLParam(req, "id")
+	f, err := m.svc.UpdateFeatureFlag(req.Context(), id, input)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	m.audit(req, "FEATUREFLAG_UPDATE", "feature_flag", id, "updated feature flag")
 	apphttp.Success(w, f)
 }
 
@@ -669,14 +692,18 @@ func (m *Module) upsertTenantFlag(w http.ResponseWriter, req *http.Request) {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	m.audit(req, "FEATUREFLAG_TENANT_UPSERT", "tenant_feature_flag", input.TenantID, "set tenant feature-flag override")
 	apphttp.Created(w, tf)
 }
 
 func (m *Module) deleteTenantFlag(w http.ResponseWriter, req *http.Request) {
-	if err := m.svc.DeleteTenantFlag(req.Context(), chi.URLParam(req, "id"), chi.URLParam(req, "tenantId")); err != nil {
+	flagID := chi.URLParam(req, "id")
+	tenantID := chi.URLParam(req, "tenantId")
+	if err := m.svc.DeleteTenantFlag(req.Context(), flagID, tenantID); err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	m.audit(req, "FEATUREFLAG_TENANT_DELETE", "tenant_feature_flag", tenantID, "removed tenant feature-flag override")
 	apphttp.NoContent(w)
 }
 
@@ -787,10 +814,16 @@ func (m *Module) listErrorLogs(w http.ResponseWriter, req *http.Request) {
 func (m *Module) resolveErrorLog(w http.ResponseWriter, req *http.Request) {
 	// POST → resolved=true, DELETE → resolved=false (toggle). Return an envelope
 	// (not 204) so the client apiFetch (which throws on empty bodies) is happy.
+	id := chi.URLParam(req, "id")
 	resolved := req.Method != http.MethodDelete
-	if err := m.repo.ResolveErrorLog(req.Context(), chi.URLParam(req, "id"), resolved); err != nil {
+	if err := m.repo.ResolveErrorLog(req.Context(), id, resolved); err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	if resolved {
+		m.audit(req, "ERRORLOG_RESOLVE", "error_log", id, "marked error log resolved")
+	} else {
+		m.audit(req, "ERRORLOG_REOPEN", "error_log", id, "reopened error log")
 	}
 	apphttp.Success(w, map[string]any{"ok": true, "resolved": resolved})
 }
@@ -910,6 +943,7 @@ func (m *Module) revokeSessions(w http.ResponseWriter, req *http.Request) {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	m.audit(req, "SESSION_REVOKE", "super_admin", actorID, "revoked other sessions")
 	apphttp.NoContent(w)
 }
 
@@ -919,24 +953,23 @@ func (m *Module) forceUpdate(w http.ResponseWriter, req *http.Request) {
 	// Bump the PWA nonce in SystemSetting → clients polling /api/pwa/nonce see the new value,
 	// mismatch against localStorage → nuke caches + reload. Propagates within the 3min poll window.
 	if _, err := m.db.ExecContext(req.Context(), `
-		INSERT INTO "SystemSetting" (id, key, value, "updatedAt")
-		VALUES (gen_random_uuid()::text, 'pwaNonce', gen_random_uuid()::text, NOW())
+		INSERT INTO "SystemSetting" (key, value, "updatedAt")
+		VALUES ('pwaNonce', gen_random_uuid()::text, NOW())
 		ON CONFLICT (key) DO UPDATE SET value = gen_random_uuid()::text, "updatedAt" = NOW()
 	`); err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, "bumping PWA nonce: "+err.Error())
 		return
 	}
+	m.audit(req, "PWA_FORCE_UPDATE", "system", "pwaNonce", "rotated PWA nonce")
 	apphttp.Success(w, map[string]string{"status": "force-updated"})
 }
 
 // stopImpersonation — logs the stop action (audit trail). Stateless JWTs have no server-side
 // session to revoke; the frontend drops the impersonation token from localStorage.
 func (m *Module) stopImpersonation(w http.ResponseWriter, req *http.Request) {
-	if _, err := m.db.ExecContext(req.Context(),
-		`INSERT INTO "AuditLog" (id, action, "targetType", reason, "createdAt")
-		 VALUES (gen_random_uuid()::text, 'IMPERSONATION_STOP', 'user', 'Super-admin stopped impersonation', NOW())`); err != nil {
-		// Best-effort — don't fail the stop on audit-log error.
-	}
+	// ponytail: m.audit supplies the NOT NULL actorId/actorEmail/targetId the old
+	// hand-written INSERT omitted (which silently failed → 0 audit rows).
+	m.audit(req, "IMPERSONATION_STOP", "user", middleware.GetUserID(req), "super-admin stopped impersonation")
 	apphttp.Success(w, map[string]bool{"stopped": true})
 }
 
