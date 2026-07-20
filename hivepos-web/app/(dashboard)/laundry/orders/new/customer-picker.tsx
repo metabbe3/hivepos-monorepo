@@ -68,8 +68,8 @@ export function CustomerPicker() {
     ? customers
         .filter(
           (c) =>
-            c.name.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
-            c.phone.includes(debouncedQuery),
+            (c.name ?? "").toLowerCase().includes(debouncedQuery.toLowerCase()) ||
+            (c.phone ?? "").includes(debouncedQuery),
         )
         .slice(0, MAX_RESULTS)
     : [];
