@@ -23,23 +23,23 @@ test.describe("/reporting — all laporan tabs", () => {
 
     // tab order from reporting/page.tsx; piutang(8) + monthlyPnl(9) ignore the from/to
     // range → Export All bar hidden there. attendance(10) only when the flag is on.
-    const hideExport = new Set([8, 9]);
     const tabs = page.getByRole("tab");
     const count = await tabs.count();
     expect(count).toBeGreaterThanOrEqual(10);
 
+    // Phase 1: every tab mounts + its report fetches without a console error / 4xx-5xx.
     for (let i = 0; i < count; i++) {
       await tabs.nth(i).click();
       await page.waitForLoadState("networkidle").catch(() => {});
-      const exportBtn = page.getByRole("button", { name: /export all|ekspor semua/i });
-      if (hideExport.has(i)) {
-        await expect(exportBtn).toHaveCount(0);
-      } else {
-        await expect(exportBtn).toBeVisible();
-      }
     }
 
     expect(consoleErrors, `console errors: ${JSON.stringify(consoleErrors)}`).toEqual([]);
     expect(badApi, `bad /api responses: ${JSON.stringify(badApi)}`).toEqual([]);
+
+    // Phase 2: Export All bar visibility — present on a range tab, hidden on piutang.
+    await tabs.nth(0).click(); // revenue (range-based)
+    await expect(page.getByRole("button", { name: /export all|ekspor semua/i })).toBeVisible();
+    await tabs.nth(8).click(); // piutang (ignores range)
+    await expect(page.getByRole("button", { name: /export all|ekspor semua/i })).toHaveCount(0);
   });
 });

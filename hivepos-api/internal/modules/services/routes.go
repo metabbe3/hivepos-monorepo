@@ -120,14 +120,35 @@ func (m *Module) update(w http.ResponseWriter, req *http.Request) {
 	if !decodeJSON(w, req, &input) {
 		return
 	}
-	s.Name = input.Name
-	s.Description = input.Description
-	s.PricingType = input.PricingType
-	s.BasePrice = input.BasePrice
-	s.CommissionType = input.CommissionType
-	s.CommissionValue = input.CommissionValue
-	s.Module = input.Module
-	s.GroupID = input.GroupID
+	// Partial-update semantics: only overwrite fields the body actually supplies.
+	// The web's edit dialog sends a partial body (e.g. a rename omits pricingType/module),
+	// and the DB-layer enum coerce was removed (8a3202a) — so blindly assigning
+	// input.PricingType = "" 500'd with SQLSTATE 22P02 (invalid enum ""). Empty/zero/nil
+	// → keep the existing value. This is also correct PATCH semantics.
+	if input.Name != "" {
+		s.Name = input.Name
+	}
+	if input.Description != nil {
+		s.Description = input.Description
+	}
+	if input.PricingType != "" {
+		s.PricingType = input.PricingType
+	}
+	if input.BasePrice != 0 {
+		s.BasePrice = input.BasePrice
+	}
+	if input.CommissionType != "" {
+		s.CommissionType = input.CommissionType
+	}
+	if input.CommissionValue != 0 {
+		s.CommissionValue = input.CommissionValue
+	}
+	if input.Module != "" {
+		s.Module = input.Module
+	}
+	if input.GroupID != nil {
+		s.GroupID = input.GroupID
+	}
 	if input.IsActive != nil {
 		s.IsActive = *input.IsActive
 	}

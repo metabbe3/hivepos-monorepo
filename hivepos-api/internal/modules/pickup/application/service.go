@@ -62,14 +62,27 @@ func (s *Service) Create(ctx context.Context, input CreateInput, tenantID string
 	if input.BranchID == "" {
 		return nil, fmt.Errorf("branchId is required")
 	}
+	// "customerPhone" + "addressText" are NOT NULL in the DB but optional in the API
+	// (CreateInput uses *string, omitempty → nil when omitted). Coerce nil → "" so an
+	// insert without a phone/address doesn't 500 on the NOT NULL constraint.
+	phone := input.CustomerPhone
+	if phone == nil {
+		empty := ""
+		phone = &empty
+	}
+	address := input.Address
+	if address == nil {
+		empty := ""
+		address = &empty
+	}
 	p := &domain.PickupRequest{
 		TenantID:      tenantID,
 		BranchID:      input.BranchID,
 		Status:        domain.PickupPending,
 		CustomerName:  input.CustomerName,
-		CustomerPhone: input.CustomerPhone,
+		CustomerPhone: phone,
 		CustomerID:    input.CustomerID,
-		Address:       input.Address,
+		Address:       address,
 		RequestedSlot: input.RequestedSlot,
 		Notes:         input.Notes,
 	}
