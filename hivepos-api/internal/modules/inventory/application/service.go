@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/hivepos/api/internal/modules/inventory/domain"
+	"github.com/hivepos/api/internal/shared/apperror"
 )
 
 // CreateStockItemInput is the DTO for creating a stock item.
@@ -123,10 +124,16 @@ func (s *Service) ListMovements(ctx context.Context, stockItemID, tenantID strin
 
 func (s *Service) AddMovement(ctx context.Context, stockItemID, tenantID string, input CreateMovementInput) (*domain.StockMovement, error) {
 	if input.Type != domain.MovementIn && input.Type != domain.MovementOut && input.Type != domain.MovementAdjustment {
-		return nil, fmt.Errorf("invalid movement type")
+		return nil, apperror.NewValidation("invalid movement type")
 	}
 	if input.Quantity == 0 {
-		return nil, fmt.Errorf("quantity must be non-zero")
+		return nil, apperror.NewValidation("quantity must be non-zero")
+	}
+	// IN/OUT are magnitudes — a negative value silently corrupts stock (an IN of
+	// -5 subtracts and bypasses the OUT insufficient-stock guard entirely:
+	// BUGS-E2E-FINDINGS #2). ADJUSTMENT may be signed, so it stays exempt.
+	if input.Quantity < 0 && input.Type != domain.MovementAdjustment {
+		return nil, apperror.NewValidation("quantity must be greater than zero")
 	}
 	return s.Repo.AddMovement(ctx, stockItemID, tenantID, input)
 }

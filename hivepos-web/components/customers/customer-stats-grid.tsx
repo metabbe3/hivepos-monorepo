@@ -133,7 +133,7 @@ export function CustomerStatsGrid({
           icon={Calendar}
           label={t("customerDetails.lastVisit")}
           value={
-            stats.daysSinceLastOrder !== null
+            stats.daysSinceLastOrder != null
               ? t("customerDetails.daysAgo").replace("{days}", String(stats.daysSinceLastOrder))
               : "—"
           }
@@ -142,7 +142,7 @@ export function CustomerStatsGrid({
           icon={Clock}
           label={t("customerDetails.avgBetween")}
           value={
-            stats.avgDaysBetweenOrders !== null
+            stats.avgDaysBetweenOrders != null
               ? t("customerDetails.days").replace("{days}", String(stats.avgDaysBetweenOrders))
               : "—"
           }

@@ -296,6 +296,21 @@ func (r *PgCustomerRepository) Delete(ctx context.Context, id, tenantID string) 
 	if orderCount > 0 {
 		return apperror.NewBusinessRule(fmt.Sprintf("Customer cannot be deleted because they have %d order(s).", orderCount))
 	}
+	// Same guard for wallet history: DepositTransaction → Customer is RESTRICT,
+	// so a bare DELETE 500s on the FK instead of telling the user why
+	// (BUGS-E2E-FINDINGS #4).
+	var depositCount int
+	if err := r.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM "DepositTransaction" dt
+		JOIN "Customer" c ON c.id = dt."customerId"
+		JOIN "Branch" b ON b.id = c."branchId"
+		WHERE dt."customerId" = $1 AND b."tenantId" = $2`, id, tenantID,
+	).Scan(&depositCount); err != nil {
+		return fmt.Errorf("checking customer deposits: %w", err)
+	}
+	if depositCount > 0 {
+		return apperror.NewBusinessRule(fmt.Sprintf("Customer cannot be deleted because they have %d wallet transaction(s). Remove the deposit history first.", depositCount))
+	}
 	_, err := r.db.ExecContext(ctx, `DELETE FROM "Customer" c USING "Branch" b WHERE c.id=$1 AND b.id=c."branchId" AND b."tenantId"=$2`, id, tenantID)
 	return err
 }

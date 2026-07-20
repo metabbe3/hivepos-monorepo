@@ -41,8 +41,8 @@ export interface FieldDef {
   showPasswordToggle?: boolean; // only for type: "password"
   autocomplete?: string;        // e.g. "email", "current-password" — enables password-manager / Face ID autofill
 
-  // select options (static or async)
-  options?: { label: string; value: string }[];
+  // select options (static or async). labelKey wins when it resolves; else label.
+  options?: { label?: string; labelKey?: string; value: string }[];
   optionsEndpoint?: string;   // fetch options from API: GET endpoint → { options: [...] }
   optionsLabelKey?: string;   // key in response object for label
   optionsValueKey?: string;   // key in response object for value

@@ -8,6 +8,7 @@ import (
 
 	"github.com/hivepos/api/internal/modules/inventory/application"
 	"github.com/hivepos/api/internal/modules/inventory/domain"
+	"github.com/hivepos/api/internal/shared/apperror"
 )
 
 type PgStockItemRepository struct {
@@ -170,7 +171,9 @@ func (r *PgStockItemRepository) AddMovement(ctx context.Context, stockItemID, te
 			return nil, fmt.Errorf("locking stock item: %w", err)
 		}
 		if current-input.Quantity < -1e-9 {
-			return nil, fmt.Errorf("insufficient stock: have %.2f, need %.2f", current, input.Quantity)
+			// Business rule, not a server fault — surface as BRV (400) so the web
+			// can show a friendly message instead of a 500 (BUGS-E2E-FINDINGS #3).
+			return nil, apperror.NewBusinessRule(fmt.Sprintf("insufficient stock: have %.2f, need %.2f", current, input.Quantity))
 		}
 	}
 	_, err = tx.ExecContext(ctx, `UPDATE "StockItem" SET "currentQuantity" = "currentQuantity" + $1, "updatedAt" = NOW() WHERE id = $2`, delta, stockItemID)

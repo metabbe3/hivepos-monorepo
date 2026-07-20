@@ -110,8 +110,23 @@ func (m *Module) update(w http.ResponseWriter, req *http.Request) {
 		apphttp.NotFoundError(w, "Expense not found")
 		return
 	}
-	if !decodeJSON(w, req, e) {
+	// Decode into a DTO whose Date is a string. The FE <input type="date">
+	// sends date-only "YYYY-MM-DD"; decoding into the domain entity (Date is
+	// time.Time) rejects that and fails every edit (BUGS-E2E-FINDINGS #1).
+	var input application.UpdateExpenseInput
+	if !decodeJSON(w, req, &input) {
 		return
+	}
+	e.Amount = input.Amount
+	e.Description = input.Description
+	e.CategoryID = input.CategoryID
+	if input.Date != nil && *input.Date != "" {
+		t, perr := application.ParseDate(*input.Date)
+		if perr != nil {
+			apphttp.ValidationError(w, "invalid expense date: expected YYYY-MM-DD or RFC3339")
+			return
+		}
+		e.Date = t
 	}
 	e.ID = id
 	if err := m.svc.UpdateExpense(req.Context(), e); err != nil {

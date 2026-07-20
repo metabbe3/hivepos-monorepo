@@ -592,6 +592,7 @@ function ExpensesContent() {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
+                          aria-label={t("expenses.editExpense")}
                           onClick={() => openEdit(expense)}
                         >
                           <Pencil className="h-3 w-3" />
@@ -600,6 +601,7 @@ function ExpensesContent() {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 text-destructive"
+                          aria-label={t("common.delete")}
                           onClick={() => handleDelete(expense.id)}
                         >
                           <Trash2 className="h-3 w-3" />

@@ -400,6 +400,7 @@ export default function InventoryPage() {
                 <Input
                   type="number"
                   step="0.01"
+                  min="0"
                   value={movementForm.quantity}
                   onChange={(e) =>
                     setMovementForm({

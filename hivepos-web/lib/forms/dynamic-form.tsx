@@ -129,6 +129,17 @@ function FieldRenderer({
   const { options, loading } = useAsyncOptions(field);
   const dataSizeAttr = touchTargets ? "touch" : undefined;
   const inputId = field.name;
+  const { t } = useTranslation();
+  // Resolve a static option's label: labelKey (when it resolves) wins, else the
+  // literal label. Lets schemas localize option labels (e.g. service commission
+  // types) instead of hardcoding one language (BUGS-E2E-FINDINGS #10).
+  const optLabel = (opt: { label?: string; labelKey?: string; value: string }): string => {
+    if (opt.labelKey) {
+      const resolved = t(opt.labelKey);
+      if (resolved !== opt.labelKey) return resolved;
+    }
+    return opt.label ?? opt.value;
+  };
 
   // Custom render override — caller owns the markup, DynamicForm owns state.
   if (field.render) {
@@ -177,7 +188,7 @@ function FieldRenderer({
           value={String(value ?? "")}
           onValueChange={onChange}
           disabled={disabled || loading}
-          items={options}
+          items={options.map((opt) => ({ label: optLabel(opt), value: opt.value }))}
         >
           <SelectTrigger id={inputId} className={cn(error && "border-destructive", touchTargets && "h-11 px-4 rounded-xl")}>
             <SelectValue placeholder={placeholder ?? "Pilih..."} />
@@ -185,7 +196,7 @@ function FieldRenderer({
           <SelectContent>
             {options.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
+                {optLabel(opt)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -407,6 +418,8 @@ export function DynamicForm({
     return v;
   });
   const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [touched, setTouched] = React.useState<Record<string, boolean>>({});
+  const [submitAttempted, setSubmitAttempted] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
 
   // Update values when initialData changes
@@ -425,6 +438,7 @@ export function DynamicForm({
 
   const handleChange = (name: string, value: unknown) => {
     setValues((prev) => ({ ...prev, [name]: value }));
+    setTouched((prev) => (prev[name] ? prev : { ...prev, [name]: true }));
     if (errors[name]) {
       setErrors((prev) => {
         const next = { ...prev };
@@ -435,7 +449,11 @@ export function DynamicForm({
   };
 
   // onBlur validation: run this field's validate fn, set or clear its error.
+  // Only validate fields the user has edited (or any field after a submit
+  // attempt) — otherwise an autofocused empty required field errors the moment
+  // another field is clicked (BUGS-E2E-FINDINGS #7).
   const handleBlur = (field: FieldDef) => {
+    if (!touched[field.name] && !submitAttempted) return;
     if (field.validate) {
       const err = field.validate(values[field.name], values);
       setErrors((prev) => {
@@ -475,6 +493,7 @@ export function DynamicForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
+    setSubmitAttempted(true);
     if (!validateAll()) {
       toast.error(tr("form.checkForm", "Ada isian yang belum lengkap — cek lagi ya.", "Some fields still need filling."));
       return;
