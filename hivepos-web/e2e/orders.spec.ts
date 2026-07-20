@@ -60,4 +60,26 @@ test.describe("/laundry/orders", () => {
     await page.getByRole("link", { name: /new order/i }).or(page.getByRole("button", { name: /new order/i })).first().click();
     await expect(page).toHaveURL(/\/laundry\/orders\/new/);
   });
+
+  test("search by customer name filters the list without error", async ({ page }) => {
+    // Regression guard for the reported "pesanan errors when searching by name" bug.
+    const consoleErrors: string[] = [];
+    const badOrdersResponses: string[] = [];
+    page.on("console", (m) => { if (m.type() === "error") consoleErrors.push(m.text()); });
+    page.on("response", (r) => {
+      if (r.status() >= 400 && r.url().includes("/api/orders")) badOrdersResponses.push(`${r.status()} ${r.url()}`);
+    });
+
+    await expect(page.getByText(custName).first()).toBeVisible({ timeout: 15000 });
+
+    const search = page.getByPlaceholder(/search orders|cari nomor|nama pelanggan/i).first();
+    await search.fill(custName);
+    await expect(page.getByText(custName).first()).toBeVisible({ timeout: 15000 });
+
+    await search.fill("ZZZ_NOPE_ZZZ");
+    await expect(page.getByText(custName)).toHaveCount(0, { timeout: 10000 });
+
+    expect(consoleErrors, `console errors: ${JSON.stringify(consoleErrors)}`).toEqual([]);
+    expect(badOrdersResponses, `bad /api/orders responses: ${JSON.stringify(badOrdersResponses)}`).toEqual([]);
+  });
 });
