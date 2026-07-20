@@ -19,9 +19,18 @@ import {
   Pagination,
 } from "@/components/super-admin";
 
+// Realigned to the 10 codes withErrorHandler can emit ( authoritative set from
+// hivepos-api; frequency-sorted by current DB volume, zero-volume codes last).
 const CODE_FILTERS = [
   { key: "ALL", label: "All" },
+  { key: "BUSINESS_RULE_VIOLATION", label: "Business Rule" },
+  { key: "CONFLICT", label: "Conflict" },
+  { key: "RATE_LIMITED", label: "Rate Limited" },
+  { key: "UNAUTHENTICATED", label: "Unauthorized" },
+  { key: "FORBIDDEN", label: "Forbidden" },
   { key: "INTERNAL_ERROR", label: "Internal" },
+  { key: "VALIDATION_ERROR", label: "Validation" },
+  { key: "NOT_FOUND", label: "Not Found" },
   { key: "DATABASE_ERROR", label: "Database" },
   { key: "EXTERNAL_SERVICE_ERROR", label: "External" },
 ] as const;
