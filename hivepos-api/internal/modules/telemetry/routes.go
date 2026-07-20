@@ -123,7 +123,7 @@ func insertClientError(req *http.Request, db *sql.DB, userID, tenantID string, e
 	_, err := db.ExecContext(req.Context(), `
 		INSERT INTO "ErrorLog" (id, "requestId", method, url, "httpStatus", code, message,
 			"tenantId", "userId", "ipAddress", "userAgent", resolved, "createdAt")
-		VALUES (gen_random_uuid()::text, NULL, 'CLIENT', $1, 0, NULLIF($2, ''), $3, NULLIF($4, ''), NULLIF($5, ''), $6, $7, false, NOW())`,
+		VALUES (gen_random_uuid()::text, gen_random_uuid()::text, 'CLIENT', $1, 0, NULLIF($2, ''), $3, NULLIF($4, ''), NULLIF($5, ''), $6, $7, false, NOW())`,
 		url, code, msg, tenantID, userID, req.RemoteAddr, req.UserAgent())
 	return err
 }

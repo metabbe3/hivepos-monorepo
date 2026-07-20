@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"reflect"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -439,7 +441,10 @@ func (m *Module) getTicket(w http.ResponseWriter, req *http.Request) {
 		apphttp.NotFoundError(w, "ticket not found")
 		return
 	}
-	comments, _ := m.repo.ListTicketComments(req.Context(), id)
+	comments, err := m.repo.ListTicketComments(req.Context(), id)
+	if err != nil {
+		log.Printf("superadmin ticket detail: loading comments for %s: %v", id, err)
+	}
 	raw, _ := json.Marshal(t)
 	var tm map[string]any
 	_ = json.Unmarshal(raw, &tm)
@@ -1052,6 +1057,12 @@ func parseListFilter(req *http.Request) application.ListFilter {
 // writeRows emits the paginated shape the super-admin panel expects:
 // { rows: [...], page, hasNext }. (The web reads data.rows / data.hasNext.)
 func writeRows(w http.ResponseWriter, list any, total int64, filter application.ListFilter) {
+	// A nil slice (0 rows) marshals to JSON `null`, not `[]` — the FE then
+	// crashes on `data.rows.filter(...)`. Coerce nil → empty slice so rows is
+	// always an array.
+	if v := reflect.ValueOf(list); v.IsValid() && v.Kind() == reflect.Slice && v.IsNil() {
+		list = reflect.MakeSlice(v.Type(), 0, 0).Interface()
+	}
 	apphttp.Success(w, map[string]any{
 		"rows":    list,
 		"page":    filter.Page,
