@@ -9,13 +9,18 @@ import (
 )
 
 // ListFilter is the shared pagination/search filter for all list endpoints.
+// Code/Resolved/From/To are read by the error-logs query; other list endpoints ignore them.
 type ListFilter struct {
-	Search string
-	Status string
-	Sort   string
-	Order  string
-	Page   int
-	Limit  int
+	Search   string
+	Status   string
+	Code     string // error-logs: INTERNAL_ERROR | DATABASE_ERROR | EXTERNAL_SERVICE_ERROR
+	Resolved string // error-logs: "true" | "false" | ""
+	From     string // error-logs: ISO date lower bound on "createdAt"
+	To       string // error-logs: ISO date upper bound on "createdAt"
+	Sort     string
+	Order    string
+	Page     int
+	Limit    int
 }
 
 // TenantInput is the PATCH /tenants/:id body.

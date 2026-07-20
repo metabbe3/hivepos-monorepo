@@ -1030,10 +1030,14 @@ func (m *Module) completeChat(ctx context.Context, messages []map[string]string)
 
 func parseListFilter(req *http.Request) application.ListFilter {
 	f := application.ListFilter{
-		Search: req.URL.Query().Get("search"),
-		Status: req.URL.Query().Get("status"),
-		Sort:   req.URL.Query().Get("sort"),
-		Order:  req.URL.Query().Get("order"),
+		Search:   req.URL.Query().Get("search"),
+		Status:   req.URL.Query().Get("status"),
+		Code:     req.URL.Query().Get("code"),
+		Resolved: req.URL.Query().Get("resolved"),
+		From:     req.URL.Query().Get("from"),
+		To:       req.URL.Query().Get("to"),
+		Sort:     req.URL.Query().Get("sort"),
+		Order:    req.URL.Query().Get("order"),
 	}
 	if p, err := strconv.Atoi(req.URL.Query().Get("page")); err == nil {
 		f.Page = p

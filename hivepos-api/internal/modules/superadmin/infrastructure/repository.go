@@ -1084,14 +1084,30 @@ func (r *PgSuperAdminRepository) ListErrorLogs(ctx context.Context, filter appli
 	where := "WHERE 1=1"
 	args := []interface{}{}
 	idx := 1
-	if filter.Status == "unresolved" {
+	if filter.Resolved == "false" {
 		where += ` AND resolved = false`
-	} else if filter.Status == "resolved" {
+	} else if filter.Resolved == "true" {
 		where += ` AND resolved = true`
+	}
+	if filter.Code != "" {
+		where += fmt.Sprintf(` AND code = $%d`, idx)
+		args = append(args, filter.Code)
+		idx++
 	}
 	if filter.Search != "" {
 		where += fmt.Sprintf(` AND (message ILIKE $%d OR code ILIKE $%d OR url ILIKE $%d)`, idx, idx, idx)
 		args = append(args, "%"+filter.Search+"%")
+		idx++
+	}
+	if filter.From != "" {
+		where += fmt.Sprintf(` AND "createdAt" >= $%d::timestamptz`, idx)
+		args = append(args, filter.From)
+		idx++
+	}
+	// ponytail: `to` is start-of-day inclusive, not end-of-day — fine until a date picker ships.
+	if filter.To != "" {
+		where += fmt.Sprintf(` AND "createdAt" <= $%d::timestamptz`, idx)
+		args = append(args, filter.To)
 		idx++
 	}
 
