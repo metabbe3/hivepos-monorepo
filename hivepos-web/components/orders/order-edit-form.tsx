@@ -192,9 +192,11 @@ export function OrderEditForm({ order, onSave, onCancel }: Props) {
 
   const filteredCustomers = custSearch
     ? customers.filter(
+        // Customer.phone is nullable (string | null) — guard so a name-only customer
+        // doesn't crash the filter with "Cannot read properties of null (reading 'includes')".
         (c) =>
-          c.name.toLowerCase().includes(custSearch.toLowerCase()) ||
-          c.phone.includes(custSearch),
+          (c.name ?? "").toLowerCase().includes(custSearch.toLowerCase()) ||
+          (c.phone ?? "").includes(custSearch),
       )
     : customers;
 
