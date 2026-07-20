@@ -200,12 +200,35 @@ func (m *Module) listTenants(w http.ResponseWriter, req *http.Request) {
 }
 
 func (m *Module) getTenant(w http.ResponseWriter, req *http.Request) {
-	t, err := m.svc.GetTenant(req.Context(), chi.URLParam(req, "id"))
+	ctx := req.Context()
+	id := chi.URLParam(req, "id")
+	t, err := m.svc.GetTenant(ctx, id)
 	if err != nil {
 		apphttp.NotFoundError(w, err.Error())
 		return
 	}
-	apphttp.Success(w, t)
+	// Composite: the super-admin tenant page reads d.plans (plan selector) +
+	// d.subscription / d.planName / d.subscriptionStatus. The bare tenant returned
+	// none of these, so the plan-change UI rendered an empty plan list.
+	plans, _ := m.svc.ListPlans(ctx)
+	sub, _ := m.svc.GetTenantSubscription(ctx, id)
+	planName, subStatus := "", ""
+	if sub != nil {
+		subStatus = sub.Status
+		for _, p := range plans {
+			if p.ID == sub.PlanID {
+				planName = p.Name
+				break
+			}
+		}
+	}
+	apphttp.Success(w, map[string]any{
+		"tenant":             t,
+		"plans":              plans,
+		"subscription":       sub,
+		"planName":           planName,
+		"subscriptionStatus": subStatus,
+	})
 }
 
 func (m *Module) updateTenant(w http.ResponseWriter, req *http.Request) {

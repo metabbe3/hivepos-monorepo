@@ -236,6 +236,26 @@ func (r *PgSuperAdminRepository) GetTenantBilling(ctx context.Context, id string
 // SaaSPaymentRow is a local alias to avoid leaking float scans into the domain type.
 type SaaSPaymentRow = domain.SaaSPayment
 
+// GetTenantSubscription loads a tenant's subscription, or (nil, nil) if they have
+// none. Tenants registered before subscription seeding (or via flows that skip it)
+// have no row — callers must tolerate nil rather than 500.
+func (r *PgSuperAdminRepository) GetTenantSubscription(ctx context.Context, id string) (*domain.Subscription, error) {
+	s := &domain.Subscription{}
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, "tenantId", "planId", status, "currentPeriodStart", "currentPeriodEnd",
+		       "paidOutletCount", "createdAt", "updatedAt"
+		FROM "Subscription" WHERE "tenantId" = $1`, id,
+	).Scan(&s.ID, &s.TenantID, &s.PlanID, &s.Status, &s.CurrentPeriodStart, &s.CurrentPeriodEnd,
+		&s.PaidOutletCount, &s.CreatedAt, &s.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
 func (r *PgSuperAdminRepository) UpdateTenantSubscription(ctx context.Context, id string, input application.SubscriptionInput) (*domain.Subscription, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -246,7 +266,13 @@ func (r *PgSuperAdminRepository) UpdateTenantSubscription(ctx context.Context, i
 	if input.Status != nil {
 		_, err = tx.ExecContext(ctx, `UPDATE "Subscription" SET status = $1, "updatedAt" = NOW() WHERE "tenantId" = $2`, *input.Status, id)
 	} else if input.PlanID != "" {
-		_, err = tx.ExecContext(ctx, `UPDATE "Subscription" SET "planId" = $1, "updatedAt" = NOW() WHERE "tenantId" = $2`, input.PlanID, id)
+		// Upsert: tenants registered without a Subscription row (registration only
+		// seeds Tenant+User+Branch) had no row to UPDATE — the plan change silently
+		// no-op'd. INSERT on miss, UPDATE planId on conflict.
+		_, err = tx.ExecContext(ctx, `
+			INSERT INTO "Subscription" (id, "tenantId", "planId", status, "currentPeriodStart", "currentPeriodEnd", "paidOutletCount", "createdAt", "updatedAt")
+			VALUES (gen_random_uuid()::text, $1, $2, 'ACTIVE', NOW(), NOW() + interval '30 days', 0, NOW(), NOW())
+			ON CONFLICT ("tenantId") DO UPDATE SET "planId" = EXCLUDED."planId", "updatedAt" = NOW()`, id, input.PlanID)
 	} else {
 		_, err = tx.ExecContext(ctx, `UPDATE "Subscription" SET "updatedAt" = NOW() WHERE "tenantId" = $1`, id)
 	}

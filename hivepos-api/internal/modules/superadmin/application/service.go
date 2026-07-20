@@ -133,6 +133,7 @@ type Repository interface {
 	ApproveTenant(ctx context.Context, id string) (*domain.Tenant, error)
 	SuspendTenant(ctx context.Context, id string, suspend bool) (*domain.Tenant, error)
 	GetTenantBilling(ctx context.Context, id string) (interface{}, error)
+	GetTenantSubscription(ctx context.Context, id string) (*domain.Subscription, error)
 	UpdateTenantSubscription(ctx context.Context, id string, input SubscriptionInput) (*domain.Subscription, error)
 	ExtendTrial(ctx context.Context, tenantID string, days int) (*domain.Subscription, error)
 
@@ -260,6 +261,9 @@ func (s *Service) ReactivateTenant(ctx context.Context, id string) (*domain.Tena
 }
 func (s *Service) GetTenantBilling(ctx context.Context, id string) (interface{}, error) {
 	return s.Repo.GetTenantBilling(ctx, id)
+}
+func (s *Service) GetTenantSubscription(ctx context.Context, id string) (*domain.Subscription, error) {
+	return s.Repo.GetTenantSubscription(ctx, id)
 }
 func (s *Service) UpdateTenantSubscription(ctx context.Context, id string, input SubscriptionInput) (*domain.Subscription, error) {
 	if input.Op == "extend_trial" {

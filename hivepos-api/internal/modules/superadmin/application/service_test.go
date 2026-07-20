@@ -45,6 +45,9 @@ func (f *fakeRepo) SuspendTenant(_ context.Context, _ string, _ bool) (*domain.T
 func (f *fakeRepo) GetTenantBilling(_ context.Context, _ string) (interface{}, error) {
 	return nil, f.err
 }
+func (f *fakeRepo) GetTenantSubscription(_ context.Context, _ string) (*domain.Subscription, error) {
+	return nil, f.err
+}
 func (f *fakeRepo) UpdateTenantSubscription(_ context.Context, _ string, _ application.SubscriptionInput) (*domain.Subscription, error) {
 	return nil, f.err
 }

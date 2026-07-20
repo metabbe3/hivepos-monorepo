@@ -366,6 +366,17 @@ func (r *PgAuthRepository) CreateTenantWithOwner(ctx context.Context, input doma
 		return "", "", "", fmt.Errorf("setting owner role: %w", err)
 	}
 
+	// 5. Subscription — start a TRIAL on the Free plan aligned with the tenant's
+	// 60-day trialEndsAt. Without this row the super-admin plan-change/extend ops
+	// (and the tenant's own billing surface) have nothing to act on.
+	if _, err = tx.ExecContext(ctx, `
+		INSERT INTO "Subscription" (id, "tenantId", "planId", status, "currentPeriodStart", "currentPeriodEnd", "paidOutletCount", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1,
+			(SELECT id FROM "Plan" WHERE lower(name) = 'free' LIMIT 1),
+			'TRIAL', NOW(), NOW() + interval '60 days', 0, NOW(), NOW())`, tenantID); err != nil {
+		return "", "", "", fmt.Errorf("inserting subscription: %w", err)
+	}
+
 	// Seed default services BEFORE commit (synchronous — atomic with the tenant
 	// provisioning; no orphan tenant without services on crash).
 	seedServices(ctx, tx, branchID, input.Module)
