@@ -575,7 +575,8 @@ func (m *Module) listFeatureFlags(w http.ResponseWriter, req *http.Request) {
 
 // getFeatureFlag — GET /feature-flags/{id}.
 func (m *Module) getFeatureFlag(w http.ResponseWriter, req *http.Request) {
-	f, err := m.repo.GetFeatureFlag(req.Context(), chi.URLParam(req, "id"))
+	ctx := req.Context()
+	f, err := m.repo.GetFeatureFlag(ctx, chi.URLParam(req, "id"))
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
@@ -584,7 +585,20 @@ func (m *Module) getFeatureFlag(w http.ResponseWriter, req *http.Request) {
 		apphttp.NotFoundError(w, "flag not found")
 		return
 	}
-	apphttp.Success(w, f)
+	// Composite: the flag-detail page reads flag.overrides (per-tenant overrides).
+	// The bare FeatureFlag had none, so the overrides section rendered empty.
+	overrides, _ := m.repo.ListTenantFlags(ctx, f.ID)
+	apphttp.Success(w, map[string]any{
+		"id":          f.ID,
+		"key":         f.Key,
+		"name":        f.Name,
+		"description": f.Description,
+		"enabled":     f.Enabled,
+		"category":    f.Category,
+		"createdAt":   f.CreatedAt,
+		"updatedAt":   f.UpdatedAt,
+		"overrides":   overrides,
+	})
 }
 
 func (m *Module) createFeatureFlag(w http.ResponseWriter, req *http.Request) {

@@ -771,7 +771,7 @@ func (r *PgSuperAdminRepository) DeleteFeatureFlag(ctx context.Context, id strin
 func (r *PgSuperAdminRepository) ListTenantFlags(ctx context.Context, flagID string) ([]*domain.TenantFeatureFlag, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT tf.id, tf."flagId", tf."tenantId", tf.enabled, tf.reason, tf."createdAt", tf."updatedAt",
-		       t.name AS "tenantName", f.key AS "flagKey"
+		       t.name AS "tenantName", t.slug AS "tenantSlug", f.key AS "flagKey"
 		FROM "TenantFeatureFlag" tf
 		JOIN "Tenant" t ON t.id = tf."tenantId"
 		JOIN "FeatureFlag" f ON f.id = tf."flagId"
@@ -783,7 +783,7 @@ func (r *PgSuperAdminRepository) ListTenantFlags(ctx context.Context, flagID str
 	var list []*domain.TenantFeatureFlag
 	for rows.Next() {
 		tf := &domain.TenantFeatureFlag{}
-		if err := rows.Scan(&tf.ID, &tf.FlagID, &tf.TenantID, &tf.Enabled, &tf.Reason, &tf.CreatedAt, &tf.UpdatedAt, &tf.Tenant, &tf.FlagKey); err != nil {
+		if err := rows.Scan(&tf.ID, &tf.FlagID, &tf.TenantID, &tf.Enabled, &tf.Reason, &tf.CreatedAt, &tf.UpdatedAt, &tf.Tenant, &tf.TenantSlug, &tf.FlagKey); err != nil {
 			return nil, err
 		}
 		list = append(list, tf)

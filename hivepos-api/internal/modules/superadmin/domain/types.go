@@ -111,8 +111,9 @@ type TenantFeatureFlag struct {
 	TenantID string    `json:"tenantId"`
 	Enabled  bool      `json:"enabled"`
 	Reason   *string   `json:"reason,omitempty"`
-	Tenant   string    `json:"tenantName,omitempty"` // denormalized for list views
-	FlagKey  string    `json:"flagKey,omitempty"`    // denormalized for list views
+	Tenant     string    `json:"tenantName,omitempty"` // denormalized for list views
+	TenantSlug string    `json:"tenantSlug,omitempty"` // denormalized for list views
+	FlagKey    string    `json:"flagKey,omitempty"`    // denormalized for list views
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
