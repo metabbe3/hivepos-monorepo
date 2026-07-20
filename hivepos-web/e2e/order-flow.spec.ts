@@ -243,4 +243,37 @@ test.describe("order flow (UI)", () => {
     expect(consoleErrors, `console errors: ${JSON.stringify(consoleErrors)}`).toEqual([]);
     expect(badApi, `bad /api/orders responses: ${JSON.stringify(badApi)}`).toEqual([]);
   });
+
+  test("delete order from list dropdown (hapus pesanan)", async ({ page, request }) => {
+    // Regression: the row dropdown called deleteOrder(order, {} as MouseEvent) and the
+    // handler did e.preventDefault() unconditionally → TypeError → silent abort
+    // ("nothing happened"). Verify the row-menu Delete now fires DELETE + removes the row.
+    test.setTimeout(90000);
+    const o = await createOrder(request, {
+      customerId: custId,
+      module: "laundry",
+      items: [{ serviceId: satuanId, quantity: 1 }],
+    });
+
+    let deleted = false;
+    page.on("response", (r) => {
+      if (r.request().method() === "DELETE" && r.url().includes(`/api/orders/${o.id}`)) deleted = true;
+    });
+    // useConfirm falls back to native window.confirm (ConfirmProvider isn't mounted in the
+    // app shell) → auto-accept the native dialog so DELETE fires.
+    page.on("dialog", (d) => d.accept());
+
+    await page.goto("/laundry/orders");
+    await expect(page.getByText(o.orderNumber).first()).toBeVisible({ timeout: 15000 });
+
+    // open THIS row's overflow menu (aria-label="More"), scoped via the orderNumber's row
+    const row = page.getByText(o.orderNumber).first()
+      .locator("xpath=ancestor::*[.//button[@aria-label='More']][1]");
+    await row.getByRole("button", { name: "More" }).click();
+    await page.getByRole("menuitem", { name: /delete|hapus/i }).click();
+
+    // native confirm auto-accepted → DELETE sent → row removed
+    await expect(page.getByText(o.orderNumber)).toHaveCount(0, { timeout: 10000 });
+    expect(deleted, "DELETE /api/orders/{id} was sent").toBe(true);
+  });
 });

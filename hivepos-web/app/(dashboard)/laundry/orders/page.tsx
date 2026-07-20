@@ -285,8 +285,11 @@ export default function OrdersPage() {
   }
 
   async function deleteOrder(order: Order, e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
+    // The row dropdown invokes this with a synthetic `{} as React.MouseEvent` (no
+    // real event) — optional-chain so we don't throw before the confirm dialog opens
+    // (which silently aborted delete: "nothing happened"). Mirrors openWhatsApp below.
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
     if (!(await confirm({
       title: t("orders.deleteOrder"),
       description: t("orders.deleteConfirm").replace("{number}", order.orderNumber),
