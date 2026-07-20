@@ -495,8 +495,8 @@ export const serviceSchema: FormSchema = {
       type: "select",
       defaultValue: "PER_KG",
       options: [
-        { label: "Per Kilo", value: "PER_KG" },
-        { label: "Per Item", value: "PER_ITEM" },
+        { labelKey: "services.perKg", value: "PER_KG" },
+        { labelKey: "services.perItem", value: "PER_ITEM" },
       ],
     },
     {
@@ -520,14 +520,14 @@ export const serviceSchema: FormSchema = {
       type: "select",
       defaultValue: "NONE",
       options: [
-        { label: "Tanpa Komisi", value: "NONE" },
-        { label: "Flat (Rp)", value: "FLAT" },
-        { label: "Persen (%)", value: "PERCENTAGE" },
+        { labelKey: "services.commissionNone", value: "NONE" },
+        { labelKey: "services.commissionFlat", value: "FLAT" },
+        { labelKey: "services.commissionPercent", value: "PERCENTAGE" },
       ],
     },
     {
       name: "commissionValue",
-      labelKey: "services.commissionValue",
+      labelKey: "services.commValue",
       type: "number",
       placeholder: "0",
       condition: (values) => values.commissionType !== "NONE",

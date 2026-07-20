@@ -16,6 +16,27 @@ type CreateExpenseInput struct {
 	CategoryID  *string `json:"categoryId"`
 }
 
+// UpdateExpenseInput is the DTO for editing an expense. Date is a string
+// (YYYY-MM-DD or RFC3339) — decoding the FE body straight into the domain
+// entity fails on date-only strings because domain.Expense.Date is time.Time,
+// which 500s every edit (BUGS-E2E-FINDINGS #1).
+type UpdateExpenseInput struct {
+	Amount      float64 `json:"amount"`
+	Description *string `json:"description"`
+	Date        *string `json:"date"`
+	CategoryID  *string `json:"categoryId"`
+}
+
+// ParseDate accepts YYYY-MM-DD or RFC3339. Shared by create + update so the
+// accepted date grammar stays in one place.
+func ParseDate(s string) (time.Time, error) {
+	t, err := time.Parse("2006-01-02", s)
+	if err != nil {
+		t, err = time.Parse(time.RFC3339, s)
+	}
+	return t, err
+}
+
 // CreateCategoryInput is the DTO for creating an expense category.
 type CreateCategoryInput struct {
 	Name        string  `json:"name"`
@@ -78,10 +99,7 @@ func (s *Service) CreateExpense(ctx context.Context, input CreateExpenseInput, t
 	}
 	// Honor a caller-supplied date (backdating); fall back to now.
 	if input.Date != nil && *input.Date != "" {
-		t, perr := time.Parse("2006-01-02", *input.Date)
-		if perr != nil {
-			t, perr = time.Parse(time.RFC3339, *input.Date)
-		}
+		t, perr := ParseDate(*input.Date)
 		if perr != nil {
 			return nil, fmt.Errorf("invalid expense date %q: expected YYYY-MM-DD or RFC3339", *input.Date)
 		}

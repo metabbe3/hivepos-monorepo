@@ -9,6 +9,7 @@ import (
 	"github.com/hivepos/api/internal/middleware"
 	"github.com/hivepos/api/internal/modules/inventory/application"
 	"github.com/hivepos/api/internal/modules/inventory/infrastructure"
+	"github.com/hivepos/api/internal/shared/apperror"
 	apphttp "github.com/hivepos/api/internal/shared/http"
 )
 
@@ -138,13 +139,10 @@ func (m *Module) addMovement(w http.ResponseWriter, req *http.Request) {
 		apphttp.ValidationError(w, "type is required")
 		return
 	}
-	if input.Quantity == 0 {
-		apphttp.ValidationError(w, "quantity must be non-zero")
-		return
-	}
 	movement, err := m.svc.AddMovement(req.Context(), id, middleware.GetTenantID(req), input)
 	if err != nil {
-		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+		// apperror-typed (validation / business-rule) → its own status; unknown → 500.
+		apperror.Write(w, err)
 		return
 	}
 	apphttp.Created(w, movement)
