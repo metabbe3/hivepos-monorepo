@@ -211,6 +211,7 @@ func main() {
 
 	// Super-admin
 	superAdminModule := superadmin.NewModule(db, cfg.AIKey, cfg.AIModel, cfg.AIBaseURL)
+	superAdminModule.SeedFeatureFlags(context.Background())
 	r.Route("/api/super-admin", func(r chi.Router) { r.Use(middleware.RequireAuth, middleware.RequireSuperAdmin); superAdminModule.Register(r) })
 
 	// Tenant
