@@ -30,9 +30,16 @@ ON CONFLICT (id) DO UPDATE SET "passwordHash"=EXCLUDED."passwordHash";
 INSERT INTO "Role" (id,name,permissions,color,"tenantId","isSystem","createdAt","updatedAt")
 VALUES ('qa-role-staff','Staff',ARRAY['*'],'blue','qa-tenant-1',false,now(),now())
 ON CONFLICT (id) DO NOTHING;
+-- Pro subscription so e2e can exercise plan-gated features (branch create beyond the
+-- 1-outlet Free limit, Pro-only website content, etc.). planlimits.Resolve reads
+-- Subscription→Plan with no status filter; PRO plan has maxOutlets/Users/Orders = 999999.
+INSERT INTO "Subscription" (id,"tenantId","planId",status,"paidOutletCount","currentPeriodStart","currentPeriodEnd","createdAt","updatedAt")
+VALUES ('qa-sub-1','qa-tenant-1',(SELECT id FROM "Plan" WHERE tier='PRO' LIMIT 1),'ACTIVE',1,now(),now() + interval '365 days',now(),now())
+ON CONFLICT (id) DO UPDATE SET "planId"=EXCLUDED."planId", status=EXCLUDED.status,
+  "paidOutletCount"=EXCLUDED."paidOutletCount", "currentPeriodEnd"=EXCLUDED."currentPeriodEnd", "updatedAt"=now();
 COMMIT;`;
   execFileSync("docker", [
-    "exec", "pos-saas-db-1", "psql", "-U", "posadmin", "-d", "pos_saas",
+    "exec", "hivepos-postgres-1", "psql", "-U", "posadmin", "-d", "pos_saas",
     "-v", "ON_ERROR_STOP=1", "-c", sql,
   ]);
 }

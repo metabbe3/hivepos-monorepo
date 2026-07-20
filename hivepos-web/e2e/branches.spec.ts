@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
+import { apiToken } from "./lib/token";
 
 // Tenant Dashboard — /branches. Locale "en": labels Name/Address/Phone/"Invoice Footer / T&C",
 // submit "Save", static validation "Nama wajib diisi", success "Branch berhasil disimpan".
@@ -6,11 +7,8 @@ import { test, expect, type APIRequestContext } from "@playwright/test";
 
 const API = "http://localhost:8099/api";
 
-async function token(request: APIRequestContext): Promise<string> {
-  const r = await request.post(`${API}/auth/login`, {
-    data: { email: "qa@hivepos.local", password: "Pass1234!" },
-  });
-  return (await r.json()).data.token;
+async function token(_request: APIRequestContext): Promise<string> {
+  return apiToken();
 }
 
 async function cleanupBranches(request: APIRequestContext) {

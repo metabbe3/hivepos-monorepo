@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { apiToken } from "./lib/token";
 
 // Tenant Dashboard — /users (staff). Form: Nama, Email(req), Telepon, Role(select req),
 // Outlet(select req), Password(req on create, ≥8). Fixes applied: SelectItem role=option,
@@ -7,8 +8,8 @@ import { test, expect, type APIRequestContext, type Page } from "@playwright/tes
 
 const API = "http://localhost:8099/api";
 
-async function tok(request: APIRequestContext): Promise<string> {
-  return (await (await request.post(`${API}/auth/login`, { data: { email: "qa@hivepos.local", password: "Pass1234!" } })).json()).data.token;
+async function tok(_request: APIRequestContext): Promise<string> {
+  return apiToken();
 }
 async function seedUser(request: APIRequestContext, name: string, email: string): Promise<string> {
   const t = await tok(request);

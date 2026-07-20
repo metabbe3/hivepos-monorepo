@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
+import { apiToken } from "./lib/token";
 
 // Tenant Dashboard — /laundry/services. Selects have defaults (PER_KG / NONE / no group),
 // so a basic create needs only Name + Price. Locale "en": submit "Save".
@@ -6,8 +7,8 @@ import { test, expect, type APIRequestContext } from "@playwright/test";
 
 const API = "http://localhost:8099/api";
 
-async function tok(request: APIRequestContext): Promise<string> {
-  return (await (await request.post(`${API}/auth/login`, { data: { email: "qa@hivepos.local", password: "Pass1234!" } })).json()).data.token;
+async function tok(_request: APIRequestContext): Promise<string> {
+  return apiToken();
 }
 async function cleanup(request: APIRequestContext) {
   const t = await tok(request);

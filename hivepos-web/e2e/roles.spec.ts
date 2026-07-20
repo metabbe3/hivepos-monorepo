@@ -1,11 +1,12 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
+import { apiToken } from "./lib/token";
 
 // Tenant Dashboard — /roles. PageHeader "Create Role" → RoleEditDialog (name-only required:
 // "Nama Role"). qa-tenant has a seeded "Staff" role. Legacy parity: role name required.
 const API = "http://localhost:8099/api";
 
-async function tok(request: APIRequestContext) {
-  return (await (await request.post(`${API}/auth/login`, { data: { email: "qa@hivepos.local", password: "Pass1234!" } })).json()).data.token;
+async function tok(_request: APIRequestContext) {
+  return apiToken();
 }
 async function cleanup(request: APIRequestContext) {
   const t = await tok(request);

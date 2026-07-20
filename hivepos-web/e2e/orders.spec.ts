@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
+import { apiToken } from "./lib/token";
 
 // Tenant Dashboard — /laundry/orders. Seeds a real order (customer + service + order) via API,
 // then asserts the table columns populate from hivepos-api: orderNumber, customerName, status,
@@ -6,8 +7,8 @@ import { test, expect, type APIRequestContext } from "@playwright/test";
 
 const API = "http://localhost:8099/api";
 
-async function tok(request: APIRequestContext) {
-  return (await (await request.post(`${API}/auth/login`, { data: { email: "qa@hivepos.local", password: "Pass1234!" } })).json()).data.token;
+async function tok(_request: APIRequestContext) {
+  return apiToken();
 }
 
 let orderNumber = "";

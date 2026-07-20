@@ -1,11 +1,12 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { apiToken } from "./lib/token";
 
 // Tenant Dashboard — /laundry/inventory (stock items). DynamicForm: name(req), unit(select req),
 // currentQuantity(req), lowStockThreshold/opt, purchasePricePerUnit/opt. Legacy parity.
 const API = "http://localhost:8099/api";
 
-async function tok(request: APIRequestContext) {
-  return (await (await request.post(`${API}/auth/login`, { data: { email: "qa@hivepos.local", password: "Pass1234!" } })).json()).data.token;
+async function tok(_request: APIRequestContext) {
+  return apiToken();
 }
 async function cleanup(request: APIRequestContext) {
   const t = await tok(request);

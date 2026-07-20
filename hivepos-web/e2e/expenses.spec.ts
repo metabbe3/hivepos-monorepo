@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { apiToken } from "./lib/token";
 
 // Tenant Dashboard — /laundry/expenses. Form: Jumlah(amount,req>0), Kategori(select req),
 // Tanggal(date, default today), Catatan. Category select loads via apiFetch (fix #6).
@@ -7,8 +8,8 @@ import { test, expect, type APIRequestContext, type Page } from "@playwright/tes
 const API = "http://localhost:8099/api";
 const CAT = "E2E Cat";
 
-async function tok(request: APIRequestContext): Promise<string> {
-  return (await (await request.post(`${API}/auth/login`, { data: { email: "qa@hivepos.local", password: "Pass1234!" } })).json()).data.token;
+async function tok(_request: APIRequestContext): Promise<string> {
+  return apiToken();
 }
 async function ensureCategory(request: APIRequestContext) {
   const t = await tok(request);

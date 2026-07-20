@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
+import { apiToken } from "./lib/token";
 
 // Tenant Dashboard — /customers. Locale defaults to "en" (UI labels),
 // DynamicForm field labels are static Indonesian (Nama/Telepon/Email/Catatan),
@@ -9,10 +10,7 @@ const API = "http://localhost:8099/api";
 
 // Clean E2E-created customers between tests (qa-tenant shared DB).
 async function cleanupCustomers(request: APIRequestContext) {
-  const login = await request.post(`${API}/auth/login`, {
-    data: { email: "qa@hivepos.local", password: "Pass1234!" },
-  });
-  const token = (await login.json()).data?.token;
+  const token = await apiToken();
   const list = await request.get(`${API}/customers`, { headers: { Authorization: `Bearer ${token}` } });
   const customers: any[] = (await list.json()).data ?? [];
   await Promise.all(
