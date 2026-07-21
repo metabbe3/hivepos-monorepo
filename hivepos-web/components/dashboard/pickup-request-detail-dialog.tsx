@@ -193,14 +193,18 @@ export function PickupRequestDetailDialog({
               <Row
                 icon={<Phone className="h-4 w-4" />}
                 value={
-                  <a
-                    href={`https://wa.me/${pickup.customerPhone.replace(/\D/g, "").replace(/^0/, "62")}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:underline"
-                  >
-                    {pickup.customerPhone}
-                  </a>
+                  pickup.customerPhone ? (
+                    <a
+                      href={`https://wa.me/${pickup.customerPhone.replace(/\D/g, "").replace(/^0/, "62")}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:underline"
+                    >
+                      {pickup.customerPhone}
+                    </a>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )
                 }
               />
               {pickup.customerEmail && (

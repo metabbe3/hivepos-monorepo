@@ -1,6 +1,9 @@
 // ponytail: xlsx (~400KB) loaded only when user actually exports to .xlsx.
 // Static import would bundle it with every page that touches export-utils.
 
+import { apiFetch } from "@/modules/shared";
+import { getAuthToken } from "@/lib/api/token";
+
 export function exportToCsv(data: Record<string, unknown>[], filename: string, headers?: Record<string, string>) {
   if (data.length === 0) return;
   const keys = Object.keys(data[0]);
@@ -31,8 +34,18 @@ export async function exportToXls(data: Record<string, unknown>[], filename: str
   XLSX.writeFile(wb, filename);
 }
 
-export function exportToPdf(type: string, from: string, to: string) {
-  window.open(`/api/reports/export?type=${type}&from=${from}&to=${to}`, "_blank");
+export async function exportToPdf(type: string, from: string, to: string) {
+  // Auth is a JWT in localStorage (not a cookie), so window.open can't carry the
+  // Bearer header — the per-report PDF/CSV exports all 401'd. Fetch the file
+  // with the token + trigger a blob download instead (BUGS-E2E-FINDINGS #R2).
+  const base = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api").replace(/\/$/, "");
+  const url = `${base}/reports/export?type=${encodeURIComponent(type)}&from=${from}&to=${to}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${getAuthToken() ?? ""}` } });
+  if (!res.ok) throw new Error(`export failed: ${res.status}`);
+  const blob = await res.blob();
+  const ct = res.headers.get("content-type") || "";
+  const ext = ct.includes("pdf") ? "pdf" : "csv";
+  downloadBlob(blob, `laporan-${type}-${from}-to-${to}.${ext}`);
 }
 
 export async function exportAllToXlsx(from: string, to: string, t: (key: string) => string) {
@@ -40,14 +53,13 @@ export async function exportAllToXlsx(from: string, to: string, t: (key: string)
     "revenue", "orders", "expenses", "profit", "customers", "services", "outstanding",
   ] as const;
 
-  // Report routes return the { success, data } envelope (apiSuccess). Unwrap
-  // .data here so responses[i] is the payload itself (or null on failure) —
-  // otherwise rev.dailyTrend etc. are undefined and .map() throws.
+  // Report routes return the { success, data } envelope. Use apiFetch (not raw
+  // fetch) so the Authorization header + base URL are applied — raw fetch 401'd
+  // every endpoint and silently produced an empty workbook (BUGS-E2E-FINDINGS #R2).
   const responses = await Promise.all(
     endpoints.map((ep) =>
-      fetch(`/api/reports/${ep}?from=${from}&to=${to}`)
-        .then((r) => r.json())
-        .then((j: { success?: boolean; data?: unknown }) => (j?.success ? j.data : null))
+      apiFetch<unknown>(`/api/reports/${ep}?from=${from}&to=${to}`)
+        .then((r) => r.data)
         .catch(() => null)
     )
   );
