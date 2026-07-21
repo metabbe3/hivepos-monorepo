@@ -119,7 +119,20 @@ export default function AttendanceManagePage() {
     finally { setSaving(false); }
   };
 
-  if (!enabled || !shouldRender) return null;
+  if (!shouldRender) return null;
+  // Feature flag explicitly off → show a graceful disabled-state instead of a
+  // blank page (direct URL to a feature the tenant hasn't enabled). Nav hides
+  // the link, but the route is still reachable. (BUGS-E2E-FINDINGS #R2-4)
+  if (!enabled) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title={t("attendance.manage")} />
+        <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+          {t("attendance.featureDisabled")}
+        </p>
+      </div>
+    );
+  }
   if (loading) return <PageLoading />;
 
   const sessions = pairEvents(events);

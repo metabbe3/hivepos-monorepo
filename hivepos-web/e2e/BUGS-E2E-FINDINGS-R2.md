@@ -27,18 +27,16 @@ Severity: **P0** crash/data-loss · **P1** broken-feature · **P2** polish.
 
 ---
 
-## P2 (found, not fixed)
+## P2 (fixed)
 
-### R2-4. /attendance/manage renders blank (no h1) when `staffAttendance` flag is off
+### R2-4. /attendance/manage rendered blank (no h1) when `staffAttendance` flag is off
 - **Repro**: direct-navigate to /attendance/manage in a tenant where the flag is off (QA tenant).
-- **Actual**: `if (!enabled || !shouldRender) return null;` → page returns nothing. Nav link is hidden when the flag is off, but a direct URL shows a blank page (no heading, no "feature disabled" message). `misc-pages.spec` expects an h1 → fails.
-- **Recommendation**: render a graceful disabled-state (PageHeader + message) instead of null, OR skip the spec for flag-gated routes.
-- `app/(dashboard)/attendance/manage/page.tsx:122`.
+- **Actual**: `if (!enabled || !shouldRender) return null;` → page returned nothing. Nav link is hidden when the flag is off, but a direct URL showed a blank page (no heading, no message). `misc-pages.spec` expects an h1 → failed.
+- **Fix**: render a graceful disabled-state (PageHeader + "feature not enabled" message) instead of null. Verified: h1 + message render; misc-pages spec passes (11/11).
+- `app/(dashboard)/attendance/manage/page.tsx`.
 
-### R2-5. Billing → Midtrans sandbox popup blocked by CSP (potential)
-- **Repro**: /billing (Midtrans popup loads).
-- **Actual**: console CSP error — inline script in the snap popup blocked (`script-src` lacks the required hash `sha256-DueWcbxgRVJl6J5x2OBGlMjJ0RI9aTrwDoqaA4GHDhs=`). Sandbox-specific; may or may not affect checkout completion. Needs a full plan-change → pay flow to confirm.
-- **Recommendation**: if checkout is affected, add the hash to the CSP `script-src` (or move to Midtrans's recommended CSP). Verify in sandbox first.
+### R2-5. Billing → Midtrans sandbox popup CSP warning (not our bug)
+- Console CSP error on the snap popup. The CSP with the Midtrans domain allowlist is **Midtrans's own popup CSP** (not in our source — we set no page-level CSP; grep found only Next's image CSP). Midtrans blocks its own inline script in sandbox. Not fixable on our side; sandbox-only; needs a full checkout to confirm whether it actually blocks payment. No action.
 
 ---
 
