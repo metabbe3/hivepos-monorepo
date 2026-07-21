@@ -45,13 +45,16 @@ func (r *PgOrderRepository) List(ctx context.Context, tenantID string, filter ap
 		args = append(args, filter.PaymentStatus)
 		argIdx++
 	}
+	// Date range filters on the ORDER date (receivedAt), not createdAt — a
+	// backdated order (created now, receivedAt in the past) must land in the
+	// range matching its order date. receivedAt is non-NULL (COALESCE on insert).
 	if filter.DateFrom != "" {
-		where += fmt.Sprintf(` AND o."createdAt" >= $%d::timestamptz`, argIdx)
+		where += fmt.Sprintf(` AND o."receivedAt" >= $%d::timestamptz`, argIdx)
 		args = append(args, filter.DateFrom)
 		argIdx++
 	}
 	if filter.DateTo != "" {
-		where += fmt.Sprintf(` AND o."createdAt" <= $%d::timestamptz`, argIdx)
+		where += fmt.Sprintf(` AND o."receivedAt" <= $%d::timestamptz`, argIdx)
 		args = append(args, filter.DateTo+" 23:59:59")
 		argIdx++
 	}
@@ -78,7 +81,7 @@ func (r *PgOrderRepository) List(ctx context.Context, tenantID string, filter ap
 		JOIN "Customer" c ON c.id = o."customerId"
 		JOIN "Branch" b ON b.id = o."branchId"
 		%s
-		ORDER BY o."createdAt" DESC
+		ORDER BY o."receivedAt" DESC NULLS LAST, o."createdAt" DESC
 		LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)
 	args = append(args, filter.Limit, offset)
 
@@ -111,6 +114,27 @@ func (r *PgOrderRepository) List(ctx context.Context, tenantID string, filter ap
 
 // ListItems returns the curated OrderRecord DTO list (matches TS OrderRecord for a
 // user who can see financials). Selects the full TS field set incl. customer join.
+// orderSortClause maps FE sort params to a safe ORDER BY clause. sortBy is user
+// input, so it's whitelisted to a literal column (never interpolated raw). The
+// default + unknown is the ORDER date (receivedAt) — NOT createdAt — so a
+// backdated order sorts to its real day. createdAt DESC is a stable tiebreaker.
+func orderSortClause(filter application.ListFilter) string {
+	col := `o."receivedAt"`
+	switch filter.SortBy {
+	case "totalAmount":
+		col = `o."totalAmount"`
+	case "customerName":
+		col = `c.name`
+	case "createdAt":
+		col = `o."createdAt"`
+	}
+	dir := "DESC"
+	if strings.EqualFold(filter.SortOrder, "asc") {
+		dir = "ASC"
+	}
+	return fmt.Sprintf(`ORDER BY %s %s, o."createdAt" DESC`, col, dir)
+}
+
 func (r *PgOrderRepository) ListItems(ctx context.Context, tenantID string, filter application.ListFilter) ([]*application.OrderListItem, int64, error) {
 	where := `WHERE b."tenantId" = $1`
 	args := []interface{}{tenantID}
@@ -131,13 +155,16 @@ func (r *PgOrderRepository) ListItems(ctx context.Context, tenantID string, filt
 		args = append(args, filter.PaymentStatus)
 		argIdx++
 	}
+	// Date range filters on the ORDER date (receivedAt), not createdAt — a
+	// backdated order (created now, receivedAt in the past) must land in the
+	// range matching its order date. receivedAt is non-NULL (COALESCE on insert).
 	if filter.DateFrom != "" {
-		where += fmt.Sprintf(` AND o."createdAt" >= $%d::timestamptz`, argIdx)
+		where += fmt.Sprintf(` AND o."receivedAt" >= $%d::timestamptz`, argIdx)
 		args = append(args, filter.DateFrom)
 		argIdx++
 	}
 	if filter.DateTo != "" {
-		where += fmt.Sprintf(` AND o."createdAt" <= $%d::timestamptz`, argIdx)
+		where += fmt.Sprintf(` AND o."receivedAt" <= $%d::timestamptz`, argIdx)
 		args = append(args, filter.DateTo+" 23:59:59")
 		argIdx++
 	}
@@ -162,8 +189,8 @@ func (r *PgOrderRepository) ListItems(ctx context.Context, tenantID string, filt
 		JOIN "Customer" c ON c.id = o."customerId"
 		JOIN "Branch" b ON b.id = o."branchId"
 		%s
-		ORDER BY o."createdAt" DESC
-		LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)
+		%s
+		LIMIT $%d OFFSET $%d`, where, orderSortClause(filter), argIdx, argIdx+1)
 	args = append(args, filter.Limit, offset)
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
@@ -187,6 +214,13 @@ func (r *PgOrderRepository) ListItems(ctx context.Context, tenantID string, filt
 		if notes.Valid {
 			n := notes.String
 			it.Notes = &n
+		}
+		// Reinterpret scanned timestamp-without-tz wall-clocks as WIB (see inWIB).
+		it.CreatedAt = inWIB(it.CreatedAt)
+		it.UpdatedAt = inWIB(it.UpdatedAt)
+		if it.ReceivedAt != nil {
+			r := inWIB(*it.ReceivedAt)
+			it.ReceivedAt = &r
 		}
 		out = append(out, it)
 	}
@@ -247,7 +281,7 @@ func (r *PgOrderRepository) FindDetailByID(ctx context.Context, id, tenantID str
 	if err != nil {
 		return nil, fmt.Errorf("finding order detail: %w", err)
 	}
-	d.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	d.CreatedAt = inWIB(createdAt).Format(time.RFC3339)
 	d.DiscountType = nsPtr(discountType)
 	d.Notes = nsPtr(notes)
 	d.CustomerName = custName.String
@@ -308,7 +342,7 @@ func (r *PgOrderRepository) FindDetailByID(ctx context.Context, id, tenantID str
 		}
 		p.Notes = nsPtr(pNotes)
 		if paidAt.Valid {
-			p.PaidAt = paidAt.Time.UTC().Format(time.RFC3339)
+			p.PaidAt = inWIB(paidAt.Time).Format(time.RFC3339)
 		}
 		d.Payments = append(d.Payments, p)
 	}
@@ -316,6 +350,21 @@ func (r *PgOrderRepository) FindDetailByID(ctx context.Context, id, tenantID str
 		return nil, fmt.Errorf("iterating payments: %w", err)
 	}
 	return d, nil
+}
+
+// jakarta is the zone the stored "timestamp without time zone" wall-clocks
+// represent. The DB session runs at Asia/Jakarta (WIB, +7), so NOW() and every
+// Go time.Time pgx writes land as WIB wall-clocks. But pgx decodes these columns
+// back as UTC — that asymmetry skews every displayed time +7h and rolls
+// late-evening backdated orders into "today". inWIB reinterprets the scanned
+// wall-clock as WIB (same fields, corrected zone) so the FE renders the time the
+// kasir actually picked.
+// ponytail: hardcoded zone — app is Indonesia-only and the session tz is fixed;
+// per-tenant tz would join Branch.timezone (upgrade path).
+var jakarta = time.FixedZone("WIB", 7*60*60)
+
+func inWIB(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), jakarta)
 }
 
 func nsPtr(s sql.NullString) *string {
@@ -329,7 +378,7 @@ func tPtr(t sql.NullTime) *string {
 	if !t.Valid {
 		return nil
 	}
-	v := t.Time.UTC().Format(time.RFC3339)
+	v := inWIB(t.Time).Format(time.RFC3339)
 	return &v
 }
 
@@ -827,16 +876,19 @@ func (r *PgOrderRepository) Update(ctx context.Context, id, tenantID string, in 
 	discount := cappedDiscount(gross, in.DiscountType, in.DiscountAmount)
 	total := gross - discount
 
-	var recv any
+	// recv is *time.Time; the SQL casts it ::timestamptz so Postgres interprets
+	// the instant (not pgx's raw UTC wall-clock) — matching Create's
+	// COALESCE($12, NOW()) promotion so both writes land as the same WIB wall-clock.
+	var recv *time.Time
 	if in.ReceivedAt != nil && *in.ReceivedAt != "" {
 		t, perr := time.Parse(time.RFC3339, *in.ReceivedAt)
 		if perr != nil {
 			return nil, fmt.Errorf("invalid receivedAt %q: expected RFC3339", *in.ReceivedAt)
 		}
-		recv = t
+		recv = &t
 	}
 	if _, err := tx.ExecContext(ctx, `
-		UPDATE "Order" SET "customerId" = $1, notes = $2, "receivedAt" = COALESCE($3, "receivedAt"),
+		UPDATE "Order" SET "customerId" = $1, notes = $2, "receivedAt" = COALESCE($3::timestamptz, "receivedAt"),
 			"discountType" = NULLIF($4, ''), "discountAmount" = $5, "totalAmount" = $6, "updatedAt" = NOW()
 		WHERE id = $7`,
 		in.CustomerID, in.Notes, recv, in.DiscountType, discount, total, id); err != nil {

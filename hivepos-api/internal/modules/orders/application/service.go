@@ -106,6 +106,8 @@ type ListFilter struct {
 	PaymentStatus string
 	DateFrom      string
 	DateTo        string
+	SortBy        string
+	SortOrder     string
 	Page          int
 	Limit         int
 }

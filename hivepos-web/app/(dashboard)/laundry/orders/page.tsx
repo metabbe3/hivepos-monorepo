@@ -230,8 +230,8 @@ export default function OrdersPage() {
     // P1: include payment + date filters so tab counts match the visible rows.
     const countParams = new URLSearchParams();
     if (paymentFilter !== "ALL") countParams.set("paymentStatus", paymentFilter);
-    if (dateFrom) countParams.set("from", dateFrom);
-    if (dateTo) countParams.set("to", dateTo);
+    if (dateFrom) countParams.set("dateFrom", dateFrom);
+    if (dateTo) countParams.set("dateTo", dateTo);
     const cpQs = countParams.toString();
     const cpSuffix = cpQs ? `&${cpQs}` : "";
     Promise.all([

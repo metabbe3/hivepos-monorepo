@@ -61,6 +61,8 @@ func (r *Module) list(w http.ResponseWriter, req *http.Request) {
 		PaymentStatus: req.URL.Query().Get("paymentStatus"),
 		DateFrom:      req.URL.Query().Get("dateFrom"),
 		DateTo:        req.URL.Query().Get("dateTo"),
+		SortBy:        req.URL.Query().Get("sortBy"),
+		SortOrder:     req.URL.Query().Get("sortOrder"),
 	}
 	if p, err := strconv.Atoi(req.URL.Query().Get("page")); err == nil {
 		filter.Page = p
