@@ -366,14 +366,23 @@ func (r *PgAuthRepository) CreateTenantWithOwner(ctx context.Context, input doma
 		return "", "", "", fmt.Errorf("setting owner role: %w", err)
 	}
 
-	// 5. Subscription — start a TRIAL on the Free plan aligned with the tenant's
-	// 60-day trialEndsAt. Without this row the super-admin plan-change/extend ops
-	// (and the tenant's own billing surface) have nothing to act on.
+	// 5. Subscription — start a TRIAL on the chosen paid tier (default PRO) for 60
+	// days, aligned with the tenant's trialEndsAt. After expiry, planlimits
+	// lazy-resolves to FREE limits (no cron). Falls back to FREE if the tier plan is missing.
+	trialTier := strings.ToUpper(input.TrialTier)
+	if trialTier != "GROWTH" {
+		trialTier = "PRO" // default + whitelist: only PRO/GROWTH honored
+	}
+	var planID string
+	if qerr := tx.QueryRowContext(ctx, `
+		SELECT id FROM "Plan" WHERE upper(tier::text) = $1 LIMIT 1`, trialTier).Scan(&planID); qerr != nil {
+		if ferr := tx.QueryRowContext(ctx, `SELECT id FROM "Plan" WHERE upper(tier::text) = 'FREE' LIMIT 1`).Scan(&planID); ferr != nil {
+			return "", "", "", fmt.Errorf("resolving trial plan: %w", ferr)
+		}
+	}
 	if _, err = tx.ExecContext(ctx, `
 		INSERT INTO "Subscription" (id, "tenantId", "planId", status, "currentPeriodStart", "currentPeriodEnd", "paidOutletCount", "createdAt", "updatedAt")
-		VALUES (gen_random_uuid()::text, $1,
-			(SELECT id FROM "Plan" WHERE lower(name) = 'free' LIMIT 1),
-			'TRIAL', NOW(), NOW() + interval '60 days', 0, NOW(), NOW())`, tenantID); err != nil {
+		VALUES (gen_random_uuid()::text, $1, $2, 'TRIAL', NOW(), NOW() + interval '60 days', 0, NOW(), NOW())`, tenantID, planID); err != nil {
 		return "", "", "", fmt.Errorf("inserting subscription: %w", err)
 	}
 

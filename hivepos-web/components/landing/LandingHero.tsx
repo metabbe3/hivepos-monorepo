@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Globe } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { PosPreview } from "./pos-preview";
 
 /**
@@ -15,8 +15,8 @@ export function LandingHero() {
           {/* Left — oversized value prop */}
           <div className="lg:col-span-7">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
-              <Globe className="h-3.5 w-3.5" />
-              Browser-native, tanpa install
+              <Sparkles className="h-3.5 w-3.5" />
+              Pro gratis 60 hari · tanpa kartu kredit
             </span>
 
             <h1 className="mt-5 font-display text-5xl font-extrabold leading-[1.02] tracking-tight text-slate-900 sm:text-6xl lg:text-7xl">
@@ -36,7 +36,7 @@ export function LandingHero() {
                 href="/register"
                 className="group inline-flex items-center justify-center gap-2 rounded-full bg-brand px-7 py-3.5 text-base font-bold text-white shadow-sm transition-all hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 active:scale-[0.98]"
               >
-                Mulai Gratis
+                Coba Pro Gratis
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
               <Link
@@ -48,7 +48,7 @@ export function LandingHero() {
             </div>
 
             <p className="mt-4 text-sm font-medium text-slate-500">
-              Gratis 1 outlet (sampai 100 order/bulan). Tanpa kartu kredit.
+              Setelah 60 hari, tetap gratis 1 outlet selamanya. Setup 2 menit, aktif langsung.
             </p>
           </div>
 

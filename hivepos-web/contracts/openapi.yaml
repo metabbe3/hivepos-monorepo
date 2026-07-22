@@ -284,6 +284,11 @@ components:
         googleId:
           type: string
           description: Google OAuth sub. When present, password is optional and the account authenticates via Google only.
+        trialTier:
+          type: string
+          enum: [PRO, GROWTH]
+          default: PRO
+          description: Which paid tier to trial on signup (full features 60 days, then Free). Defaults to PRO.
       required: [tenantName, tenantSlug, ownerName, email, module, branchName]
 
     LoginResponse:

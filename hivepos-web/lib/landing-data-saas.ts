@@ -259,7 +259,7 @@ export const SAAS_PRICING: SaasPricingPlan[] = [
       "Custom branding",
       "Priority support",
     ],
-    cta: "Coba Gratis 14 Hari",
+    cta: "Coba Gratis 60 Hari",
     highlight: false,
   },
   {
@@ -276,7 +276,7 @@ export const SAAS_PRICING: SaasPricingPlan[] = [
       "Bukti foto order (sebelum & sesudah)",
       "QRIS display di website",
     ],
-    cta: "Coba Gratis 14 Hari",
+    cta: "Coba Gratis 60 Hari",
     highlight: true,
   },
 ];
@@ -288,7 +288,7 @@ export const SAAS_FAQS: SaasFaq[] = [
   },
   {
     q: "Apakah benar-benar gratis?",
-    a: "Gratis 1 outlet selamanya, tanpa kartu kredit. Growth & Pro bisa dicoba gratis 14 hari, aktif langsung tanpa persetujuan admin. Outlet kedua dan seterusnya Rp 49K/outlet/bulan, upgrade kapan saja.",
+    a: "Ya. Begitu daftar, Anda langsung dapat Pro penuh gratis selama 60 hari — semua fitur terbuka, tanpa kartu kredit. Setelah 60 hari, akun otomatis kembali ke paket Free (1 outlet, gratis selamanya). Upgrade Growth/Pro kapan saja, Rp 49K/outlet/bulan.",
   },
   {
     q: "Berapa lama sampai jalan?",

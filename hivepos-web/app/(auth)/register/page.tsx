@@ -21,7 +21,7 @@ function RegisterForm() {
   const googleName = searchParams.get("googleName") ?? "";
   const googleId = searchParams.get("googleId") ?? "";
   const isGoogleFlow = !!googleId;
-  // ?plan=growth|pro picks which tier to trial. Default: PRO (full features 14 days).
+  // ?plan=growth|pro picks which tier to trial. Default: PRO (full features 60 days, then Free).
   const trialTier = searchParams.get("plan") === "growth" ? "GROWTH" : "PRO";
   // ?ref=CODE — referral code (optional). Reward unlocks on first paid payment.
   const referralCode = searchParams.get("ref") ?? "";
@@ -125,9 +125,9 @@ function RegisterForm() {
             </span>
             hive<span className="text-[var(--color-primary)]">POS</span>
           </Link>
-          <h1 className="text-3xl font-bold mt-6">Daftar Bisnis Laundry Anda</h1>
+          <h1 className="text-3xl font-bold mt-6">Dapat Pro Gratis 60 Hari</h1>
           <p className="text-[var(--color-muted-foreground)] mt-2">
-            Gratis 1 outlet selamanya. Setup 2 menit, aktif langsung.
+            Daftar 2 menit di browser, tanpa kartu kredit, langsung pakai semua fitur Pro. Setelah 60 hari, tetap gratis 1 outlet selamanya.
           </p>
         </div>
 

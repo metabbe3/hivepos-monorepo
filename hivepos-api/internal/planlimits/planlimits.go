@@ -86,13 +86,14 @@ func Resolve(ctx context.Context, db *sql.DB, tenantID string) (*Limits, error) 
 
 func resolveFromDB(ctx context.Context, db *sql.DB, tenantID string) (*Limits, error) {
 	l := &Limits{}
-	var tier string
+	var tier, status string
+	var periodEnd sql.NullTime
 	// Subscription → Plan.
 	err := db.QueryRowContext(ctx, `
-		SELECT p."maxOutlets", p."maxUsers", p."maxOrders", p.name, p.tier::text
+		SELECT p."maxOutlets", p."maxUsers", p."maxOrders", p.name, p.tier::text, s.status, s."currentPeriodEnd"
 		FROM "Subscription" s JOIN "Plan" p ON p.id = s."planId"
 		WHERE s."tenantId" = $1`, tenantID,
-	).Scan(&l.MaxOutlets, &l.MaxUsers, &l.MaxOrders, &l.PlanName, &tier)
+	).Scan(&l.MaxOutlets, &l.MaxUsers, &l.MaxOrders, &l.PlanName, &tier, &status, &periodEnd)
 	if err == sql.ErrNoRows {
 		// Fallback: FREE plan.
 		err = db.QueryRowContext(ctx, `
@@ -102,6 +103,16 @@ func resolveFromDB(ctx context.Context, db *sql.DB, tenantID string) (*Limits, e
 	}
 	if err != nil {
 		return nil, fmt.Errorf("planlimits resolve: %w", err)
+	}
+	// Lazy trial expiry: an expired TRIAL downgrades to FREE limits until the
+	// tenant upgrades. The row's status stays TRIAL (no cron); limits drop here.
+	if status == "TRIAL" && periodEnd.Valid && periodEnd.Time.Before(time.Now()) {
+		if ferr := db.QueryRowContext(ctx, `
+			SELECT "maxOutlets", "maxUsers", "maxOrders", name, tier::text
+			FROM "Plan" WHERE tier = 'FREE' LIMIT 1`).
+			Scan(&l.MaxOutlets, &l.MaxUsers, &l.MaxOrders, &l.PlanName, &tier); ferr != nil {
+			return nil, fmt.Errorf("planlimits trial-expiry fallback: %w", ferr)
+		}
 	}
 	l.IsPaid = tier != "FREE"
 	return l, nil

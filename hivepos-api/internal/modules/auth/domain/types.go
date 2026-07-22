@@ -37,6 +37,7 @@ type RegisterInput struct {
 	BranchName string  `json:"branchName"`
 	Phone      *string `json:"phone,omitempty"`
 	GoogleID   string  `json:"googleId,omitempty"`
+	TrialTier  string  `json:"trialTier,omitempty"` // PRO (default) | GROWTH — paid tier trialed for 60d, then Free
 }
 
 // LoginInput is the body of POST /api/auth/login.

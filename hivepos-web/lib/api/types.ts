@@ -195,6 +195,12 @@ export interface components {
             phone?: string | null;
             /** @description Google OAuth sub. When present, password is optional and the account authenticates via Google only. */
             googleId?: string;
+            /**
+             * @description Which paid tier to trial on signup (full features 60 days, then Free). Defaults to PRO.
+             * @default PRO
+             * @enum {string}
+             */
+            trialTier: "PRO" | "GROWTH";
         };
         LoginResponse: {
             token: string;
