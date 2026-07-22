@@ -200,7 +200,127 @@ const kasirpintar: Competitor = {
   keywords: ["alternatif kasir pintar laundry", "kasir pintar vs hivepos laundry", "aplikasi kasir laundry kiloan", "aplikasi kasir laundry pengganti kasir pintar"],
 };
 
-export const COMPETITORS: Competitor[] = [moka, olsera, majoo, kasirpintar];
+const pawoon: Competitor = {
+  slug: "alternatif-pawoon-laundry",
+  name: "Pawoon",
+  metaTitle: "Alternatif Pawoon untuk Laundry — Lebih Murah | hivePOS Rp 49K/outlet",
+  metaDescription:
+    "Alternatif Pawoon untuk usaha laundry. Pawoon cloud POS Rp 299K/outlet/bln untuk retail/F&B umum. hivePOS khusus laundry kiloan — WhatsApp order, pickup, garment — dari browser, outlet pertama gratis, Rp 49K/outlet.",
+  heroH1: "Alternatif Pawoon untuk Laundry —",
+  heroHighlight: "Lebih Murah & Fokus",
+  dek: "Pawoon adalah cloud POS untuk retail dan F&B umum (Rp 299K/outlet/bulan). Untuk usaha laundry, hivePOS lebih tepat dan jauh lebih murah — khusus kiloan, WhatsApp order, pickup, dan garment breakdown, semuanya dari browser. Outlet pertama gratis, mulai Rp 49K/outlet.",
+  theirPriceFrom: "Rp 299K",
+  theirPriceUnit: "/outlet/bln",
+  theirCardPoints: ["Rp 299K/outlet/bulan", "POS umum retail & F&B", "WhatsApp & pickup terbatas"],
+  comparison: [
+    { feature: "Harga mulai", hivepos: "Rp 49K/outlet/bulan", them: "Rp 299K/outlet/bulan", themNeg: true },
+    { feature: "Outlet pertama", hivepos: "Gratis selamanya", them: "Berbayar", themNeg: true },
+    { feature: "Platform", hivepos: "Browser (HP/tablet/PC)", them: "Cloud POS (app)" },
+    { feature: "Butuh hardware?", hivepos: "Tidak", them: "Opsional" },
+    { feature: "Khusus laundry (kiloan)", hivepos: "Ya — kiloan, satuan, garment", them: "Umum (retail/F&B)" },
+    { feature: "WhatsApp order", hivepos: "Built-in + template", them: "Terbatas / add-on", themNeg: true },
+    { feature: "Cetak struk thermal", hivepos: "BT/USB/WiFi/Browser", them: "Ya" },
+    { feature: "Multi-outlet", hivepos: "Unlimited (Growth+)", them: "Ya (mahal)" },
+    { feature: "Pickup/antar-jemput", hivepos: "Built-in", them: "Tidak", themNeg: true },
+    { feature: "Website laundry", hivepos: "Pro (slug.hivepos.id)", them: "Tidak", themNeg: true },
+    { feature: "Bukti foto order", hivepos: "Pro (sebelum/sesudah)", them: "Tidak", themNeg: true },
+    { feature: "PWA (install di HP)", hivepos: "Ya, offline mode", them: "Cloud (butuh internet)", themNeg: true },
+  ],
+  reasons: [
+    { icon: PiggyBank, title: "6× lebih murah", body: "Pawoon Rp 299K/outlet/bulan. hivePOS Rp 49K/outlet/bulan dengan outlet pertama gratis selamanya. Untuk 1 outlet, hemat lebih dari Rp 250K/bulan." },
+    { icon: Shirt, title: "Khusus laundry, bukan POS umum", body: "Pawoon dirancang untuk retail dan F&B umum. hivePOS khusus laundry: harga kiloan & satuan otomatis, garment breakdown, WhatsApp order, dan pickup terintegrasi." },
+    { icon: MessageCircle, title: "WhatsApp + pickup built-in", body: "Di Pawoon, WhatsApp dan pickup terbatas atau butuh add-on. hivePOS punya WhatsApp order otomatis + template pesanan serta pickup/antar-jemput langsung dari order." },
+    { icon: Globe2, title: "Website laundry (Pro)", body: "hivePOS Pro menyertakan website laundry di slug.hivepos.id dengan SEO lokal Google Maps dan tracking pesanan online. Pawoon tidak menyediakan ini." },
+  ],
+  faqs: [
+    { q: "Apakah hivePOS bisa menggantikan Pawoon untuk laundry?", a: "Ya. hivePOS punya semua yang Pawoon tawarkan untuk kasir (transaksi, struk, laporan, multi-outlet) PLUS fitur khusus laundry yang Pawoon tidak punya: kiloan pricing, WhatsApp order built-in, pickup, garment breakdown, dan website laundry." },
+    { q: "Bisa pindah dari Pawoon ke hivePOS?", a: "Bisa. Setup layanan + harga kiloan di hivePOS cuma butuh 2 menit. Pelanggan bisa diketik saat order pertama atau diimpor dari data Pawoon Anda." },
+    { q: "Printer thermal saya bisa dipakai di hivePOS?", a: "Ya. hivePOS mendukung printer thermal 58mm dan 80mm via Bluetooth, USB, dan WiFi. Di Android/PC semua metode didukung; di iPhone/iPad gunakan WiFi atau Browser Print." },
+  ],
+  keywords: ["alternatif pawoon laundry", "pawoon vs hivepos", "aplikasi kasir laundry pengganti pawoon", "harga pawoon vs hivepos"],
+};
+
+const iseller: Competitor = {
+  slug: "alternatif-iseller-laundry",
+  name: "iSeller",
+  metaTitle: "Alternatif iSeller untuk Laundry — Lebih Simpel & Murah | hivePOS",
+  metaDescription:
+    "Alternatif iSeller untuk usaha laundry. iSeller platform omnichannel mulai Rp 300K/bln — lengkap tapi kompleks. hivePOS fokus khusus laundry kiloan dari browser, separuh harga. Outlet pertama gratis.",
+  heroH1: "Alternatif iSeller untuk Laundry —",
+  heroHighlight: "Lebih Simpel & Murah",
+  dek: "iSeller adalah platform omnichannel untuk retail dan F&B (mulai Rp 300K/bulan) — lengkap tapi kompleks dan mahal untuk laundry kecil. hivePOS fokus khusus laundry kiloan dari browser: WhatsApp order, pickup, dan garment breakdown. Separuh harganya, outlet pertama gratis.",
+  theirPriceFrom: "Rp 300K",
+  theirPriceUnit: "/bln",
+  theirCardPoints: ["Mulai Rp 300K/bulan", "Omnichannel, kompleks untuk laundry", "Tidak khusus kiloan"],
+  comparison: [
+    { feature: "Harga mulai", hivepos: "Rp 49K/outlet/bulan", them: "Rp 300K/bulan", themNeg: true },
+    { feature: "Outlet pertama", hivepos: "Gratis selamanya", them: "Berbayar", themNeg: true },
+    { feature: "Platform", hivepos: "Browser (HP/tablet/PC)", them: "App + omnichannel" },
+    { feature: "Butuh hardware?", hivepos: "Tidak", them: "Opsional" },
+    { feature: "Khusus laundry (kiloan)", hivepos: "Ya — kiloan, satuan, garment", them: "Umum (retail/F&B/omnichannel)" },
+    { feature: "WhatsApp order", hivepos: "Built-in + template", them: "Terbatas", themNeg: true },
+    { feature: "Cetak struk thermal", hivepos: "BT/USB/WiFi/Browser", them: "Ya" },
+    { feature: "Multi-outlet", hivepos: "Unlimited (Growth+)", them: "Ya" },
+    { feature: "Pickup/antar-jemput", hivepos: "Built-in", them: "Tidak", themNeg: true },
+    { feature: "Website laundry", hivepos: "Pro (slug.hivepos.id)", them: "Tidak", themNeg: true },
+    { feature: "Bukti foto order", hivepos: "Pro (sebelum/sesudah)", them: "Tidak", themNeg: true },
+    { feature: "PWA (install di HP)", hivepos: "Ya, offline mode", them: "Tidak", themNeg: true },
+  ],
+  reasons: [
+    { icon: PiggyBank, title: "Jauh lebih murah", body: "iSeller mulai Rp 300K/bulan. hivePOS Rp 49K/outlet/bulan dengan outlet pertama gratis selamanya. Untuk laundry kecil, iSeller terlalu mahal." },
+    { icon: Layers, title: "Lebih simpel, tidak overkill", body: "iSeller adalah platform omnichannel (integrasi marketplace, inventory kompleks). hivePOS hanya memberi apa yang usaha laundry butuh — tanpa ribet fitur yang tidak terpakai." },
+    { icon: Shirt, title: "Khusus laundry", body: "hivePOS dirancang untuk laundry: kiloan, satuan, garment breakdown, WhatsApp order, dan pickup terintegrasi. Bukan POS umum yang dipaksa untuk laundry." },
+    { icon: Globe2, title: "Website laundry (Pro)", body: "hivePOS Pro menyertakan website laundry di slug.hivepos.id dengan SEO lokal Google Maps dan tracking pesanan online. iSeller tidak menyediakan ini." },
+  ],
+  faqs: [
+    { q: "Kenapa hivePOS lebih cocok dari iSeller untuk laundry?", a: "iSeller adalah platform omnichannel yang lengkap tapi mahal dan kompleks untuk laundry kecil. hivePOS fokus khusus laundry — kiloan, WhatsApp order, pickup, garment breakdown — dengan separuh harga dan outlet pertama gratis." },
+    { q: "Bisa pindah dari iSeller ke hivePOS?", a: "Bisa. Setup layanan + harga kiloan di hivePOS cuma butuh 2 menit. Pelanggan bisa diketik saat order pertama atau diimpor dari data Anda." },
+    { q: "Printer thermal saya bisa dipakai di hivePOS?", a: "Ya. hivePOS mendukung printer thermal 58mm dan 80mm via Bluetooth, USB, dan WiFi. Di Android/PC semua metode didukung; di iPhone/iPad gunakan WiFi atau Browser Print." },
+  ],
+  keywords: ["alternatif iseller laundry", "iseller vs hivepos", "aplikasi kasir laundry pengganti iseller", "harga iseller vs hivepos"],
+};
+
+const qasir: Competitor = {
+  slug: "alternatif-qasir-laundry",
+  name: "Qasir",
+  metaTitle: "Alternatif Qasir untuk Laundry — Bebas Pindah Perangkat | hivePOS",
+  metaDescription:
+    "Alternatif Qasir untuk laundry. Qasir kasir Android terkunci 1 perangkat & umum. hivePOS jalan di browser apa saja — HP/tablet/PC — khusus kiloan, WhatsApp order, pickup. Outlet pertama gratis, Rp 49K/outlet.",
+  heroH1: "Alternatif Qasir untuk Laundry —",
+  heroHighlight: "Bebas Pindah Perangkat",
+  dek: "Qasir adalah kasir Android yang terjangkau, tapi terkunci ke satu perangkat dan bersifat umum (bukan laundry). hivePOS jalan di browser apa saja — HP, tablet, atau PC — khusus kiloan dengan WhatsApp order, pickup, dan garment breakdown. Outlet pertama gratis, mulai Rp 49K/outlet.",
+  theirPriceFrom: "~Rp 58K",
+  theirPriceUnit: "/bln (tahunan)",
+  theirCardPoints: ["Terkunci 1 perangkat Android", "Kasir umum, bukan laundry", "Tidak ada pickup/website laundry"],
+  comparison: [
+    { feature: "Harga mulai", hivepos: "Rp 49K/outlet/bulan", them: "~Rp 58K/bln (Pro tahunan)" },
+    { feature: "Outlet pertama", hivepos: "Gratis selamanya", them: "Trial / berbayar" },
+    { feature: "Platform", hivepos: "Browser (HP/tablet/PC)", them: "App Android (terkunci device)" },
+    { feature: "Butuh hardware?", hivepos: "Tidak", them: "Terkunci 1 perangkat Android", themNeg: true },
+    { feature: "Khusus laundry (kiloan)", hivepos: "Ya — kiloan, satuan, garment", them: "Kasir umum", themNeg: true },
+    { feature: "WhatsApp order", hivepos: "Built-in + template", them: "Terbatas", themNeg: true },
+    { feature: "Cetak struk thermal", hivepos: "BT/USB/WiFi/Browser", them: "Bluetooth (Android)" },
+    { feature: "Multi-outlet", hivepos: "Unlimited (Growth+)", them: "Ya (berbayar)" },
+    { feature: "Pickup/antar-jemput", hivepos: "Built-in", them: "Tidak", themNeg: true },
+    { feature: "Website laundry", hivepos: "Pro (slug.hivepos.id)", them: "Tidak", themNeg: true },
+    { feature: "Bukti foto order", hivepos: "Pro (sebelum/sesudah)", them: "Tidak", themNeg: true },
+    { feature: "PWA (install di HP)", hivepos: "Ya, offline mode", them: "App Android (offline)" },
+  ],
+  reasons: [
+    { icon: MonitorSmartphone, title: "Jalan di semua perangkat", body: "Qasir terkunci ke satu perangkat Android. hivePOS jalan di browser apa saja — HP Android/iPhone, tablet, atau PC — dan bisa berpindah perangkat kapan saja tanpa kehilangan data." },
+    { icon: Shirt, title: "Khusus laundry, bukan kasir umum", body: "Qasir adalah aplikasi kasir umum. hivePOS dirancang untuk laundry: harga kiloan & satuan otomatis per kg, garment breakdown, dan layanan khusus (sepatu, bed cover)." },
+    { icon: MessageCircle, title: "WhatsApp + pickup built-in", body: "hivePOS punya WhatsApp order otomatis + template pesanan serta pickup/antar-jemput terintegrasi langsung ke order — yang Qasir tidak sediakan." },
+    { icon: PiggyBank, title: "Outlet pertama gratis selamanya", body: "Qasir hanya memberi trial lalu berbayar. hivePOS memberi outlet pertama gratis dengan fitur laundry lengkap, lalu Rp 49K/outlet untuk cabang berikutnya." },
+  ],
+  faqs: [
+    { q: "Apa bedanya hivePOS dan Qasir untuk laundry?", a: "Qasir adalah kasir Android umum yang terkunci ke satu perangkat. hivePOS jalan di browser apa saja dan khusus laundry: harga kiloan otomatis, WhatsApp order, pickup/antar-jemput, garment breakdown, dan website laundry." },
+    { q: "Bisa pindah dari Qasir ke hivePOS tanpa ganti perangkat?", a: "Bisa, dan justru lebih fleksibel. hivePOS dibuka di browser HP, tablet, atau PC apa pun — tidak terkunci ke satu perangkat. Setup layanan + harga kiloan cuma butuh 2 menit." },
+    { q: "Printer thermal saya bisa dipakai di hivePOS?", a: "Ya. hivePOS mendukung printer thermal 58mm dan 80mm via Bluetooth, USB, dan WiFi. Di Android/PC semua metode didukung; di iPhone/iPad gunakan WiFi atau Browser Print." },
+  ],
+  keywords: ["alternatif qasir laundry", "qasir vs hivepos laundry", "aplikasi kasir laundry kiloan", "aplikasi kasir laundry pengganti qasir"],
+};
+
+export const COMPETITORS: Competitor[] = [moka, olsera, majoo, kasirpintar, pawoon, iseller, qasir];
 
 export function getCompetitor(slug: string): Competitor | undefined {
   return COMPETITORS.find((c) => c.slug === slug);
