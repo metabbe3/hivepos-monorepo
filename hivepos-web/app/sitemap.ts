@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { apiFetch } from "@/modules/shared";
+import { COMPETITORS } from "@/lib/alternatif-data";
 
 // ponytail: platform URLs stay static; tenant website URLs appended from the API.
 // force-dynamic: API isn't reachable at build time, so skip prerender.
@@ -9,7 +10,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = "https://hivepos.id";
   const lastModified = new Date();
 
-  // Public blog posts (Go endpoint pending — PORT-DEBT §2; graceful empty).
+  // Public blog posts (served by the Go public_api module).
   let blogPosts: { slug: string; updatedAt?: string }[] = [];
   try {
     const { data } = await apiFetch<{ slug: string; updatedAt?: string }[]>("/api/public/blog-posts");
@@ -20,7 +21,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const platformUrls: MetadataRoute.Sitemap = [
     { url: base, lastModified, changeFrequency: "weekly", priority: 1.0 },
-    { url: `${base}/alternatif-moka-pos-laundry`, lastModified, changeFrequency: "monthly", priority: 0.9 },
+    ...COMPETITORS.map((c) => ({
+      url: `${base}/${c.slug}`,
+      lastModified,
+      changeFrequency: "monthly" as const,
+      priority: 0.9,
+    })),
     // /register intentionally omitted — it's noindex (app/(auth)/layout.tsx), so
     // listing it in the sitemap contradicts the page's own robots directive.
     { url: `${base}/terms`, lastModified, changeFrequency: "yearly", priority: 0.3 },

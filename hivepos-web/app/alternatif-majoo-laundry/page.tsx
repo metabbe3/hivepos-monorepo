@@ -1,7 +1,7 @@
 import { ComparisonPage } from "@/components/alternatif/comparison-page";
 import { competitorMetadata, getCompetitor } from "@/lib/alternatif-data";
 
-const data = getCompetitor("alternatif-moka-pos-laundry")!;
+const data = getCompetitor("alternatif-majoo-laundry")!;
 
 export const metadata = competitorMetadata(data);
 

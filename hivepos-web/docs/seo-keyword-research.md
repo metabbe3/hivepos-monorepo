@@ -38,25 +38,26 @@ for a new page or article.
 
 | # | Keyword / cluster | Stage | Vol | Diff | Why it wins | Action |
 |---|---|---|---|---|---|---|
-| 1 | `alternatif olsera laundry` / `hivepos vs olsera` | BoFu | Med | Low | Olsera is the direct laundry-POS competitor (owns `/id/pos/laundry`); comparison pages convert + are winnable | **#1 NEXT: build `/alternatif-olsera-laundry`** (mirror Moka page) |
+| 1 | `alternatif olsera laundry` / `hivepos vs olsera` | BoFu | Med | Low | Olsera is the direct laundry-POS competitor (owns `/id/pos/laundry`); comparison pages convert + are winnable | **✅ DONE** — `/alternatif-olsera-laundry` |
 | 2 | `aplikasi kasir laundry terbaik 2026` | MoFu | High | High | Big listicles (Kasir Pintar, Inticore, Jurnal) rank here — high traffic if cracked | Hard to outrank; instead write a differentiated **"untuk laundry kecil"** angle blog |
 | 3 | `cara memulai usaha laundry kiloan` / `modal usaha laundry` | ToFu | High | Med | High-volume research intent; builds domain authority; feeds conversion pages | **✅ DONE** — `cara-memulai-usaha-laundry-kiloan` |
-| 4 | `alternatif majoo` / `aplikasi pos majoo vs` | BoFu | Med | Low | Majoo is all-in-one (expensive, bloaty) — fits the anti-bloat positioning | Build `/alternatif-majoo` next |
+| 4 | `alternatif majoo` / `aplikasi pos majoo vs` | BoFu | Med | Low | Majoo is all-in-one (expensive, bloaty) — fits the anti-bloat positioning | **✅ DONE** — `/alternatif-majoo-laundry` |
 | 5 | `aplikasi laundry gratis` / `kasir laundry gratis` | BoFu | Med | Med | hivePOS has a genuine free tier (1 outlet) — strong honest hook | Blog: "aplikasi kasir laundry gratis terbaik" |
 | 6 | `self service laundry` / `laundry coin` | MoFu/ToFu | Med (rising) | Low | Emerging segment, little laundry-specific POS content | Blog + future feature page |
 | 7 | `software laundry multi outlet` / `kasir laundry cabang` | BoFu | Low | Low | Matches the paid tier exactly; high-intent buyer | Feature page under existing multi-outlet copy |
 | 8 | `aplikasi laundry whatsapp order` | MoFu | Med | Low | Built-in WhatsApp is a real differentiator most POS lack | Blog: "terima order laundry via WhatsApp otomatis" |
 | 9 | `harga cuci kiloan` / `tarif laundry per kg` | ToFu | High | Med | Local search intent; captures future owners pre-buy | Section in startup guide (done) → could be its own page |
 | 10 | `printer thermal laundry` / `timbangan digital laundry` | ToFu | Low | Low | Equipment queries; cross-sell setup content | Long-tail blog series (low priority) |
+| 11 | `alternatif kasir pintar laundry` | BoFu | Med | Low | Most popular UMKM kasir — but general (no kiloan/WhatsApp/pickup); high-intent switchers | **✅ DONE** — `/alternatif-kasir-pintar-laundry` |
 
 ---
 
 ## 3. Headline recommendations
 
-1. **#1 next content = `/alternatif-olsera-laundry`** (competitor comparison page).
-   - Olsera is the closest direct competitor with a dedicated laundry page. hivePOS already
-     proved the format works (Moka page = sitemap priority 0.9). Bottom-funnel → highest
-     signup conversion per visit. Then repeat the pattern for **Majoo** and **iSeller/Pawoon**.
+1. **Competitor comparison pages — ✅ SHIPPED (Olsera, Majoo, Kasir Pintar).**
+   - Built a reusable `ComparisonPage` component + `lib/alternatif-data.ts` so each page is a
+     one-record add (Moka, Olsera, Majoo, Kasir Pintar live; auto-in-sitemap + cross-linked).
+   - Next: repeat the pattern for **Pawoon**, **iSeller**, **Qasir** (add a record).
    - Pattern to copy: `app/alternatif-moka-pos-laundry/page.tsx` (title, canonical, OG, FAQ JSON-LD,
      comparison table). Add to `app/sitemap.ts` at priority 0.9.
 
