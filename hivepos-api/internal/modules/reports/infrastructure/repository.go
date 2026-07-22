@@ -1446,22 +1446,16 @@ func (r *PgReportsRepository) GetCommissionReport(ctx context.Context, tenantID 
 	var totalRevenue, totalCommission float64
 	for rows.Next() {
 		var r domain.CommissionBySvcRow
-		var commType string
-		var commValue float64
-		var pricingType string
-		var orderCount int64
 		if err := rows.Scan(&r.ServiceID, &r.Name, &r.PricingType, &r.CommissionType, &r.CommissionValue, &r.Revenue, &r.OrderCount); err != nil {
 			return nil, err
 		}
-		_ = commType
-		_ = commValue
-		_ = pricingType
-		_ = orderCount
-		r.Commission = 0
-		if commType == "PERCENTAGE" {
-			r.Commission = r.Revenue * commValue / 100
-		} else if commType == "FIXED" && orderCount > 0 {
-			r.Commission = commValue * float64(orderCount)
+		switch r.CommissionType {
+		case "PERCENTAGE":
+			r.Commission = r.Revenue * r.CommissionValue / 100
+		case "FLAT":
+			r.Commission = r.CommissionValue * float64(r.OrderCount)
+		default: // NONE
+			r.Commission = 0
 		}
 		byService = append(byService, r)
 		totalRevenue += r.Revenue
