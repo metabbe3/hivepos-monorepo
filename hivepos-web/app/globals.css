@@ -2,6 +2,25 @@
 @plugin "@tailwindcss/typography";
 @import "tw-animate-css";
 
+/* ─── Blog article: editorial drop cap + smooth anchor nav ─── */
+.prose-dropcap > p:first-of-type::first-letter {
+  float: left;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 3.4em;
+  line-height: 0.72;
+  margin: 0.08em 0.12em 0 0;
+  color: var(--color-brand);
+}
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════
    hivePOS Theme System
    Tailwind v4: @theme defines tokens → utilities auto-generated
