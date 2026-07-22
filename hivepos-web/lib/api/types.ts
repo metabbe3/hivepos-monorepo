@@ -95,6 +95,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/blog-posts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List published blog posts
+         * @description Returns all published posts (newest first) for the public blog + sitemap.
+         *     Bare array under `data`. Used by `/blog`, the related-posts list, and
+         *     `sitemap.ts`.
+         */
+        get: operations["listPublicBlogPosts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/blog-posts/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a single published blog post by slug */
+        get: operations["getPublicBlogPost"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/session-version": {
         parameters: {
             query?: never;
@@ -176,6 +215,27 @@ export interface components {
             ok: boolean;
             sessionVersion: number;
         };
+        /** @description A published blog post. `content` is Markdown. */
+        BlogPost: {
+            slug: string;
+            title: string;
+            /** @description Meta description */
+            description: string;
+            /** @description Comma-separated SEO keywords */
+            keywords?: string | null;
+            /** @description Markdown source */
+            content: string;
+            /** Format: uri */
+            coverImage?: string | null;
+            /** Format: date-time */
+            publishedAt?: string | null;
+        };
+        BlogPostListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["BlogPost"][];
+        };
+        BlogPostEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["BlogPost"];
+        };
         EnvelopeSuccess: {
             /** @enum {boolean} */
             success: true;
@@ -213,6 +273,15 @@ export interface components {
         };
         /** @description Missing or invalid credentials. */
         Unauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorEnvelope"];
+            };
+        };
+        /** @description Resource not found. */
+        NotFound: {
             headers: {
                 [name: string]: unknown;
             };
@@ -363,6 +432,50 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    listPublicBlogPosts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Published posts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BlogPostListEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPublicBlogPost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The post. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BlogPostEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     bumpSessionVersion: {

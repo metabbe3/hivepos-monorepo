@@ -7,8 +7,18 @@ import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://hivepos.id"),
   title: "hivePOS",
   description: "Kasir laundry ringan di browser, untuk UMKM Indonesia.",
+  openGraph: {
+    type: "website",
+    siteName: "hivePOS",
+    locale: "id_ID",
+    url: "https://hivepos.id",
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

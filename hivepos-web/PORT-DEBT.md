@@ -16,11 +16,11 @@ copied, build green, and `force-dynamic` (render on demand), but show empty data
 to client components calling the Go API. Checked = converted.
 
 ### Public / SEO — ✅ DONE (server-side `apiFetch`, no auth needed)
-- [x] `app/blog/page.tsx` → `/api/public/blog-posts` (Go: missing — graceful empty)
-- [x] `app/blog/[slug]/page.tsx` → `/api/public/blog-posts/{slug}` (Go: missing — graceful empty)
+- [x] `app/blog/page.tsx` → `/api/public/blog-posts` (Go: ✅ shipped in `public_api` — published, newest first)
+- [x] `app/blog/[slug]/page.tsx` → `/api/public/blog-posts/{slug}` (Go: ✅ shipped)
 - [x] `app/tenant-site/page.tsx` → `/api/public/tenants/{slug}` + `/api/public/services` (Go: missing)
 - [x] `app/(public-service)/pickup/[branchSlug]/page.tsx` → `/api/public/branches/{slug}` (Go: scaffolded)
-- [x] `app/sitemap.ts` → `/api/public/blog-posts` + `/api/public/tenants` (Go: missing)
+- [x] `app/sitemap.ts` → `/api/public/blog-posts` (✅ Go) + `/api/public/tenants` (Go: missing)
 - [ ] `app/(public-service)/support/page.tsx` → `/api/public/tickets`; still uses `auth()` stub (low traffic)
 
 ### Super-admin panel — 🔴 BLOCKED on auth model

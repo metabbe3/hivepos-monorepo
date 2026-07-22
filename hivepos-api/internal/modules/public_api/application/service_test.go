@@ -35,6 +35,14 @@ func (f *fakeRepo) CreatePickupRequest(_ context.Context, _ domain.PickupInput) 
 	return f.pickupID, nil
 }
 
+func (f *fakeRepo) FindPublishedBlogPosts(_ context.Context) ([]*domain.PublicBlogPost, error) {
+	return nil, nil
+}
+
+func (f *fakeRepo) FindPublishedBlogPostBySlug(_ context.Context, _ string) (*domain.PublicBlogPost, error) {
+	return nil, nil
+}
+
 func TestListBranches_RequiresSlug(t *testing.T) {
 	if _, err := application.NewService(&fakeRepo{}).ListBranches(context.Background(), ""); err == nil {
 		t.Fatal("empty slug must error")

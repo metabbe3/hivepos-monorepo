@@ -16,6 +16,8 @@ type Repository interface {
 	CreateSupportTicket(ctx context.Context, input domain.TicketInput) (string, error)
 	FindOrderByNumber(ctx context.Context, orderNumber, phoneLast4 string) (*domain.PublicOrder, error)
 	CreatePickupRequest(ctx context.Context, input domain.PickupInput) (string, error)
+	FindPublishedBlogPosts(ctx context.Context) ([]*domain.PublicBlogPost, error)
+	FindPublishedBlogPostBySlug(ctx context.Context, slug string) (*domain.PublicBlogPost, error)
 }
 
 // Service implements the public-API use cases (read-only catalog + public submissions).
@@ -102,4 +104,25 @@ func (s *Service) GetPublicTenant(ctx context.Context, slug string) (*domain.Pub
 		return nil, fmt.Errorf("finding public tenant: %w", err)
 	}
 	return t, nil
+}
+
+// ListBlogPosts returns all published posts (newest first) for the public blog + sitemap.
+func (s *Service) ListBlogPosts(ctx context.Context) ([]*domain.PublicBlogPost, error) {
+	posts, err := s.Repo.FindPublishedBlogPosts(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("finding published blog posts: %w", err)
+	}
+	return posts, nil
+}
+
+// GetBlogPost returns a single published post by slug. nil → not found / unpublished.
+func (s *Service) GetBlogPost(ctx context.Context, slug string) (*domain.PublicBlogPost, error) {
+	if slug == "" {
+		return nil, fmt.Errorf("slug is required")
+	}
+	p, err := s.Repo.FindPublishedBlogPostBySlug(ctx, slug)
+	if err != nil {
+		return nil, fmt.Errorf("finding published blog post: %w", err)
+	}
+	return p, nil
 }

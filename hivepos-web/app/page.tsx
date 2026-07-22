@@ -18,6 +18,20 @@ export const metadata: Metadata = {
   description:
     "Aplikasi kasir laundry termurah untuk UMKM Indonesia. Browser-native, tanpa install. Kiloan, satuan, WhatsApp order, multi-outlet. Gratis 1 outlet. Alternatif Moka POS mulai Rp 49K/outlet.",
   alternates: { canonical: "/" },
+  openGraph: {
+    title: "hivePOS — Kasir Laundry Online",
+    description:
+      "Aplikasi kasir laundry termurah untuk UMKM Indonesia. Browser-native, tanpa install. Kiloan, satuan, WhatsApp order, multi-outlet. Gratis 1 outlet.",
+    url: "https://hivepos.id",
+    type: "website",
+    locale: "id_ID",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "hivePOS — Kasir Laundry Online",
+    description:
+      "Aplikasi kasir laundry termurah untuk UMKM Indonesia. Browser-native, tanpa install.",
+  },
 };
 
 const faqJsonLd = {

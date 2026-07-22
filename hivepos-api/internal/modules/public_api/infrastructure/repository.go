@@ -319,3 +319,68 @@ func (r *PgPublicRepository) FindPublicTenantBySlug(ctx context.Context, slug st
 	}
 	return pt, rows.Err()
 }
+
+const publicBlogPostColumns = `slug, title, description, keywords, content, "coverImage", "publishedAt"`
+
+func scanPublicBlogPost(rows interface {
+	Scan(dest ...interface{}) error
+}) (*domain.PublicBlogPost, error) {
+	p := &domain.PublicBlogPost{}
+	var keywords, coverImage sql.NullString
+	var publishedAt sql.NullTime
+	if err := rows.Scan(&p.Slug, &p.Title, &p.Description, &keywords, &p.Content, &coverImage, &publishedAt); err != nil {
+		return nil, err
+	}
+	if keywords.Valid {
+		k := keywords.String
+		p.Keywords = &k
+	}
+	if coverImage.Valid {
+		c := coverImage.String
+		p.CoverImage = &c
+	}
+	if publishedAt.Valid {
+		t := publishedAt.Time
+		p.PublishedAt = &t
+	}
+	return p, nil
+}
+
+// FindPublishedBlogPosts returns all published posts, newest first. For the public blog list + sitemap.
+func (r *PgPublicRepository) FindPublishedBlogPosts(ctx context.Context) ([]*domain.PublicBlogPost, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT `+publicBlogPostColumns+`
+		FROM "BlogPost"
+		WHERE published = true
+		ORDER BY "publishedAt" DESC NULLS LAST, "createdAt" DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("querying published blog posts: %w", err)
+	}
+	defer rows.Close()
+
+	var list []*domain.PublicBlogPost
+	for rows.Next() {
+		p, err := scanPublicBlogPost(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scanning published blog post: %w", err)
+		}
+		list = append(list, p)
+	}
+	return list, rows.Err()
+}
+
+// FindPublishedBlogPostBySlug returns a single published post by slug. nil → not found / unpublished.
+func (r *PgPublicRepository) FindPublishedBlogPostBySlug(ctx context.Context, slug string) (*domain.PublicBlogPost, error) {
+	row := r.db.QueryRowContext(ctx, `
+		SELECT `+publicBlogPostColumns+`
+		FROM "BlogPost"
+		WHERE published = true AND slug = $1`, slug)
+	p, err := scanPublicBlogPost(row)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("finding published blog post by slug: %w", err)
+	}
+	return p, nil
+}

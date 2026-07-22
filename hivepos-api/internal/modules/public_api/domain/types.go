@@ -92,6 +92,18 @@ type PublicServiceGroup struct {
 	Name string `json:"name"`
 }
 
+// PublicBlogPost is the public blog view — internal fields (id, published, authorId,
+// timestamps) are stripped. Matches the FE BlogPost interface + openapi contract.
+type PublicBlogPost struct {
+	Slug        string     `json:"slug"`
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	Keywords    *string    `json:"keywords"`
+	Content     string     `json:"content"`
+	CoverImage  *string    `json:"coverImage"`
+	PublishedAt *time.Time `json:"publishedAt"`
+}
+
 // TicketInput is the DTO for creating a support ticket (tenantSlug optional).
 type TicketInput struct {
 	Name       string  `json:"name"`

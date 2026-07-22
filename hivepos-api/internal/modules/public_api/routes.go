@@ -34,6 +34,8 @@ func (m *Module) Register(r chi.Router) {
 	r.Post("/tickets", m.createTicket)
 	r.Get("/orders/track", m.trackOrder)
 	r.Post("/pickup-requests", m.createPickupRequest)
+	r.Get("/blog-posts", m.listBlogPosts)
+	r.Get("/blog-posts/{slug}", m.getBlogPost)
 }
 
 // publicTenant returns the public website payload (identity + settings + branches) by slug.
@@ -168,4 +170,36 @@ func (m *Module) createPickupRequest(w http.ResponseWriter, req *http.Request) {
 		"requestId": id,
 		"status":    "PENDING",
 	})
+}
+
+// listBlogPosts returns all published posts (newest first) — public blog list + sitemap.
+func (m *Module) listBlogPosts(w http.ResponseWriter, req *http.Request) {
+	posts, err := m.svc.ListBlogPosts(req.Context())
+	if err != nil {
+		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if posts == nil {
+		posts = []*domain.PublicBlogPost{}
+	}
+	apphttp.Success(w, posts)
+}
+
+// getBlogPost returns a single published post by slug.
+func (m *Module) getBlogPost(w http.ResponseWriter, req *http.Request) {
+	slug := chi.URLParam(req, "slug")
+	if slug == "" {
+		apphttp.ValidationError(w, "slug is required")
+		return
+	}
+	p, err := m.svc.GetBlogPost(req.Context(), slug)
+	if err != nil {
+		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if p == nil {
+		apphttp.NotFoundError(w, "Blog post not found")
+		return
+	}
+	apphttp.Success(w, p)
 }

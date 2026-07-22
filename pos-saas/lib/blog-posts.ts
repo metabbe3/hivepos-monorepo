@@ -318,6 +318,92 @@ export const BLOG_POSTS: BlogPost[] = [
       },
     ],
   },
+  {
+    slug: "cara-memulai-usaha-laundry-kiloan",
+    title:
+      "Cara Memulai Usaha Laundry Kiloan 2026: Modal, Harga, dan SOP Lengkap",
+    description:
+      "Panduan lengkap memulai usaha laundry kiloan 2026: modal awal, harga cuci per kg, peralatan minimal, SOP harian, dan tips memilih aplikasi kasir laundry. Buat dari rumah, mulai Rp jutaan.",
+    keywords:
+      "cara memulai usaha laundry, cara buka usaha laundry kiloan, modal usaha laundry, harga cuci kiloan, tips bisnis laundry, aplikasi kasir laundry",
+    publishedAt: "2026-07-22",
+    readTime: "8 menit",
+    sections: [
+      {
+        heading: "Kenapa Usaha Laundry Kiloan Masih Menjanjikan di 2026?",
+        body: [
+          "Bisnis laundry kiloan terus tumbuh karena dua alasan sederhana: orang makin sibuk dan lahan untuk menjemur baju makin sempit, terutama di kos dan apartemen perkotaan. Permintaannya berulang — pelanggan mencuci setiap minggu, bukan sekali beli.",
+          "Dengan modal yang relatif kecil dibanding usaha kuliner atau retail, laundry kiloan bisa dimulai dari rumah. Tapi untung atau tidaknya sangat bergantung pada disiplin operasional, harga per kg yang tepat, dan pencatatan yang rapi. Banyak yang gagal bukan karena tidak ada pelanggan, melainkan karena harga salah atau keuangan tidak terkontrol.",
+        ],
+      },
+      {
+        heading: "Modal Awal Usaha Laundry Kiloan",
+        body: [
+          "Modal terbesar adalah mesin. Berikut estimasi modal awal untuk laundry kiloan skala rumahan (kapasitas 8–10 kg per mesin) pada 2026. Angka bersifat indikatif dan bervariasi tergantung merek, kondisi baru/bekas, serta lokasi:",
+          "Mesin cuci (1–2 unit, kapasitas 8–10 kg): Rp 2.500.000 – Rp 5.000.000. Mesin pengering atau dryer: Rp 3.000.000 – Rp 5.000.000 (opsional di awal, sangat membantu di musim hujan). Setrika uap + meja setrika: Rp 1.000.000 – Rp 2.000.000. Timbangan digital: Rp 200.000 – Rp 350.000. Rak jemur dan keranjang: Rp 400.000 – Rp 700.000. Stok awal deterjen, pewangi, dan plastik (1 bulan): Rp 500.000 – Rp 1.500.000.",
+          "Total modal awal realistis berkisar Rp 8.000.000 – Rp 15.000.000. Anda bisa menekan biaya dengan memakai mesin cuci yang sudah ada di rumah atau membeli peralatan bekas berkualitas. Dryer boleh ditunda dulu jika tempat Anda cukup untuk menjemur.",
+        ],
+      },
+      {
+        heading: "Harga Cuci Kiloan dan Estimasi Omzet",
+        body: [
+          "Kisaran harga cuci kiloan (cuci + setrika) di Indonesia umumnya Rp 5.000 – Rp 7.000 per kg, tergantung kota dan layanan tambahan. Cuci saja (tanpa setrika) biasanya lebih murah, sekitar Rp 4.000 – Rp 5.000 per kg. Layanan express (selesai same-day) lazimnya 1,5–2× harga reguler.",
+          "Ilustrasi omzet harian: jika Anda mengelola 30 kg per hari dengan tarif rata-rata Rp 6.000/kg, omzet kotor sekitar Rp 180.000 per hari atau Rp 5,4 juta per bulan. Pada 50 kg/hari, omzet bulanan sekitar Rp 9 juta. Angka ini sebelum dipotong biaya listrik, air, deterjen, dan tenaga kerja.",
+          "Kunci profitabilitas bukan di tarif termahal, tapi di volume yang konsisten dan biaya operasional yang terkontrol. Pelanggan tetap (langganan mingguan) jauh lebih bernilai daripada pelanggan sesekali.",
+        ],
+      },
+      {
+        heading: "Titik Impas (BEP) dan Cara Menghitungnya",
+        body: [
+          "Titik impas adalah volume cucian minimum agar pendapatan menutup biaya. Hitung dulu biaya tetap bulanan: cicilan/karyawan, sewa tempat (jika ada), dan penyusutan mesin. Lalu biaya variabel per kg: listrik, air, deterjen, pewangi, dan plastik (umumnya Rp 1.500 – Rp 2.500 per kg).",
+          "Jika tarif Anda Rp 6.000/kg dan biaya variabel Rp 2.000/kg, maka margin per kg Rp 4.000. Untuk menutup biaya tetap Rp 2.000.000/bulan, Anda butuh sekitar 500 kg/bulan atau ~17 kg/hari. Di atas angka itu, sisanya jadi laba. Catat angka ini — tanpa perhitungan BEP, Anda bisa merasa sibuk padahal belum untung.",
+        ],
+      },
+      {
+        heading: "Peralatan Minimal untuk Memulai",
+        body: [
+          "Daftar peralatan inti: mesin cuci kapasitas besar, timbangan digital (wajib untuk transparansi harga per kg), setrika uap, meja setrika, rak jemur lipat, keranjang kotor dan bersih terpisah, serta timbangan dapur kecil untuk dosis deterjen.",
+          "Jangan lupa perlengkapan pendukung: label/penanda nomor order agar baju tidak tertukar, plastik pembungkus, dan parfum laundry. Penanda nomor order adalah detail kecil yang sangat menentukan kepuasan pelanggan — tertukar baju adalah keluhan nomor satu di industri ini.",
+        ],
+      },
+      {
+        heading: "SOP Harian Operasional Laundry",
+        body: [
+          "Penerapan SOP yang konsisten membedakan laundry yang bertahan dengan yang tutup. Alur standar: terima order → timbang dan catat berat → beri nomor order → pisahkan sesuai jenis kain dan warna → cuci sesuai program → keringkan → setrika → lipat dan rapikan dengan plastik → siap diambil/antar.",
+          "Setiap langkah harus tercatat: pelanggan, berat, layanan (kiloan/satuan/express), status, dan waktu selesai. Pencatatan manual di buku cepat berantakan. Itulah kenapa aplikasi kasir laundry yang menangani sistem kiloan menjadi penting — ia otomatis menghitung harga per kg, mencetak struk, dan melacak status order.",
+          "Lihat panduan praktis tentang [sistem kasir kiloan](/blog/sistem-kasir-kiloan-cara-kerja) untuk memahami alurnya, atau baca [5 fitur wajib aplikasi kasir laundry](/blog/fitur-wajib-aplikasi-kasir-laundry) sebelum memilih.",
+        ],
+      },
+      {
+        heading: "Memilih Aplikasi Kasir Laundry",
+        body: [
+          "Banyak pemula masih pakai buku atau Excel, lalu kewalahan saat order membludak. Aplikasi kasir laundry yang tepat menghemat waktu dan mengurangi kesalahan hitung. Yang perlu diperhatikan: dukungan harga per kiloan dan satuan dalam satu struk, cetak struk thermal, laporan penjualan harian, dan integrasi WhatsApp untuk konfirmasi order.",
+          "Pilih yang ringan dan tidak ribet dipasang — idealnya berjalan di browser sehingga bisa dibuka dari HP, laptop, atau komputer outlet tanpa instalasi. Sebelum memutuskan, baca panduan [cara memilih aplikasi kasir laundry](/blog/cara-memilih-aplikasi-kasir-laundry) agar tidak salah beli.",
+        ],
+      },
+      {
+        heading: "Tips Menarik dan Mempertahankan Pelanggan",
+        body: [
+          "Pelanggan datang karena nyaman, bukan sekadar murah. Berikut yang terbukti efektif: buat paket membership (misal bayar 10kg sekali bayar dapat diskon), tawarkan layanan antar-jemput untuk area dekat, kirim konfirmasi WhatsApp saat cucian diterima dan siap diambil, serta jaga kualitas lipatan dan wangi.",
+          "Foto bukti cucian selesai sebelum diantar juga meningkatkan kepercayaan — pelanggan tahu baju mereka ditangani dengan baik. Konsistensi waktu selesai lebih penting daripada janji cepat: kalau bilang 2 hari, pastikan 2 hari.",
+        ],
+      },
+      {
+        heading: "Kesalahan Umum yang Wajib Dihindari",
+        body: [
+          "Beberapa jebakan klasik: menetapkan harga terlalu murah demi bersaing lalu tidak menutup biaya, tidak mencatat order dengan rapi sehingga baju tertukar, mengabaikan biaya listrik dan air yang sebenarnya besar, serta tidak memisahkan uang pribadi dan uang usaha.",
+          "Hindari juga membeli peralatan berlebihan di awal. Mulai dengan kapasitas sesuai prediksi pelanggan, lalu naikkan bertahap setelah permintaan terbukti. Modal yang ditahan bisa dipakai untuk modal kerja dan promosi.",
+        ],
+      },
+      {
+        heading: "Langkah Pertama Hari Ini",
+        body: [
+          "Mulailah sederhana: hitung modal yang Anda miliki, survei tarif laundry di area Anda, siapkan peralatan minimal, dan tentukan SOP. Bila masih bingung soal pencatatan, coba aplikasi kasir laundry gratis untuk 1 outlet — Anda bisa langsung mempraktikkan sistem kiloan tanpa biaya.",
+          "hivePOS dirancang khusus untuk laundry kiloan dan satuan: browser-native tanpa instalasi, hitung harga per kg otomatis, cetak struk thermal, WhatsApp order, dan laporan penjualan. Daftar gratis dan jalankan outlet pertama Anda hari ini.",
+        ],
+      },
+    ],
+  },
 ];
 
 // Lightweight card view for the homepage "Artikel Terbaru" section — keeps the
