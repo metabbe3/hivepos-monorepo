@@ -116,9 +116,15 @@ func TestCreate_Validation(t *testing.T) {
 	testutil.AssertStatus(t, rec, http.StatusBadRequest)
 	testutil.AssertErrorCode(t, rec, "VALIDATION_ERROR")
 
+	// customerId not UUID-shaped (customers.id is gen_random_uuid()::text)
+	rec = do(t, h, testutil.RequestWithClaims(t, http.MethodPost, "/orders",
+		[]byte(`{"customerId":"not-a-uuid","items":[{"serviceId":"s1","quantity":1}]}`), c))
+	testutil.AssertStatus(t, rec, http.StatusBadRequest)
+	testutil.AssertErrorCode(t, rec, "VALIDATION_ERROR")
+
 	// missing items
 	rec = do(t, h, testutil.RequestWithClaims(t, http.MethodPost, "/orders",
-		[]byte(`{"customerId":"c1"}`), c))
+		[]byte(`{"customerId":"11111111-1111-1111-1111-111111111111"}`), c))
 	testutil.AssertStatus(t, rec, http.StatusBadRequest)
 
 	// bad JSON
@@ -132,7 +138,7 @@ func TestCreate_MissingBranch_Forbidden(t *testing.T) {
 	h := setupRouter(t, f)
 	// tenant present, branch empty → handler requires both
 	rec := do(t, h, testutil.RequestWithClaims(t, http.MethodPost, "/orders",
-		[]byte(`{"customerId":"c1","items":[{"serviceId":"s1","quantity":1}]}`), claimsWith("STAFF", "t1", "")))
+		[]byte(`{"customerId":"11111111-1111-1111-1111-111111111111","items":[{"serviceId":"s1","quantity":1}]}`), claimsWith("STAFF", "t1", "")))
 	testutil.AssertStatus(t, rec, http.StatusForbidden)
 }
 
@@ -140,7 +146,7 @@ func TestCreate_Happy(t *testing.T) {
 	f := &rfake{orders: map[string]*domain.Order{}}
 	h := setupRouter(t, f)
 	rec := do(t, h, testutil.RequestWithClaims(t, http.MethodPost, "/orders",
-		[]byte(`{"customerId":"c1","items":[{"serviceId":"s1","quantity":2}]}`), claimsWith("STAFF", "t1", "b1")))
+		[]byte(`{"customerId":"11111111-1111-1111-1111-111111111111","items":[{"serviceId":"s1","quantity":2}]}`), claimsWith("STAFF", "t1", "b1")))
 	testutil.AssertStatus(t, rec, http.StatusCreated)
 }
 

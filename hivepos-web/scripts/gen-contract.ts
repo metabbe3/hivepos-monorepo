@@ -59,8 +59,11 @@ function run() {
   // 2. MD per domain.
   const spec = yaml.load(readFileSync(SPEC_PATH, "utf8")) as Spec;
   if (!existsSync(MD_DIR)) mkdirSync(MD_DIR, { recursive: true });
-  // clear stale MD
-  for (const f of readdirSync(MD_DIR)) if (f.endsWith(".md")) unlinkSync(resolve(MD_DIR, f));
+  // clear stale MD — but preserve hand-authored docs (gen only writes <tag>.md + README.md).
+  // ponytail: hardcoded authored set — extend if more hand-written docs land in docs/contracts/.
+  const AUTHORED = new Set(["BACKFILL.md", "AUDIT.md"]);
+  for (const f of readdirSync(MD_DIR))
+    if (f.endsWith(".md") && !AUTHORED.has(f)) unlinkSync(resolve(MD_DIR, f));
 
   const byTag: Record<string, any[]> = {};
   for (const [path, methods] of Object.entries(spec.paths ?? {})) {

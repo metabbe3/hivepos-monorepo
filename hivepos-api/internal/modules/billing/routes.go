@@ -134,6 +134,12 @@ func (m *Module) checkout(w http.ResponseWriter, req *http.Request) {
 		apphttp.ValidationError(w, "planTier is required")
 		return
 	}
+	switch input.PlanTier {
+	case "", "FREE", "GROWTH", "PRO": // "" falls back to planId (back-compat)
+	default:
+		apphttp.ValidationError(w, "planTier must be one of FREE, GROWTH, PRO")
+		return
+	}
 
 	result, err := m.svc.Checkout(req.Context(), input, tenantID)
 	if err != nil {

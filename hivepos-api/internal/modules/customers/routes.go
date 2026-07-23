@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"regexp"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hivepos/api/internal/middleware"
@@ -11,7 +12,12 @@ import (
 	"github.com/hivepos/api/internal/modules/customers/infrastructure"
 	"github.com/hivepos/api/internal/shared/apperror"
 	apphttp "github.com/hivepos/api/internal/shared/http"
+	"github.com/hivepos/api/internal/shared/validate"
 )
+
+// phoneRx mirrors CustomerCreateInput.phone in the OpenAPI contract — the FE does
+// not normalize, so the backend must accept the same permissive shape (no 62-prefix).
+var phoneRx = regexp.MustCompile(`^[0-9+\-\s]{6,}$`)
 
 type Module struct {
 	svc *application.Service
@@ -63,8 +69,15 @@ func (m *Module) create(w http.ResponseWriter, req *http.Request) {
 	if !decodeJSON(w, req, &input) {
 		return
 	}
-	if input.Name == "" {
-		apphttp.ValidationError(w, "name is required")
+	var v validate.V
+	v.Required("name", input.Name)
+	v.MinLen("name", input.Name, 2)
+	v.MaxLen("name", input.Name, 120)
+	if input.Phone != nil {
+		v.Match("phone", *input.Phone, phoneRx)
+	}
+	if err := v.Err(); err != nil {
+		apperror.Write(w, err)
 		return
 	}
 

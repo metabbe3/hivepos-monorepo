@@ -5,6 +5,7 @@ package validate
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/hivepos/api/internal/shared/apperror"
@@ -49,6 +50,23 @@ func (v *V) OneOf(field, value string, allowed ...string) {
 		}
 	}
 	v.add(field, fmt.Sprintf("%s must be one of %s", field, strings.Join(allowed, ", ")))
+}
+
+// MaxLen records an error if len(s) exceeds max.
+func (v *V) MaxLen(field, s string, max int) {
+	if len(s) > max {
+		v.add(field, fmt.Sprintf("%s must be at most %d characters", field, max))
+	}
+}
+
+// Match records an error if a non-empty value does not match rx.
+func (v *V) Match(field, value string, rx *regexp.Regexp) {
+	if value == "" {
+		return
+	}
+	if !rx.MatchString(value) {
+		v.add(field, field+" has an invalid format")
+	}
 }
 
 func (v *V) add(field, msg string) {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -17,6 +18,10 @@ import (
 	apphttp "github.com/hivepos/api/internal/shared/http"
 	"github.com/hivepos/api/internal/shared/pagination"
 )
+
+// uuidRx validates that an id is UUID-shaped. customers.id is gen_random_uuid()::text,
+// so a non-UUID customerId can never match — reject up front with a clear 400.
+var uuidRx = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
 // Module wires the orders domain: repository → service → HTTP handlers.
 type Module struct {
@@ -99,6 +104,10 @@ func (r *Module) create(w http.ResponseWriter, req *http.Request) {
 
 	if input.CustomerID == "" {
 		apphttp.ValidationError(w, "customerId is required")
+		return
+	}
+	if !uuidRx.MatchString(input.CustomerID) {
+		apphttp.ValidationError(w, "customerId must be a UUID")
 		return
 	}
 	if len(input.Items) == 0 {

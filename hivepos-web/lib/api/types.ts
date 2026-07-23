@@ -3545,8 +3545,9 @@ export interface components {
             /**
              * @description Plan tier to purchase (resolves to a Plan row).
              * @example GROWTH
+             * @enum {string}
              */
-            planTier: string;
+            planTier: "FREE" | "GROWTH" | "PRO";
             /** @description Outlet IDs to bill for. At least 1 required. */
             branchIds?: string[];
             /** @description Number of months to purchase (1–36). */
@@ -3634,6 +3635,7 @@ export interface components {
             notes?: string;
         };
         CreateOrderInput: {
+            /** Format: uuid */
             customerId: string;
             items: components["schemas"]["OrderItemInput"][];
             notes?: string;
@@ -4005,7 +4007,7 @@ export interface components {
         ExpenseCreateInput: {
             /**
              * Format: double
-             * @description Must be positive.
+             * @description Must be positive (> 0).
              */
             amount: number;
             description?: string | null;
@@ -4315,6 +4317,11 @@ export interface components {
         OrderListMeta: {
             total: number;
             page: number;
+            /**
+             * @description Resolved page size echoed back to the client.
+             * @default 20
+             */
+            limit: number;
             totalPages: number;
         };
         OrderPaymentDetail: {
@@ -4496,6 +4503,11 @@ export interface components {
             /** Format: int64 */
             total: number;
             page: number;
+            /**
+             * @description Resolved page size echoed back to the client.
+             * @default 20
+             */
+            limit: number;
             totalPages: number;
         };
         /**
