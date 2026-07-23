@@ -10,6 +10,7 @@ import { BrandMark } from "@/components/public/brand-logo";
 import { GoogleIcon } from "@/components/auth/google-icon";
 import { DynamicForm } from "@/lib/forms/dynamic-form";
 import { registerSchema } from "@/lib/forms/schemas";
+import { track } from "@/lib/analytics";
 
 function RegisterForm() {
   const router = useRouter();
@@ -87,6 +88,9 @@ function RegisterForm() {
           ...(googleId ? { googleId } : {}),
         },
       });
+
+      // Conversion: a tenant was created (60-day trial). Tracked only if GA4 is on.
+      track("register_trial_started", { tier: trialTier, flow: isGoogleFlow ? "google" : "email" });
 
       if (isGoogleFlow) {
         // Google flow: re-authenticate via Google OAuth → auto-login → dashboard.
