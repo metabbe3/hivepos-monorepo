@@ -22,3 +22,6 @@ test-results/
 *.log
 npm-debug.log*
 server
+
+# Contract backfill fragments (transient; merged into openapi.yaml by scripts/merge-contracts.ts)
+contracts/_staging/

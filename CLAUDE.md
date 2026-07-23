@@ -59,14 +59,16 @@ Re-index after structural changes. The index lives in `.codebase-rag/index.json`
 
 ## Feature workflow — contract first, parallel agents
 
+**Automated by the `/feature` skill** (`.claude/skills/hivepos-feature/SKILL.md`) — invoke it for any feature touching **both** `hivepos-api` and `hivepos-web`. It enforces branch-per-feature, contract-PRD first, parallel isolated BE+FE, and merge-only-when-green. Specialized agents live in `.claude/agents/`: `hivepos-contract`, `hivepos-backend`, `hivepos-frontend`. For debugging, `/debug` (`.claude/skills/hivepos-debug/`) checks known pitfalls first, then locates source via `codebase-rag debug`/`symbol`/`callers`/`callees` + LSP — token-cheap. Manual steps if not using the skill:
+
 For any feature touching **both** `hivepos-api` and `hivepos-web`:
 
-1. **Contract first.** Add/update the endpoint(s) in `hivepos-web/contracts/openapi.yaml` (single source of truth — see `hivepos-web/CLAUDE.md`), then `npm run gen:contract` (regenerates `lib/api/types.ts` + `docs/contracts/*.md`). Commit the contract on its own branch **before** any BE/FE feature code.
-2. **Dispatch two agents in parallel**, each branched off `main` (see Git workflow above):
-   - **Backend agent** → implements the Go route(s) in `hivepos-api` against the contract: correct response envelope, exact field names. Verify by `curl` + JSON-key check.
-   - **Frontend agent** → consumes the regenerated types in `hivepos-web`, wires `apiFetch`. No hand-written response shapes.
+1. **Branch + contract first.** `git checkout -b feat/<domain>-<thing>` off `main`. Add/update the endpoint(s) in `hivepos-web/contracts/openapi.yaml` (single source of truth — see `hivepos-web/CLAUDE.md`; for batch backfill write a `contracts/_staging/<domain>.yaml` fragment + `npx tsx scripts/merge-contracts.ts`), then `npm run gen:contract` (regenerates `lib/api/types.ts` + `docs/contracts/*.md`). Commit the contract on the branch **before** any BE/FE feature code.
+2. **Dispatch the backend + frontend agents in parallel**, each branched off `main` and run in an isolated **worktree** (`isolation: "worktree"`) so builds/tests don't collide:
+   - **`hivepos-backend`** → implements the Go route(s) in `hivepos-api` against the contract: correct response envelope, exact field names. Verify by `curl` + JSON-key check + `go vet/test/build`.
+   - **`hivepos-frontend`** → consumes the regenerated types in `hivepos-web`, wires `apiFetch`. No hand-written response shapes. Verify `tsc/build/test`.
    - Both read `contracts/openapi.yaml` as the shared spec — neither invents fields.
-3. **Merge when verified.** Each branch lands on `main` only after it builds and the contract round-trips (FE generated types match the BE response). Land the contract commit first or together with the feature.
+3. **Merge only when green.** Both gates (BE curl+vet/test/build, FE tsc/build/test + contract round-trip) + a manual/browser verify on the changed path. Then squash-merge to `main`, delete the branch.
 
 ## Modes (global plugins — active across all repos)
 

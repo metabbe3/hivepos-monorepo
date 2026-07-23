@@ -27,6 +27,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -37,7 +38,11 @@ const (
 	RecallN    = 25
 	K1         = 1.2
 	B          = 0.75
-	IndexFmt   = 2
+	IndexFmt   = 3
+	// String-literal debug index: only literals at least this long are indexed
+	// (filters out keys/short tokens). See extractStrings + the `debug` command.
+	MinStringLen = 8
+	MaxStringLen = 240
 )
 
 var SrcDirs = []string{"cmd", "internal"}
@@ -67,6 +72,17 @@ type Index struct {
 	Format  int                 `json:"format"`
 	Files   map[string]FileMeta `json:"files"`
 	Symbols map[string]Symbol   `json:"symbols"`
+	// String literals extracted for the `debug "<text>"` command (error msgs,
+	// log lines, validation messages). Delta-synced per file like Symbols.
+	Strings []StrEntry `json:"strings,omitempty"`
+}
+
+// StrEntry is one indexed string literal — powers `debug`, the token-cheap
+// "where does this error/log string come from?" lookup.
+type StrEntry struct {
+	File string `json:"file"`
+	Line int    `json:"line"`
+	Text string `json:"text"`
 }
 
 type FileMeta struct {
@@ -258,6 +274,188 @@ func extractSymbols(relPath, content string) []Symbol {
 	return out
 }
 
+// ── String-literal extraction (for the `debug` command) ──
+
+// extractStrings pulls double-quoted/backtick string literals (len >= MinStringLen)
+// for the `debug "<text>"` lookup. Imports are skipped. Returns deduped per file.
+func extractStrings(relPath, content string) []StrEntry {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, relPath, content, parser.ParseComments)
+	if err != nil {
+		return nil
+	}
+	var out []StrEntry
+	seen := make(map[string]bool)
+	for _, decl := range f.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if ok && gen.Tok == token.IMPORT {
+			continue
+		}
+		ast.Inspect(decl, func(n ast.Node) bool {
+			lit, ok := n.(*ast.BasicLit)
+			if !ok || lit.Kind != token.STRING {
+				return true
+			}
+			v, err := strconv.Unquote(lit.Value)
+			if err != nil {
+				return true
+			}
+			v = strings.TrimSpace(v)
+			if len(v) < MinStringLen {
+				return true
+			}
+			if len(v) > MaxStringLen {
+				v = v[:MaxStringLen]
+			}
+			if seen[v] {
+				return true
+			}
+			seen[v] = true
+			out = append(out, StrEntry{File: relPath, Line: fset.Position(lit.Pos()).Line, Text: v})
+			return true
+		})
+	}
+	return out
+}
+
+// ── Symbol lookup + call-graph edges (symbol / callers / callees) ──
+
+func findSymbolsByName(name string) []Symbol {
+	q := strings.ToLower(strings.TrimSpace(name))
+	var out []Symbol
+	for _, s := range loadSymbols() {
+		ln := strings.ToLower(s.Name)
+		if ln == q || strings.HasSuffix(ln, "."+q) {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+func symbolLookup(name string, summarize bool) {
+	targets := findSymbolsByName(name)
+	if len(targets) == 0 {
+		fmt.Printf("No symbol named \"%s\".\n", name)
+		return
+	}
+	printHits(targets, name, summarize)
+}
+
+// printHits renders a symbol list with callers/callees edges (used by symbol +
+// exact lookups). byID lookup is local — callers/callees ids are stable across
+// the run since the index is loaded fresh.
+func printHits(syms []Symbol, label string, summarize bool) {
+	byID := make(map[string]Symbol)
+	for _, s := range loadSymbols() {
+		byID[s.ID] = s
+	}
+	fmt.Printf("\n%d symbol(s) for \"%s\":\n\n", len(syms), label)
+	for _, s := range syms {
+		fmt.Printf("▸ %s %s  —  %s:%d-%d\n", s.Kind, s.Name, s.FilePath, s.StartLine, s.EndLine)
+		if strings.TrimSpace(s.Signature) != "" {
+			fmt.Printf("  sig: %s\n", strings.TrimSpace(s.Signature))
+		}
+		if summarize {
+			fmt.Printf("  %s\n", sliceCode(s))
+		} else if s.Summary != "" {
+			fmt.Printf("  %s\n", s.Summary)
+		}
+		edgePrint := func(ids []string, arrow string, n int) {
+			if len(ids) == 0 {
+				return
+			}
+			var parts []string
+			for _, id := range ids[:min(n, len(ids))] {
+				if r, ok := byID[id]; ok {
+					parts = append(parts, fmt.Sprintf("%s %s %s:%d", r.Kind, r.Name, r.FilePath, r.StartLine))
+				}
+			}
+			fmt.Printf("  %s %s\n", arrow, strings.Join(parts, "  ,  "))
+		}
+		edgePrint(s.CalledBy, "← callers:", 3)
+		edgePrint(s.Calls, "→ callees:", 3)
+		fmt.Println()
+	}
+}
+
+func edges(name, field, arrow, verb string) {
+	targets := findSymbolsByName(name)
+	if len(targets) == 0 {
+		fmt.Printf("No symbol named \"%s\".\n", name)
+		return
+	}
+	byID := make(map[string]Symbol)
+	for _, s := range loadSymbols() {
+		byID[s.ID] = s
+	}
+	refIDs := make(map[string]bool)
+	for _, t := range targets {
+		var list []string
+		switch field {
+		case "called_by":
+			list = t.CalledBy
+		case "calls":
+			list = t.Calls
+		}
+		for _, id := range list {
+			refIDs[id] = true
+		}
+	}
+	fmt.Println()
+	for _, t := range targets {
+		fmt.Printf("▸ %s %s  %s:%d\n", t.Kind, t.Name, t.FilePath, t.StartLine)
+	}
+	fmt.Printf("  %s %d symbol(s):\n", verb, len(refIDs))
+	for id := range refIDs {
+		r, ok := byID[id]
+		if !ok {
+			continue
+		}
+		fmt.Printf("    %s %s %s  %s:%d\n", arrow, r.Kind, r.Name, r.FilePath, r.StartLine)
+	}
+}
+
+// debugSearch: token-cheap "where does this text live?" — substring match over
+// indexed string literals (error msgs, log lines, validation text). No LLM,
+// no file reads — one index lookup.
+func debugSearch(text string) {
+	idx := loadIndex()
+	q := strings.ToLower(strings.TrimSpace(text))
+	type hit struct {
+		se StrEntry
+	}
+	var hits []StrEntry
+	for _, se := range idx.Strings {
+		if strings.Contains(strings.ToLower(se.Text), q) {
+			hits = append(hits, se)
+		}
+	}
+	if len(hits) == 0 {
+		fmt.Printf("No string literal containing \"%s\".\n", text)
+		return
+	}
+	// ponytail: stable file/line order over score — debug wants determinism, not ranking.
+	sort.Slice(hits, func(i, j int) bool {
+		if hits[i].File == hits[j].File {
+			return hits[i].Line < hits[j].Line
+		}
+		return hits[i].File < hits[j].File
+	})
+	limit := len(hits)
+	if limit > 30 {
+		limit = 30
+	}
+	fmt.Printf("\n%d string(s) containing \"%s\" (showing %d):\n\n", len(hits), text, limit)
+	for _, se := range hits[:limit] {
+		preview := se.Text
+		if len(preview) > 120 {
+			preview = preview[:120] + "…"
+		}
+		oneLine := strings.ReplaceAll(strings.ReplaceAll(preview, "\n", " "), "\t", " ")
+		fmt.Printf("  %s:%d  %s\n", se.File, se.Line, oneLine)
+	}
+}
+
 // ── Call Graph ──
 
 func recomputeCalls(syms []Symbol) {
@@ -416,6 +614,12 @@ func sliceCode(s Symbol) string {
 func buildIndex() {
 	os.MkdirAll(StoreDir, 0755)
 	existing := loadIndex()
+	// Format bump (extractor/index-shape change) → discard, force full rebuild.
+	// Without this, an old index is reused verbatim and new fields (Strings)
+	// never get populated for unchanged files.
+	if existing.Format != IndexFmt {
+		existing = Index{Files: make(map[string]FileMeta), Symbols: make(map[string]Symbol)}
+	}
 	var files []string
 	for _, d := range SrcDirs {
 		walk(d, &files)
@@ -423,6 +627,7 @@ func buildIndex() {
 
 	symbols := make(map[string]Symbol)
 	fileCache := make(map[string]FileMeta)
+	var strEntries []StrEntry
 	changed := 0
 
 	for _, file := range files {
@@ -437,9 +642,15 @@ func buildIndex() {
 		fileCache[rel] = FileMeta{Mtime: info.ModTime().Unix(), Hash: hash}
 
 		if prev, ok := existing.Files[rel]; ok && prev.Hash == hash {
+			// unchanged → reuse this file's symbols + strings (delta sync)
 			for _, s := range existing.Symbols {
 				if s.FilePath == rel {
 					symbols[s.ID] = s
+				}
+			}
+			for _, se := range existing.Strings {
+				if se.File == rel {
+					strEntries = append(strEntries, se)
 				}
 			}
 			continue
@@ -449,6 +660,7 @@ func buildIndex() {
 			s.FileHash = hash
 			symbols[s.ID] = s
 		}
+		strEntries = append(strEntries, extractStrings(rel, string(content))...)
 	}
 
 	all := make([]Symbol, 0, len(symbols))
@@ -460,7 +672,7 @@ func buildIndex() {
 		symbols[s.ID] = s
 	}
 
-	idx := Index{Format: IndexFmt, Files: fileCache, Symbols: symbols}
+	idx := Index{Format: IndexFmt, Files: fileCache, Symbols: symbols, Strings: strEntries}
 	data, _ := json.MarshalIndent(idx, "", "  ")
 	os.WriteFile(IndexPath, data, 0644)
 
@@ -468,7 +680,7 @@ func buildIndex() {
 	for _, s := range all {
 		byKind[s.Kind]++
 	}
-	fmt.Printf("✓ Indexed %d files → %d symbols (%d changed).\n", len(files), len(all), changed)
+	fmt.Printf("✓ Indexed %d files → %d symbols + %d strings (%d changed).\n", len(files), len(all), len(strEntries), changed)
 	for _, kv := range sortedMap(byKind) {
 		fmt.Printf("  %s=%d", kv.K, kv.V)
 	}
@@ -677,41 +889,68 @@ func min(a, b int) int {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println(`codebase-rag (Go) — structural code index
+		fmt.Println(`codebase-rag (Go) — structural code index + string-debug
 usage:
   go run scripts/codebase-rag.go index
   go run scripts/codebase-rag.go query "<term>" [-n 10] [--summarize]
+  go run scripts/codebase-rag.go symbol <name> [-n 10] [--summarize]
+  go run scripts/codebase-rag.go callers <name>            # who references it (←)
+  go run scripts/codebase-rag.go callees <name>            # what it references (→)
+  go run scripts/codebase-rag.go debug "<text>"            # find string literals (errors/logs)
   go run scripts/codebase-rag.go stats`)
 		return
 	}
 
 	cmd := os.Args[1]
+	args := os.Args[2:]
+	k := 10
+	summarize := false
+	var positional []string
+	for i := 0; i < len(args); i++ {
+		if args[i] == "-n" && i+1 < len(args) {
+			fmt.Sscanf(args[i+1], "%d", &k)
+			i++
+		} else if args[i] == "--summarize" {
+			summarize = true
+		} else {
+			positional = append(positional, args[i])
+		}
+	}
+	term := strings.Join(positional, " ")
+
 	switch cmd {
 	case "index":
 		buildIndex()
 	case "query":
-		if len(os.Args) < 3 {
+		if term == "" {
 			fmt.Println("usage: query <term>")
 			return
 		}
-		k := 10
-		summarize := false
-		term := ""
-		args := os.Args[2:]
-		for i := 0; i < len(args); i++ {
-			if args[i] == "-n" && i+1 < len(args) {
-				fmt.Sscanf(args[i+1], "%d", &k)
-				i++
-			} else if args[i] == "--summarize" {
-				summarize = true
-			} else {
-				if term != "" {
-					term += " "
-				}
-				term += args[i]
-			}
-		}
 		query(term, k, summarize)
+	case "symbol":
+		if term == "" {
+			fmt.Println("usage: symbol <name>")
+			return
+		}
+		symbolLookup(term, summarize)
+	case "callers":
+		if term == "" {
+			fmt.Println("usage: callers <name>")
+			return
+		}
+		edges(term, "called_by", "←", "referenced by")
+	case "callees":
+		if term == "" {
+			fmt.Println("usage: callees <name>")
+			return
+		}
+		edges(term, "calls", "→", "calls")
+	case "debug":
+		if term == "" {
+			fmt.Println("usage: debug <text>")
+			return
+		}
+		debugSearch(term)
 	case "stats":
 		printStats()
 	default:

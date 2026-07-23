@@ -1,9 +1,30 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeAll } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DynamicForm } from "./dynamic-form";
 import type { FormSchema } from "./types";
+
+// jsdom 29 under vitest 4 exposes `window.localStorage` as a non-Storage object
+// (no getItem/setItem). apiFetch reads the JWT via window.localStorage.getItem,
+// so the built-in fetch path crashes before the mocked fetch runs. Provide a
+// minimal in-memory Storage so apiFetch is testable without a real browser.
+beforeAll(() => {
+  if (typeof window !== "undefined" && typeof window.localStorage?.getItem !== "function") {
+    const store = new Map<string, string>();
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => void store.set(k, String(v)),
+        removeItem: (k: string) => void store.delete(k),
+        clear: () => store.clear(),
+        key: (i: number) => Array.from(store.keys())[i] ?? null,
+        get length() { return store.size; },
+      },
+    });
+  }
+});
 
 // Mock next/navigation — useRouter.refresh()
 vi.mock("next/navigation", () => ({
@@ -47,13 +68,22 @@ afterEach(() => vi.clearAllMocks());
 
 describe("DynamicForm", () => {
   it("runs validate on blur and clears the error on fix", async () => {
+    // handleBlur only validates a field once it's been touched (or after a
+    // submit attempt) — otherwise an autofocused empty required field errors
+    // the moment another field is clicked (BUGS-E2E-FINDINGS #7). So the real
+    // user flow is: type an invalid value (touch) → blur (validate shows error)
+    // → fix → blur (error clears). Typing a real value (not "") is required:
+    // React skips onChange when the DOM value already equals the controlled
+    // value, so fireEvent.change({value:""}) never marks the field touched.
     const user = userEvent.setup();
     render(<DynamicForm schema={baseSchema} hideActions />);
 
     const emailInput = screen.getByLabelText(/^Email/);
+    await user.type(emailInput, "nope"); // invalid → marks touched
     fireEvent.blur(emailInput);
     await waitFor(() => expect(screen.getByText("Bad email")).toBeInTheDocument());
 
+    await user.clear(emailInput);
     await user.type(emailInput, "a@b.com");
     fireEvent.blur(emailInput);
     await waitFor(() => expect(screen.queryByText("Bad email")).not.toBeInTheDocument());

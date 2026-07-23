@@ -29,8 +29,13 @@ npm test               # vitest
 > **Feature work? Spec first** — write/update `docs/specs/<feature>.md` (from `_TEMPLATE.md`,
 > Given/When/Then) **before** code. See Non-negotiable #7.
 
-> **Navigation: RAG-first** — before grep/Read to *locate* code: `npx tsx scripts/codebase-rag.ts query "<term>"`.
-> Re-index after changes (`npm run rag:index`).
+> **Navigation: RAG-first** — before grep/Read to *locate* code:
+> `npx tsx scripts/codebase-rag.ts query "<term>"` (fuzzy), `symbol <Name>` (exact),
+> `callers <Name>` / `callees <Name>` (call graph), `debug "<text>"` (find the
+> source of an error/log/i18n string — token-cheap). Re-index after changes (`npm run rag:index`).
+> For debugging, the `/debug` skill checks known pitfalls first, then RAG/LSP.
+> For features touching both repos, the `/feature` skill runs the contract-first
+> flow (branch → contract-PRD → parallel BE+FE agents → merge-when-green).
 
 ## Stack at a glance
 
@@ -116,7 +121,9 @@ cookie set by the backend; same-origin (Caddy) so no CORS.
 |---|---|
 | `contracts/openapi.yaml` | Adding/changing any API endpoint (source of truth). |
 | `docs/contracts/*.md` | "What endpoints exist / what do they return?" (generated). |
+| `docs/contracts/BACKFILL.md` | Contract coverage ledger (domain × endpoints). |
 | `docs/sop/contract.md` | How the OpenAPI → types → MD pipeline works. |
+| `docs/sop/contract-first-feature.md` | Contract-first feature flow (→ `/feature` skill). |
 | `docs/sop/api-client.md` | How to call the API (`apiFetch`), auth, errors. |
 | `docs/sop/codebase-rag.md` | RAG navigation usage. |
 | `docs/sop/frontend.md` | Server/client component patterns. |

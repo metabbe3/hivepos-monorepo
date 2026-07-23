@@ -42,7 +42,7 @@ const STOP_NAMES = new Set([
 // Bump when the extractor or index shape changes. Delta sync is file-hash based,
 // so without this a new extractor never re-runs on unchanged files (the "0 files
 // changed" staleness). A mismatch discards the old index → full rebuild.
-const INDEX_FORMAT = 2;
+const INDEX_FORMAT = 3;
 
 export interface Param { name: string; type: string }
 export interface Symbol {
@@ -64,7 +64,22 @@ interface Index {
   format?: number;
   files: Record<string, { mtime: number; hash: string }>;
   symbols: Record<string, Symbol>;
+  // String literals extracted for the `debug "<text>"` command. Delta-synced per
+  // file like symbols.
+  strings?: StrEntry[];
 }
+
+// One indexed string literal — powers `debug`, the token-cheap
+// "where does this error/log string come from?" lookup.
+interface StrEntry {
+  file: string;
+  line: number;
+  text: string;
+}
+
+// String-literal debug index thresholds (mirror the Go RAG).
+const MIN_STRING_LEN = 8;
+const MAX_STRING_LEN = 240;
 
 // ── helpers ──────────────────────────────────────────────────────────────
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -234,6 +249,31 @@ export function extractSymbols(relPath: string, content: string): Symbol[] {
   return out;
 }
 
+// ── string-literal extraction (for the `debug` command) ───────────────────
+// Pulls string-literal text (len >= MIN_STRING_LEN) for the `debug "<text>"`
+// lookup. Skips import/export module specifiers. Deduped per file.
+export function extractStrings(relPath: string, content: string): StrEntry[] {
+  const sf = ts.createSourceFile(relPath, content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const out: StrEntry[] = [];
+  const seen = new Set<string>();
+  const lineOf = (pos: number) => sf.getLineAndCharacterOfPosition(pos).line + 1;
+
+  const visit = (node: ts.Node) => {
+    // skip import/export specifiers entirely
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) return;
+    if (ts.isStringLiteral(node)) {
+      const raw = node.text.trim();
+      if (raw.length >= MIN_STRING_LEN && !seen.has(raw)) {
+        seen.add(raw);
+        out.push({ file: relPath, line: lineOf(node.getStart(sf, false)), text: raw.slice(0, MAX_STRING_LEN) });
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  ts.forEachChild(sf, visit);
+  return out;
+}
+
 // ── called_by (incoming references, approx) ──────────────────────────────
 // For each symbol, find every OTHER symbol whose code references this one's
 // name. Incoming (who references me), per the blueprint's "called_by" field.
@@ -275,12 +315,13 @@ async function buildIndex(): Promise<void> {
   await mkdir(STORE_DIR, { recursive: true });
   const raw = await loadIndex();
   // Format bump (extractor/index-shape change) → discard, force full rebuild.
-  const existing = raw.format === INDEX_FORMAT ? raw : { files: {}, symbols: {} };
+  const existing: Index = raw.format === INDEX_FORMAT ? raw : { files: {}, symbols: {}, strings: [] };
   const files: string[] = [];
   for (const d of SRC_DIRS) (await walk(d)).forEach((f) => files.push(f));
 
   const symbols: Record<string, Symbol> = {};
   const fileCache: Record<string, { mtime: number; hash: string }> = {};
+  const strEntries: StrEntry[] = [];
   let changedFiles = 0;
 
   for (const file of files) {
@@ -292,24 +333,28 @@ async function buildIndex(): Promise<void> {
 
     const prev = existing.files[rel];
     if (prev && prev.hash === contentHash) {
-      // unchanged → reuse this file's existing symbols (delta sync)
+      // unchanged → reuse this file's existing symbols + strings (delta sync)
       for (const s of Object.values(existing.symbols)) {
         if (s.file_path === rel) symbols[s.id] = s;
+      }
+      for (const se of existing.strings ?? []) {
+        if (se.file === rel) strEntries.push(se);
       }
       continue;
     }
     changedFiles++;
     for (const s of extractSymbols(rel, content)) symbols[s.id] = s;
-    // (deleted files' symbols simply never get copied in → dropped)
+    strEntries.push(...extractStrings(rel, content));
+    // (deleted files' symbols/strings simply never get copied in → dropped)
   }
 
   const all = Object.values(symbols);
   recomputeCalledBy(all);
 
-  await writeFile(INDEX_PATH, JSON.stringify({ format: INDEX_FORMAT, files: fileCache, symbols }));
+  await writeFile(INDEX_PATH, JSON.stringify({ format: INDEX_FORMAT, files: fileCache, symbols, strings: strEntries }));
   const byKind: Record<string, number> = {};
   for (const s of all) byKind[s.kind] = (byKind[s.kind] ?? 0) + 1;
-  console.log(`✓ Indexed ${files.length} files → ${all.length} symbols (${changedFiles} file(s) changed).`);
+  console.log(`✓ Indexed ${files.length} files → ${all.length} symbols + ${strEntries.length} strings (${changedFiles} file(s) changed).`);
   console.log("  by kind:", Object.entries(byKind).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(", "));
 }
 
@@ -520,7 +565,26 @@ function stats(): void {
   for (const s of all) byKind[s.kind] = (byKind[s.kind] ?? 0) + 1;
   console.log(`files indexed: ${Object.keys(idx.files).length}`);
   console.log(`symbols: ${all.length}`);
+  console.log(`strings: ${idx.strings?.length ?? 0}`);
   console.log("by kind:", Object.entries(byKind).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(", "));
+}
+
+// debug: token-cheap "where does this text live?" — substring match over indexed
+// string literals (error messages, log lines, validation text). No LLM, no file
+// reads — one index lookup. Mirror of the Go RAG `debug` command.
+function debug(text: string): void {
+  const idx = loadIndexSync();
+  const q = text.toLowerCase().trim();
+  const hits = (idx.strings ?? []).filter((se) => se.text.toLowerCase().includes(q));
+  if (!hits.length) { console.log(`No string literal containing "${text}".`); return; }
+  hits.sort((a, b) => (a.file === b.file ? a.line - b.line : a.file < b.file ? -1 : 1));
+  const limit = Math.min(hits.length, 30);
+  console.log(`\n${hits.length} string(s) containing "${text}" (showing ${limit}):\n`);
+  for (const se of hits.slice(0, limit)) {
+    const preview = (se.text.length > 120 ? se.text.slice(0, 120) + "…" : se.text)
+      .replace(/\n/g, " ").replace(/\t/g, " ");
+    console.log(`  ${se.file}:${se.line}  ${preview}`);
+  }
 }
 
 // ── CLI ──────────────────────────────────────────────────────────────────
@@ -558,17 +622,22 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
       if (!rest.length) { console.log("usage: callees <name>"); break; }
       callees(rest[0]);
       break;
+    case "debug":
+      if (!rest.length) { console.log("usage: debug <text>"); break; }
+      debug(rest.join(" "));
+      break;
     case "stats":
       stats();
       break;
     default:
-      console.log(`codebase-rag — structural code index
+      console.log(`codebase-rag — structural code index + string-debug
 usage:
   npx tsx scripts/codebase-rag.ts index                 # build/update (SHA-256 delta sync)
   npx tsx scripts/codebase-rag.ts query "<term>" [-n 10] # lexical search
   npx tsx scripts/codebase-rag.ts symbol <name>          # exact-name lookup
   npx tsx scripts/codebase-rag.ts callers <name>         # who references it (←)
   npx tsx scripts/codebase-rag.ts callees <name>         # what it references (→)
+  npx tsx scripts/codebase-rag.ts debug "<text>"         # find string literals (errors/logs)
   npx tsx scripts/codebase-rag.ts stats                  # coverage`);
   }
 })();

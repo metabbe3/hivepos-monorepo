@@ -4,24 +4,7 @@
  */
 
 export interface paths {
-    "/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Liveness probe */
-        get: operations["getHealth"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/telemetry": {
+    "/attendance/clock": {
         parameters: {
             query?: never;
             header?: never;
@@ -31,14 +14,229 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Client-side event batch (errors persisted to ErrorLog)
-         * @description Accepts a batch of client-side events. Events with `type: "error"` (or
-         *     `level: "error"`) are persisted to `ErrorLog` so FE-only JS crashes show
-         *     up in the super-admin error-logs viewer; other events are accepted +
-         *     discarded (analytics placeholder). Rate-limited 100 events/min/user.
+         * Toggle a clock-in/out event
+         * @description Verifies the supplied PIN against the stored bcrypt hash, then toggles
+         *     a clock event. If the previous event was a `CLOCK_IN` on a prior day,
+         *     the stale session is auto-closed at end-of-day before opening a fresh
+         *     `CLOCK_IN` today. A wrong PIN returns 400 (the caller is already
+         *     authenticated — 401 would trip client auth handling).
          */
-        post: operations["postTelemetry"];
+        post: operations["clockAttendance"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List clock events
+         * @description Returns clock events as a bare array under `data` (unpaginated — the TS
+         *     endpoint exposes no `meta`). Supports filtering by `userId`, `from`,
+         *     `to`, and `branchId` (the last resolved from the auth context).
+         */
+        get: operations["listAttendanceEvents"];
+        put?: never;
+        /**
+         * Manually create a clock event
+         * @description Manager override — records an event directly without a PIN check.
+         *     `type` defaults to `CLOCK_IN` when omitted.
+         */
+        post: operations["createAttendanceEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/events/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The clock event ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a clock event */
+        delete: operations["deleteAttendanceEvent"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a clock event
+         * @description Edits an existing event's `type` and/or `timestamp`. Returns
+         *     `{ ok: true }` on success.
+         */
+        patch: operations["updateAttendanceEvent"];
+        trace?: never;
+    };
+    "/attendance/quick-staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create an attendance-only staff member
+         * @description Creates a staff user that exists only for PIN-based clocking (no login
+         *     credentials). `branchId` falls back to the auth context when omitted.
+         *     The PIN is hashed with bcrypt before storage; the hash is never
+         *     serialized back to the client.
+         */
+        post: operations["createQuickStaff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List staff eligible to clock
+         * @description Returns active staff members that have a PIN set, as a bare array under
+         *     `data`. Each item carries only `id` and `name` (the clock grid needs
+         *     nothing else). Branch context comes from the auth token.
+         */
+        get: operations["listAttendanceStaff"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List who is currently clocked in
+         * @description Per-staff today status: worked milliseconds (`todayMs`) and the open
+         *     clock-in `since` timestamp (null when clocked out). Scoped to the
+         *     tenant + branch from the auth context.
+         */
+        get: operations["listAttendanceStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/callback/google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Google OAuth callback (exchange code, mint JWT, redirect)
+         * @description Google redirects here with `?code&state`. Verifies the query `state`
+         *     against the signed `google_oauth_state` cookie (CSRF). If a valid
+         *     `google_link` cookie is present, links the Google ID to that user and
+         *     redirects to `/profile?linked=google`. Otherwise resolves/links-by-email
+         *     via `GoogleLogin` and mints a login JWT, redirecting to
+         *     `/login?googleToken=<jwt>`. If no account matches, redirects to
+         *     `/register?googleEmail=...&googleName=...&googleId=...`.
+         */
+        get: operations["googleOAuthCallback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Start Google OAuth (redirect to consent screen)
+         * @description Generates a random `state`, HMAC-signs it into a short-lived
+         *     `google_oauth_state` cookie, and `302`-redirects the browser to Google's
+         *     consent URL. Stashes the origin host in an `oauth_origin` cookie
+         *     (Domain-scoped across subdomains) so the callback can redirect back to
+         *     the tenant subdomain. The redirect_uri is always the platform domain
+         *     (Google Console registers a fixed set).
+         */
+        get: operations["startGoogleOAuth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/google/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start linking Google to the logged-in user
+         * @description Bearer-gated. Stashes a signed `google_link` cookie carrying the caller's
+         *     userID + state, then returns the Google consent URL. After Google
+         *     redirects back through `/auth/callback/google`, the callback detects the
+         *     link cookie and attaches the Google ID to this user (instead of logging
+         *     in).
+         */
+        post: operations["startGoogleLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/google/unlink": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove the Google link from the logged-in user
+         * @description Clears the caller's `googleId`/avatar so they can no longer authenticate via Google OAuth.
+         */
+        delete: operations["unlinkGoogle"];
         options?: never;
         head?: never;
         patch?: never;
@@ -61,7 +259,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/register": {
+    "/auth/logout": {
         parameters: {
             query?: never;
             header?: never;
@@ -70,8 +268,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Register a new tenant + owner, mint JWT */
-        post: operations["register"];
+        /**
+         * Clear all session cookies
+         * @description Drops the legacy `next-auth.session-token` and `__Secure-next-auth.session-token`
+         *     cookies so a tenant logout also tears down any surviving super-admin cookie
+         *     session. The web client's `signOut()` calls this after clearing its own
+         *     localStorage JWT. Bearer-gated (the caller is logged in at call time).
+         */
+        post: operations["logout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -89,6 +293,838 @@ export interface paths {
         get: operations["getMe"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/session-version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the caller's current session version
+         * @description Returns the caller's current `sessionVersion` (no bump). `useSessionSync`
+         *     polls this to detect admin-triggered permission reloads and force a token
+         *     refresh when it diverges from the JWT claim.
+         */
+        get: operations["getSessionVersion"];
+        put?: never;
+        /** Bump session version (force token refresh) */
+        post: operations["bumpSessionVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/billing/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a Midtrans Snap transaction for a plan purchase
+         * @description Resolves the plan (by `planTier` GROWTH/PRO, or `planId` for back-compat), computes `outlets × price × months`, optionally applies a promo code, records a PENDING `SaaSPayment`, and returns a Midtrans `snapToken` the FE uses to open Snap. When no Midtrans server key is configured the API returns a mock token (dev fallback). Returns 201 on success.
+         */
+        post: operations["createBillingCheckout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/billing/promo/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Validate a promo code against a plan
+         * @description Checks a promo code for existence, active state, expiry, and redemption limit. Returns `{valid, type, value, promoCodeId}` on success or a `{valid: false, reason}` rejection. Does NOT redeem — redemption happens only on a PAID payment.
+         */
+        post: operations["validateBillingPromo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/billing/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the current tenant's billing/subscription status
+         * @description Returns the full `BillingStatus` shape: tenant info, subscription state, per-outlet list + usage vs plan limits, real per-outlet pricing from the Plan table (GROWTH/PRO), and trial end timestamp. Powers the billing page.
+         */
+        get: operations["getBillingStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/billing/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Midtrans payment notification webhook (PUBLIC, no auth)
+         * @description Receives Midtrans transaction notifications. Verifies the HMAC-SHA512 signature (order_id + status_code + gross_amount + server_key); in dev without a server key, requires a non-empty `signature_key`. On capture/settlement/success: marks the matching SaaSPayment PAID and extends the subscription by `monthsPurchased`. Idempotent — a duplicate notification for an already-PAID payment is a no-op. Input is the raw Midtrans body (snake_case keys); no auth, no envelope on the request side.
+         */
+        post: operations["handleBillingWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/branches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List branches for the active tenant
+         * @description Returns the curated `BranchListItem` DTO list (a subset of the entity
+         *     plus per-branch `counts`), unpaginated. Filters by `search` (name) and
+         *     `active` (`true`/`false`).
+         */
+        get: operations["listBranches"];
+        put?: never;
+        /**
+         * Create a branch (outlet) for the active tenant
+         * @description Creates a `Branch`. `name` is required. Defaults: `isActive`=`true`,
+         *     `printerPort`=`9100`, `printerPaperSize`=`58mm`, `printerEnabled`=`false`,
+         *     `isFreeTier`=`false`, `workDays`=`[1,2,3,4,5,6]`. `coverageEnd` is null on
+         *     create (set via PATCH). Subject to the tenant's outlet (plan) limit.
+         */
+        post: operations["createBranch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/branches/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Branch identifier. */
+                id: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        /** Get a branch by ID */
+        get: operations["getBranch"];
+        put?: never;
+        post?: never;
+        /** Delete a branch */
+        delete: operations["deleteBranch"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a branch
+         * @description Merges the supplied fields into the existing `Branch` (decoded directly
+         *     onto the entity). The path `id` is authoritative.
+         */
+        patch: operations["updateBranch"];
+        trace?: never;
+    };
+    "/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List customers for the current tenant
+         * @description Returns the curated customer DTO list (with order aggregates + derived
+         *     `customerStatus`) as a bare array under `data`. Intentionally unpaginated
+         *     to match the original TS `/api/customers` contract. Supports `branchId`,
+         *     `search`, `status`, `sort`, and `order` query filters.
+         */
+        get: operations["listCustomers"];
+        put?: never;
+        /** Create a customer */
+        post: operations["createCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a customer by ID (with order/payment history) */
+        get: operations["getCustomer"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a customer
+         * @description Blocked (non-204) when business rules forbid deletion, e.g. the customer
+         *     still has orders. The error body carries the rule code/message.
+         */
+        delete: operations["deleteCustomer"];
+        options?: never;
+        head?: never;
+        /**
+         * Update customer fields
+         * @description Partial update. The server loads the existing customer, JSON-decodes the
+         *     body over it, re-pins `id`, and persists. Omitted fields are left as-is.
+         */
+        patch: operations["updateCustomer"];
+        trace?: never;
+    };
+    "/customers/{id}/deposit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a customer's deposit transactions */
+        get: operations["listCustomerDeposits"];
+        put?: never;
+        /**
+         * Top up (or adjust) a customer's deposit balance
+         * @description Records a `DepositTransaction` and updates the customer's running
+         *     `balance`. `type` defaults to `TOP_UP` when omitted. The note is read
+         *     from `description`, falling back to `notes` (the FE top-up dialog sends
+         *     `description`).
+         */
+        post: operations["topUpCustomerDeposit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/{id}/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a customer's order aggregates */
+        get: operations["getCustomerStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/heatmap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Busy-hours heatmap + revenue trend
+         * @description Returns four aggregates: top `customerVisits` (with per-day-of-week
+         *     distribution), a 7×24 `hourlyByDay` order-count matrix, `revenueByDay`
+         *     keyed by day-of-week, and a `revenueTrend` of the last 14 days
+         *     (revenue, orders, plus a week-ago `previousRevenue` for comparison).
+         *     Pass `branchId=ALL` to ignore the branch scope.
+         */
+        get: operations["getDashboardHeatmap"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/kanban": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Live order pipeline (kanban)
+         * @description Flat order-detail rows (not status aggregates), newest first, capped at
+         *     100. Each row carries customer, amount, payment + lifecycle
+         *     timestamps, an `isExpress` flag, and its line `items`. Pass
+         *     `branchId=ALL` to ignore the branch scope.
+         */
+        get: operations["getDashboardKanban"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Aggregate dashboard metrics
+         * @description Computed dashboard (today's orders/revenue, top customers, service +
+         *     payment breakdowns, recent orders, cash flow, order pipeline, low
+         *     stock, customer insights, period-over-period comparison, unpaid
+         *     delivered orders, turnaround, and a 14-point sparkline). From/to
+         *     default to the last 30 days. Server-cached for 5 minutes per tenant.
+         */
+        get: operations["getDashboardStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/demo/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Public demo entrypoint — shared demo credentials
+         * @description Returns the shared seeded demo account credentials (`{ email, password }`) for the
+         *     web `/demo` auto-signin flow. Body (with optional `email`) is accepted but ignored
+         *     (lead-capture only). Rate-limited. `security: []` — public.
+         */
+        post: operations["startDemo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/expense-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List expense categories for the current tenant
+         * @description Returns categories as a bare array under `data`. Intentionally unpaginated
+         *     (no `meta`) to match the original TS `/api/expense-categories` contract.
+         *     `page`/`limit` query params are normalized but do not produce a `meta` block.
+         *     Supports `branchId` and `search` filters.
+         */
+        get: operations["listExpenseCategories"];
+        put?: never;
+        /**
+         * Create an expense category
+         * @description Creates a new category against the branch resolved from the auth context.
+         *     `name` is required.
+         */
+        post: operations["createExpenseCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/expense-categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete an expense category */
+        delete: operations["deleteExpenseCategory"];
+        options?: never;
+        head?: never;
+        /**
+         * Update an expense category
+         * @description The server loads the existing category, JSON-decodes the body over it,
+         *     re-pins `id`, and persists. Send only the fields you want to change.
+         */
+        patch: operations["updateExpenseCategory"];
+        trace?: never;
+    };
+    "/expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List expenses for the current tenant
+         * @description Returns expenses as a bare array under `data`. Intentionally unpaginated
+         *     (no `meta`) to match the original TS `/api/expenses` contract. Supports
+         *     `branchId`, `categoryId`, `from`, `to`, and `search` query filters.
+         */
+        get: operations["listExpenses"];
+        put?: never;
+        /**
+         * Create an expense
+         * @description Records a new expense against the branch resolved from the auth context.
+         *     `date` is optional (defaults to now); accepted as `YYYY-MM-DD` or RFC3339.
+         *     `amount` must be positive.
+         */
+        post: operations["createExpense"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/expenses/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get an expense by ID */
+        get: operations["getExpense"];
+        put?: never;
+        post?: never;
+        /** Delete an expense */
+        delete: operations["deleteExpense"];
+        options?: never;
+        head?: never;
+        /**
+         * Update expense fields
+         * @description Partial update. The server loads the existing expense, applies the body
+         *     fields (`amount`, `description`, `categoryId`, `date`), and persists.
+         *     `date` is accepted as `YYYY-MM-DD` or RFC3339 (the FE `<input type="date">`
+         *     sends date-only). Omitted fields are left as-is.
+         */
+        patch: operations["updateExpense"];
+        trace?: never;
+    };
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Liveness probe */
+        get: operations["getHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Onboarding setup progress for the caller's tenant
+         * @description Counts services, customers, and orders for the caller's tenant and checks
+         *     whether the active branch has address/phone set, then derives a 4-step
+         *     progress checklist + percentage. Used by the dashboard onboarding widget.
+         */
+        get: operations["getOnboardingStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List orders for the tenant
+         * @description Paginated list of orders visible to the caller. Bare array under `data`.
+         *     Meta shape is `{ total, page, totalPages }` (no `limit`).
+         */
+        get: operations["listOrders"];
+        put?: never;
+        /**
+         * Create a new laundry order
+         * @description Idempotent via the optional `X-Client-Id` request header. Plan-limited
+         *     (orders quota enforced on the active plan). Best-effort WhatsApp receipt
+         *     is sent fire-and-forget after the 201 response.
+         */
+        post: operations["createOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orders/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Order ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** Get order detail (items + customer + payments) */
+        get: operations["getOrderById"];
+        /** Replace an order (full edit) */
+        put: operations["updateOrder"];
+        post?: never;
+        /** Delete an order */
+        delete: operations["deleteOrder"];
+        options?: never;
+        head?: never;
+        /**
+         * Update order notes only
+         * @description Lightweight PATCH that persists just the `notes` field.
+         */
+        patch: operations["updateOrderNotes"];
+        trace?: never;
+    };
+    "/orders/{id}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Order ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record a payment against an order
+         * @description Records a payment (overpayment / insufficient-deposit rejections return
+         *     400 with the business message). Returns the updated order.
+         */
+        post: operations["recordOrderPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orders/{id}/payments/{paymentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Order ID. */
+                id: string;
+                /** @description Payment ID to void. */
+                paymentId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Void (reverse) a recorded payment */
+        delete: operations["voidOrderPayment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orders/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Order ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Advance / set order status (POST)
+         * @description Transitions the order to the supplied status. Illegal transitions return
+         *     400 with a message. When status becomes `READY`, a best-effort WhatsApp
+         *     "ready for pickup" notice is fired.
+         */
+        post: operations["advanceOrderStatusPost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Advance / set order status (PATCH, web status dialog)
+         * @description Same handler as POST; the web's status dialog uses PATCH. Illegal
+         *     transitions return 400.
+         */
+        patch: operations["advanceOrderStatusPatch"];
+        trace?: never;
+    };
+    "/pickup-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List pickup requests for the current tenant
+         * @description Paginated list of pickup requests. Filterable by `branchId`, `status`,
+         *     and `search`. Meta shape is `{ total, page, totalPages }` (no `limit`
+         *     — `MetaNoLimit`). Page/limit are clamped (page >=1, limit 1..100,
+         *     default 20).
+         */
+        get: operations["listPickupRequests"];
+        put?: never;
+        /**
+         * Create a pickup request
+         * @description Creates a PENDING pickup request. `branchId` is required — when omitted
+         *     from the body it falls back to the request's branch context
+         *     (`X-Branch-Id` / JWT claim). `customerPhone` and `address` are coerced
+         *     to empty strings server-side (DB NOT NULL). `requestedDate` accepts
+         *     `YYYY-MM-DD` or RFC3339.
+         */
+        post: operations["createPickupRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pickup-requests/count-pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Count pending pickup requests
+         * @description Returns `{ count }` of PENDING pickup requests for the current tenant,
+         *     optionally scoped to a branch via `branchId`.
+         */
+        get: operations["countPendingPickupRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pickup-requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a pickup request by id */
+        get: operations["getPickupRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pickup-requests/{id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept a pending pickup request
+         * @description Moves a PENDING request to ACCEPTED. No request body.
+         */
+        post: operations["acceptPickupRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pickup-requests/{id}/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Assign a pickup request to a driver/staff
+         * @description Moves a request to ASSIGNED. `assignedTo` is required.
+         */
+        post: operations["assignPickupRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pickup-requests/{id}/convert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Convert a pickup request into an order
+         * @description Marks a request as CONVERTED and links the created order. The actual
+         *     Order creation is the caller's responsibility (the orders module).
+         *     `assignedTo` is repurposed here to carry the created order id and is
+         *     required.
+         */
+        post: operations["convertPickupRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pickup-requests/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject a pickup request
+         * @description Moves a request to REJECTED. Optional body (e.g. a `reason`). Body is
+         *     decoded leniently — a missing/empty body is allowed.
+         */
+        post: operations["rejectPickupRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pickup-requests/{id}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Schedule a pickup request
+         * @description Moves a request to SCHEDULED. `scheduledDate` is required; `scheduledSlot`
+         *     is optional.
+         */
+        post: operations["schedulePickupRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/printers/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Auto-scan for local printers (device-local)
+         * @description Printer auto-scan is device-local hardware the backend cannot reach. Always returns
+         *     `{ success: false, error: { message } }` instructing manual IP configuration.
+         *     Public (`security: []`) — no session required.
+         */
+        post: operations["scanPrinters"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/printers/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test a local printer (device-local)
+         * @description Printer self-test is device-local hardware the backend cannot reach. Always returns
+         *     `{ success: false, error: { message } }` instructing the printer's built-in self-test.
+         *     Public (`security: []`) — no session required.
+         */
+        post: operations["testPrinter"];
         delete?: never;
         options?: never;
         head?: never;
@@ -134,7 +1170,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/auth/session-version": {
+    "/public/branches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public branch directory for a tenant
+         * @description Returns the public-facing branch list (slug, name, address, phone, operating hours,
+         *     geo, WhatsApp/Google Maps links, tenant name) resolved by tenant slug.
+         *     Slug is required via `?slug=` or `X-Tenant-Slug` header.
+         */
+        get: operations["listPublicBranches"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/orders/track": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Track a public order by order number
+         * @description Returns the public order-tracking view (no customer PII) by `orderNumber`.
+         *     Optional `phone` query param is last-4 verification. Returns the order or 404.
+         */
+        get: operations["trackPublicOrder"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/pickup-requests": {
         parameters: {
             query?: never;
             header?: never;
@@ -143,8 +1222,2033 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Bump session version (force token refresh) */
-        post: operations["bumpSessionVersion"];
+        /**
+         * Submit a public pickup request
+         * @description Creates a public pickup request. `name`, `phone`, and `tenantSlug` are required.
+         *     `tenantSlug` may come from the body or the `?slug=` / `X-Tenant-Slug` header (body wins).
+         *     Returns `{ requestId, status }` (status starts as `PENDING`).
+         */
+        post: operations["createPublicPickupRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public service catalog for a tenant
+         * @description Returns the public service catalog (optionally filtered to a branch) resolved by
+         *     tenant slug. Wrapped as `{ services: [...] }`. Slug is required via `?slug=` or
+         *     `X-Tenant-Slug` header.
+         */
+        get: operations["listPublicServices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/tenants/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public tenant website payload by slug
+         * @description Returns tenant identity + dashboard `settings` block (website/hero/qris/google/…)
+         *     plus the branch directory with geo/contact/links/operating-hours. Resolved by slug
+         *     (no auth). `settings` is opaque JSON (dashboard website config).
+         */
+        get: operations["getPublicTenant"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit a public support ticket
+         * @description Creates a public support ticket. `name`, `email`, and `message` are required;
+         *     `tenantSlug` is optional (tenant context). Returns the new `{ ticketId, status }`
+         *     (status starts as `OPEN`).
+         */
+        post: operations["createPublicTicket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/nonce": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * PWA service-worker nonce
+         * @description Returns the PWA nonce (`{ nonce }`). Public — polled by the service worker's
+         *     force-update watcher. Seeds a default on first call (idempotent upsert).
+         */
+        get: operations["getPwaNonce"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register a new tenant + owner, mint JWT */
+        post: operations["register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/attendance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Employee attendance report (paginated with date window meta) */
+        get: operations["getReportAttendance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/commission": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Commission report (revenue + commission by service) */
+        get: operations["getReportCommission"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Customers report (top spenders, outstanding balances) */
+        get: operations["getReportCustomers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Expenses report (by category, daily trend) */
+        get: operations["getReportExpenses"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export a report as a CSV file (field,value rows)
+         * @description Streams the requested report as CSV (`field,value` per leaf). `type`
+         *     selects the report to export (default `revenue`). CSV layout flattens
+         *     the report struct; PDF is not supported by this endpoint.
+         */
+        get: operations["exportReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/financial-statement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consolidated financial statement report */
+        get: operations["getReportFinancialStatement"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/inventory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inventory report (stock levels + recent movements) */
+        get: operations["getReportInventory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/monthly-pnl": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Monthly profit & loss report (most complex report) */
+        get: operations["getReportMonthlyPnL"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Orders report (volume, turnaround, daily volume) */
+        get: operations["getReportOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/outstanding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Outstanding balances report (per-customer unpaid orders) */
+        get: operations["getReportOutstanding"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/payment-collection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Payment collection report (collected vs unpaid, by month) */
+        get: operations["getReportPaymentCollection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/piutang-tracker": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Piutang (receivables) tracker report (aging buckets, monthly summary) */
+        get: operations["getReportPiutangTracker"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/profit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Profit report (summary + daily comparison) */
+        get: operations["getReportProfit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/revenue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Revenue report (gross/net, by method, daily trend) */
+        get: operations["getReportRevenue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Services report (per-service usage and revenue) */
+        get: operations["getReportServices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List roles for the current tenant
+         * @description Returns the curated role DTO list (with `userCount` + `permissions`
+         *     emitted as a JSON array) as a bare array under `data`. Intentionally
+         *     unpaginated to match the original TS `/api/roles` contract. Supports a
+         *     `search` query filter.
+         */
+        get: operations["listRoles"];
+        put?: never;
+        /**
+         * Create a role
+         * @description `permissions` defaults to an empty array (NOT NULL _text). `color`
+         *     defaults to `purple` when omitted/empty.
+         */
+        post: operations["createRole"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/roles/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a role by ID */
+        get: operations["getRole"];
+        put?: never;
+        post?: never;
+        /** Delete a role */
+        delete: operations["deleteRole"];
+        options?: never;
+        head?: never;
+        /**
+         * Update role fields
+         * @description Partial update — send only the fields to change.
+         */
+        patch: operations["updateRole"];
+        trace?: never;
+    };
+    "/service-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List service groups for the current tenant
+         * @description Returns service groups as a bare array under `data`. Intentionally
+         *     unpaginated (no `meta`) to match the original TS `/api/service-groups`
+         *     contract. `page`/`limit` query params are normalized but do not produce
+         *     a `meta` block. Supports `branchId` and `module` filters.
+         */
+        get: operations["listServiceGroups"];
+        put?: never;
+        /**
+         * Create a service group
+         * @description Creates a new group against the branch resolved from the auth context.
+         *     `name` is required. Defaults: `module` → `LAUNDRY`, `sortOrder` → `0`.
+         */
+        post: operations["createServiceGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/service-groups/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a service group by ID */
+        get: operations["getServiceGroup"];
+        put?: never;
+        post?: never;
+        /** Delete a service group */
+        delete: operations["deleteServiceGroup"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a service group
+         * @description The server loads the existing group, JSON-decodes the body over it,
+         *     re-pins `id`, and persists. Send only the fields you want to change.
+         */
+        patch: operations["updateServiceGroup"];
+        trace?: never;
+    };
+    "/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List services for the current tenant
+         * @description Returns services as a bare array under `data` using the curated
+         *     `ServiceListItem` DTO (drops `branchId`, adds the nested `group`).
+         *     Intentionally unpaginated (no `meta`) to match the original TS
+         *     `/api/services` contract. Supports `branchId`, `module`, `search`,
+         *     `active`, and `groupId` query filters.
+         */
+        get: operations["listServices"];
+        put?: never;
+        /**
+         * Create a service
+         * @description Records a new service scoped to the branch resolved from the auth
+         *     context. `name` is required. Defaults: `pricingType` → `PER_KG`,
+         *     `commissionType` → `NONE`, `module` → `LAUNDRY`, `isActive` → `true`.
+         */
+        post: operations["createService"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/services/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a service by ID
+         * @description Returns the full `Service` domain entity.
+         */
+        get: operations["getService"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a service
+         * @description Fails with `409 Conflict` when the service is referenced by order items —
+         *     reassign or remove those order items first.
+         */
+        delete: operations["deleteService"];
+        options?: never;
+        head?: never;
+        /**
+         * Update service fields
+         * @description Partial update against a restricted input (NOT the full entity — prevents
+         *     mass assignment / cross-tenant `branchId` moves). The server loads the
+         *     existing service and applies only the fields the body supplies. Empty /
+         *     zero / nil values are ignored (keeps the existing value) — this is also
+         *     correct PATCH semantics and avoids the SQLSTATE 22P02 invalid-enum error
+         *     on `pricingType`. `id` + `branchId` are preserved from the loaded entity.
+         */
+        patch: operations["updateService"];
+        trace?: never;
+    };
+    "/stock-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List stock items for the active branch/tenant
+         * @description Returns every stock item visible to the caller, unpaginated (no `meta`).
+         *     Filters by `branchId` (falls back to the session branch), `search`
+         *     (name substring), `active` (`true`/`false`), and `lowOnly`
+         *     (only items at/below `lowStockThreshold`).
+         */
+        get: operations["listStockItems"];
+        put?: never;
+        /**
+         * Create a stock item in the active branch
+         * @description Creates a `StockItem` scoped to the session branch. `name` and `unit`
+         *     are required; omitted numeric fields default to `0`, `isActive` defaults
+         *     to `true`.
+         */
+        post: operations["createStockItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stock-items/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Stock item identifier. */
+                id: components["parameters"]["StockItemId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a stock item */
+        delete: operations["deleteStockItem"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a stock item
+         * @description Merges the supplied fields into the existing `StockItem` (decoded
+         *     directly onto the entity). The path `id` is authoritative.
+         */
+        patch: operations["updateStockItem"];
+        trace?: never;
+    };
+    "/stock-items/{id}/movements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Stock item identifier. */
+                id: components["parameters"]["StockItemId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * List movements for a stock item
+         * @description Returns the full movement history for the stock item (unpaginated, bare
+         *     array under `data`). Ownership is verified before listing.
+         */
+        get: operations["listStockMovements"];
+        put?: never;
+        /**
+         * Record a stock movement (IN / OUT / ADJUSTMENT)
+         * @description Applies a quantity delta to the stock item. `IN`/`OUT` must be positive
+         *     magnitudes (`OUT` guards against insufficient stock); `ADJUSTMENT` may
+         *     be signed. `type` is required; `date` defaults to now when omitted.
+         */
+        post: operations["createStockMovement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/admins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List platform-staff (SuperAdmin) accounts. */
+        get: operations["superAdminListAdmins"];
+        put?: never;
+        /** Create a platform-staff account. */
+        post: operations["superAdminCreateAdmin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/admins/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a platform-staff account (hard delete). */
+        delete: operations["superAdminDeleteAdmin"];
+        options?: never;
+        head?: never;
+        /** Update a platform-staff account's role. */
+        patch: operations["superAdminUpdateAdmin"];
+        trace?: never;
+    };
+    "/super-admin/ai/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get AI assistant config
+         * @description Returns whether the AI assistant is enabled (an AI key is configured) and
+         *     the configured model name.
+         */
+        get: operations["superAdminGetAiChatConfig"];
+        put?: never;
+        /**
+         * Chat with the AI assistant (SSE stream)
+         * @description Streams the FE's SSE protocol: `data: {"type":"delta","content":...}`
+         *     frames followed by `data: [DONE]`. Calls an OpenAI-compatible
+         *     `/chat/completions` endpoint when a key is set; otherwise emits a
+         *     disabled-notice delta. The 200 response is `text/event-stream` — NO
+         *     response envelope.
+         */
+        post: operations["superAdminAiChat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/audit-log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List audit log entries (paginated, bare array + meta)
+         * @description Uses `pagination.Meta` — bare array under `data` +
+         *     `meta: { total, page, limit, totalPages }`.
+         */
+        get: operations["superAdminListAuditLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/billing/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cross-tenant billing overview (MRR, revenue, paid outlets, failures). */
+        get: operations["superAdminGetBillingOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/billing/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List cross-tenant SaaS payments (paginated, writeRows)
+         * @description Returns platform payment rows. Uses the `writeRows` paginated shape —
+         *     `data.rows`, `data.page`, `data.hasNext` (not the bare-array + meta form).
+         */
+        get: operations["superAdminListPayments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/billing/payments/{id}/refund": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refund a payment (marks status REFUNDED)
+         * @description Marks the SaaSPayment as REFUNDED. Emits an audit entry
+         *     (`PAYMENT_REFUND`). No request body.
+         */
+        post: operations["superAdminRefundPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/blog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List blog posts (paginated, bare array + meta)
+         * @description Uses `pagination.Meta` — bare array under `data` +
+         *     `meta: { total, page, limit, totalPages }`.
+         */
+        get: operations["superAdminListBlogPosts"];
+        put?: never;
+        /**
+         * Create a blog post
+         * @description Author is the authenticated super-admin (`authorId`).
+         */
+        post: operations["superAdminCreateBlogPost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/blog/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a blog post */
+        get: operations["superAdminGetBlogPost"];
+        put?: never;
+        post?: never;
+        /** Delete a blog post */
+        delete: operations["superAdminDeleteBlogPost"];
+        options?: never;
+        head?: never;
+        /** Update a blog post */
+        patch: operations["superAdminUpdateBlogPost"];
+        trace?: never;
+    };
+    "/super-admin/error-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List error logs (paginated, writeRows)
+         * @description Uses the `writeRows` paginated shape — `data.rows`, `data.page`,
+         *     `data.hasNext`. Supports `code`, `resolved`, `from`, `to` filters.
+         */
+        get: operations["superAdminListErrorLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/error-logs/{id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark an error log resolved
+         * @description Toggles `resolved=true`. Returns an envelope (not 204) so the FE
+         *     `apiFetch` (which throws on empty bodies) is happy. Emits
+         *     `ERRORLOG_RESOLVE`.
+         */
+        post: operations["superAdminResolveErrorLog"];
+        /**
+         * Reopen an error log (un-resolve)
+         * @description Toggles `resolved=false`. Same handler as POST; returns an envelope.
+         *     Emits `ERRORLOG_REOPEN`.
+         */
+        delete: operations["superAdminReopenErrorLog"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/feature-flags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all feature flags (bare array)
+         * @description Returns every feature flag. Bare array under `data` (no pagination meta).
+         */
+        get: operations["superAdminListFeatureFlags"];
+        put?: never;
+        /** Create a feature flag */
+        post: operations["superAdminCreateFeatureFlag"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/feature-flags/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a feature flag (with per-tenant overrides)
+         * @description Composite response: the bare flag fields plus `overrides` — the per-tenant
+         *     overrides for this flag. The flag-detail page reads `data.overrides`.
+         */
+        get: operations["superAdminGetFeatureFlag"];
+        put?: never;
+        post?: never;
+        /** Delete a feature flag */
+        delete: operations["superAdminDeleteFeatureFlag"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a feature flag
+         * @description Emits an audit entry (`FEATUREFLAG_UPDATE`).
+         */
+        patch: operations["superAdminUpdateFeatureFlag"];
+        trace?: never;
+    };
+    "/super-admin/feature-flags/{id}/tenants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List per-tenant overrides for a feature flag (bare array)
+         * @description Returns tenant-level flag rows (all tenants, with override state). Supports
+         *     `q` (tenant name search) and `overrideOnly=true` filters. Bare array `data`.
+         */
+        get: operations["superAdminListTenantFlags"];
+        put?: never;
+        /**
+         * Upsert a tenant feature-flag override
+         * @description Creates or updates a per-tenant override for the flag. `tenantId` required.
+         *     Emits an audit entry (`FEATUREFLAG_TENANT_UPSERT`).
+         */
+        post: operations["superAdminUpsertTenantFlag"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/feature-flags/{id}/tenants/{tenantId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a tenant feature-flag override
+         * @description Emits an audit entry (`FEATUREFLAG_TENANT_DELETE`).
+         */
+        delete: operations["superAdminDeleteTenantFlag"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/impersonate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start impersonating a tenant or user; returns an impersonation token. */
+        post: operations["superAdminStartImpersonation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/impersonate/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Log the stop of an impersonation (audit trail; stateless JWT). */
+        post: operations["superAdminStopImpersonation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Update the calling super-admin's own password. */
+        post: operations["superAdminUpdateMyPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/me/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke all other sessions for the calling super-admin. */
+        post: operations["superAdminRevokeMySessions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/performance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cross-tenant performance rows (revenue, order volume, trial health). */
+        get: operations["superAdminListPerformance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/pickup-insights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cross-tenant pickup-request rejection analytics. */
+        get: operations["superAdminGetPickupInsights"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all subscription plans (bare array)
+         * @description Returns every plan (active + inactive). Bare array under `data` (no
+         *     pagination meta).
+         */
+        get: operations["superAdminListPlans"];
+        put?: never;
+        /** Create a subscription plan */
+        post: operations["superAdminCreatePlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/plans/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a plan */
+        delete: operations["superAdminDeletePlan"];
+        options?: never;
+        head?: never;
+        /** Update a plan (partial) */
+        patch: operations["superAdminUpdatePlan"];
+        trace?: never;
+    };
+    "/super-admin/promo-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List promo codes (paginated, bare array + meta)
+         * @description Returns promo codes as a bare array under `data`, with `pagination.Meta`
+         *     in `meta` (`{ total, page, limit, totalPages }`).
+         */
+        get: operations["superAdminListPromoCodes"];
+        put?: never;
+        /** Create a promo code */
+        post: operations["superAdminCreatePromoCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/promo-codes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a promo code */
+        delete: operations["superAdminDeletePromoCode"];
+        options?: never;
+        head?: never;
+        /** Update a promo code (partial) */
+        patch: operations["superAdminUpdatePromoCode"];
+        trace?: never;
+    };
+    "/super-admin/pwa/force-update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Force a PWA cache-bust across clients
+         * @description Rotates the `pwaNonce` system setting to a new UUID. Clients polling
+         *     `/api/pwa/nonce` detect the mismatch and nuke caches + reload
+         *     (propagates within the 3-minute poll window). Emits `PWA_FORCE_UPDATE`.
+         */
+        post: operations["superAdminPwaForceUpdate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/referrals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List referrals (paginated, bare array + meta)
+         * @description Returns referrals as a bare array under `data`, with `pagination.Meta` in
+         *     `meta` (`{ total, page, limit, totalPages }`). Each row carries
+         *     denormalized `referrerName` + `referredName`.
+         */
+        get: operations["superAdminListReferrals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/referrals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a referral status (REWARDED / REJECTED / etc.)
+         * @description Body is `{ status, reason }`. `status` is required; `reason` is optional
+         *     (free text, surfaced on the referral row).
+         */
+        patch: operations["superAdminUpdateReferral"];
+        trace?: never;
+    };
+    "/super-admin/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Platform headline stats (tenant/user counts, MRR, trial health). */
+        get: operations["superAdminGetStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/tenants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List tenants (paginated). */
+        get: operations["superAdminListTenants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/tenants/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a single tenant plus its plans + subscription (composite). */
+        get: operations["superAdminGetTenant"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update tenant fields. */
+        patch: operations["superAdminUpdateTenant"];
+        trace?: never;
+    };
+    "/super-admin/tenants/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve a pending tenant. */
+        post: operations["superAdminApproveTenant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/tenants/{id}/billing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a tenant's subscription + recent payments. */
+        get: operations["superAdminGetTenantBilling"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/tenants/{id}/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a tenant's subscription (plan, status, or extend trial).
+         * @description `op: "extend_trial"` requires `days` (1–365) and `reason` (>=10 chars).
+         *     Otherwise the fields below patch the Subscription row directly.
+         */
+        patch: operations["superAdminUpdateTenantSubscription"];
+        trace?: never;
+    };
+    "/super-admin/tenants/{id}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Suspend a tenant. */
+        post: operations["superAdminSuspendTenant"];
+        /** Reactivate a suspended tenant. */
+        delete: operations["superAdminReactivateTenant"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/tenants/{id}/whatsapp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Toggle the tenant's settings.whatsappEnabled flag. */
+        patch: operations["superAdminToggleTenantWhatsApp"];
+        trace?: never;
+    };
+    "/super-admin/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List support tickets (paginated, writeRows)
+         * @description Uses the `writeRows` paginated shape — `data.rows`, `data.page`,
+         *     `data.hasNext` (not the bare-array + meta form).
+         */
+        get: operations["superAdminListTickets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/tickets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a support ticket with its comment thread
+         * @description Returns the ticket fields plus `comments` — the comment array (always an
+         *     array, never null). 404 when the ticket is not found.
+         */
+        get: operations["superAdminGetTicket"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/tickets/{id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a comment to a ticket
+         * @description Author is the authenticated super-admin (`authorRole = SUPER_ADMIN`).
+         */
+        post: operations["superAdminAddTicketComment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/tickets/{id}/priority": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Update a ticket's priority */
+        post: operations["superAdminUpdateTicketPriority"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/tickets/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Update a ticket's status */
+        post: operations["superAdminUpdateTicketStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List platform users across tenants (paginated). */
+        get: operations["superAdminListUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/users/{id}/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset a user's password; returns a temporary password. */
+        post: operations["superAdminResetUserPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/super-admin/users/{id}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Suspend a user. */
+        post: operations["superAdminSuspendUser"];
+        /** Reactivate a suspended user. */
+        delete: operations["superAdminReactivateUser"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/telemetry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Client-side event batch (errors persisted to ErrorLog)
+         * @description Accepts a batch of client-side events. Events with `type: "error"` (or
+         *     `level: "error"`) are persisted to `ErrorLog` so FE-only JS crashes show
+         *     up in the super-admin error-logs viewer; other events are accepted +
+         *     discarded (analytics placeholder). Rate-limited 100 events/min/user.
+         */
+        post: operations["postTelemetry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenant/onboarding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Complete tenant onboarding
+         * @description Sets `activeModules` (defaults to `["laundry"]` when null) and merges
+         *     `settings`, stamping `onboardingCompletedAt` on first completion. Returns
+         *     the full tenant profile.
+         */
+        patch: operations["completeTenantOnboarding"];
+        trace?: never;
+    };
+    "/tenant/referral": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the tenant referral code and usage stats
+         * @description Returns the tenant's referral code, a ready-to-share URL, and counts of
+         *     rewarded vs pending referrals against the reward cap (12) of 1-month
+         *     rewards each.
+         */
+        get: operations["getTenantReferral"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenant/website": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the tenant website configuration
+         * @description Returns the public-website config: plan, slug/subdomain, publish state,
+         *     and the `settings.website` JSON object (may be `{}` when unset).
+         */
+        get: operations["getTenantWebsite"];
+        put?: never;
+        post?: never;
+        /**
+         * Disable the tenant website
+         * @description Unpublishes the website: clears `websiteEnabled` and `websitePublishedAt`.
+         *     Stored website settings are retained. Returns 204 No Content.
+         */
+        delete: operations["deleteTenantWebsite"];
+        options?: never;
+        head?: never;
+        /**
+         * Update tenant website settings
+         * @description Merges the provided fields into `settings.website`; omitted fields are
+         *     left unchanged. All fields are optional (nullable pointers). Returns the
+         *     full website config after the merge.
+         */
+        patch: operations["updateTenantWebsite"];
+        trace?: never;
+    };
+    "/tenant/whatsapp-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get WhatsApp message templates
+         * @description Returns the template catalog: `overrides` (tenant customizations),
+         *     `defaults` (system defaults), `effective` (defaults overridden by
+         *     tenant overrides), and the static `manifest` describing available
+         *     templates, variables, and length limits.
+         */
+        get: operations["getTenantWhatsAppTemplates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Override WhatsApp message templates
+         * @description Replaces the tenant's template `overrides` (stored under
+         *     `settings.whatsappTemplates`). The request body is a full
+         *     `WhatsAppTemplates` object; only `overrides` are persisted, but the same
+         *     shape is returned. Returns the stored templates object.
+         */
+        patch: operations["updateTenantWhatsAppTemplates"];
+        trace?: never;
+    };
+    "/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List tickets for the current user or tenant
+         * @description Returns tickets the caller submitted OR that belong to their tenant,
+         *     newest first. Intentionally unpaginated to match the original TS contract.
+         */
+        get: operations["listTickets"];
+        put?: never;
+        /**
+         * Create a support ticket
+         * @description Creates an `OPEN` ticket. The submitter snapshot (name/email/phone) is
+         *     refreshed from the `User` row; `category` defaults to `OTHER` and
+         *     `priority` defaults to `NORMAL` when omitted. Returns the new ticket id.
+         */
+        post: operations["createTicket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/unread": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Unread ticket events for the current user
+         * @description Returns admin-side `ticket.*` audit-log events authored by other users
+         *     since the caller's `lastTicketEventReadAt`. Capped at the 5 most recent.
+         *     `events` may be empty; `lastReadAt` is null until the user first marks read.
+         */
+        get: operations["getTicketUnread"];
+        put?: never;
+        /**
+         * Mark all ticket events as read
+         * @description Stamps `lastTicketEventReadAt = now()` on the calling user. Clears the
+         *     unread badge. Takes no request body.
+         */
+        post: operations["markTicketUnreadRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a ticket with its comments
+         * @description Full ticket detail including the comment thread (oldest first). Access is
+         *     scoped to the submitter or members of the same tenant; cross-tenant
+         *     access returns 403.
+         */
+        get: operations["getTicket"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/{id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a tenant reply to a ticket
+         * @description Appends a `TENANT_USER` comment and, if the ticket was `RESOLVED` or
+         *     `CLOSED`, reopens it to `OPEN` (clearing `resolvedAt`). Returns the
+         *     created comment.
+         */
+        post: operations["addTicketComment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/{id}/csat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rate a resolved/closed ticket (CSAT)
+         * @description The original submitter may rate a `RESOLVED` or `CLOSED` ticket exactly
+         *     once. Subsequent attempts, non-submitter callers, or rating an
+         *     in-progress ticket all return 403. Returns `{ id, csatRating }`.
+         */
+        post: operations["setTicketCsat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/track/{orderNumber}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Track an order by order number
+         * @description Public (unauthenticated) customer-facing order tracking. Returns the
+         *     order's status, payment status, total, line items, and creation
+         *     timestamp. 404 when the order number does not exist.
+         */
+        get: operations["trackOrder"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/track/{orderNumber}/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List public photos for an order
+         * @description Public (unauthenticated) photo list for customer order tracking.
+         *     Returns a bare array of `{ id, url }` ordered by photo `createdAt`.
+         */
+        get: operations["trackOrderPhotos"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/user": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lightweight current-user context
+         * @description Returns the caller's `id`, `name`, `email`, `phone`, `role`, `branchId`,
+         *     and `tenantId`. Used by the receipt + printer-settings pages to resolve
+         *     the active branch.
+         */
+        get: operations["getCurrentUser"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/user/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the current user's editable profile
+         * @description Returns the caller's profile, including `googleId`/`avatar` link state and `createdAt`.
+         */
+        get: operations["getUserProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update name/phone and/or change password
+         * @description Partial update. `name` and `phone` are optional (send `phone: ""` to
+         *     clear). To change the password, send `newPassword` together with
+         *     `currentPassword` (verified server-side via bcrypt); a missing/wrong
+         *     current password yields a 400 validation error. On success the handler
+         *     echoes back the updated profile (same shape as `GET /user/profile`).
+         */
+        patch: operations["updateUserProfile"];
+        trace?: never;
+    };
+    "/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List staff users for the current tenant
+         * @description Returns the curated user DTO list (with nested `branch` + `roleRef`) as a
+         *     bare array under `data`. Intentionally unpaginated to match the original
+         *     TS `/api/users` contract. Supports `branchId`, `search`, and `role`
+         *     query filters.
+         */
+        get: operations["listStaffUsers"];
+        put?: never;
+        /**
+         * Create a staff user
+         * @description Creates a tenant user. `role` (the OWNER/MANAGER/EMPLOYEE enum) is
+         *     derived from the selected `roleId`'s name when omitted (defaults to
+         *     EMPLOYEE). When provided, `pin` must be at least 4 digits. Subject to
+         *     plan-limit enforcement on the `users` resource (403 when exceeded).
+         */
+        post: operations["createStaffUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a staff user by ID */
+        get: operations["getStaffUser"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a staff user
+         * @description Blocked (400) when a user attempts to delete their own account.
+         */
+        delete: operations["deleteStaffUser"];
+        options?: never;
+        head?: never;
+        /**
+         * Update staff user fields
+         * @description Partial update — send only the fields to change.
+         */
+        patch: operations["updateStaffUser"];
+        trace?: never;
+    };
+    "/users/{id}/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set (or reset) a staff user's PIN
+         * @description Hashes and stores a new PIN. `pin` must be at least 4 digits. Returns `{ ok: true }`.
+         */
+        patch: operations["setStaffUserPin"];
+        trace?: never;
+    };
+    "/users/{id}/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate a one-time temp password for a staff user
+         * @description Owner-initiated reset. Generates a random temp password, hashes and
+         *     stores it, and bumps `sessionVersion` to invalidate the staff's current
+         *     session. Returns the plain temp once (`{ tempPassword }`) so the owner
+         *     can hand it over out-of-band. Requires `users:edit`.
+         */
+        post: operations["resetStaffUserPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/whatsapp/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Initiate a WhatsApp session for the current tenant
+         * @description Proxies `POST <gateway>/:tenantId/connect`. Boots a Baileys session and begins QR pairing. The request body is forwarded verbatim to the gateway.
+         */
+        post: operations["connectWhatsApp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/whatsapp/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tear down the WhatsApp session for the current tenant
+         * @description Proxies `POST <gateway>/:tenantId/disconnect`. Logs the Baileys session out and clears the stored credentials.
+         */
+        post: operations["disconnectWhatsApp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/whatsapp/qr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the pairing QR code for the current tenant
+         * @description Proxies `GET <gateway>/:tenantId/qr`. Returns the QR payload used to link a WhatsApp device via Baileys. Wrapped in the standard envelope.
+         */
+        get: operations["getWhatsAppQR"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/whatsapp/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a WhatsApp message for the current tenant
+         * @description Proxies `POST <gateway>/:tenantId/send`. Sends an ad-hoc message to a phone number. (Auto-send on order received / ready uses the internal `SendAsync` helper, not this endpoint.)
+         */
+        post: operations["sendWhatsAppMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/whatsapp/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get WhatsApp connection status for the current tenant
+         * @description Proxies `GET <gateway>/:tenantId/status`. Returns the Baileys session connection state (connected / disconnected / QR-pending). The gateway response body is wrapped in the standard `{success, data}` envelope by the API. Returns 403 if the tenant isn't whitelisted for WhatsApp.
+         */
+        get: operations["getWhatsAppStatus"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -155,6 +3259,789 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Lightweight current-user context (id, branchId, role). */
+        AccountUser: {
+            id: string;
+            name?: string | null;
+            email?: string | null;
+            phone?: string | null;
+            /** @example OWNER */
+            role: string;
+            branchId?: string | null;
+            tenantId?: string | null;
+        };
+        AccountUserEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["AccountUser"];
+        };
+        AiChatConfig: {
+            /** @description `true` when an AI key is configured. */
+            enabled: boolean;
+            model: string;
+        };
+        AiChatConfigEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["AiChatConfig"];
+        };
+        /** @description A single clock-in/out record. */
+        AttendanceEvent: {
+            id: string;
+            userId: string;
+            userName: string;
+            branchId: string;
+            branchName: string;
+            /** @enum {string} */
+            type: "CLOCK_IN" | "CLOCK_OUT";
+            /** Format: date-time */
+            timestamp: string;
+        };
+        AttendanceEventEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["AttendanceEvent"];
+        };
+        AttendanceEventListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["AttendanceEvent"][];
+        };
+        /** @description Per-staff today status from `/attendance/status`. */
+        AttendanceStatus: {
+            id: string;
+            name: string;
+            /** @description Open clock-in ISO timestamp */
+            since: string | null;
+            /**
+             * Format: int64
+             * @description Milliseconds worked today.
+             */
+            todayMs: number;
+        };
+        AttendanceStatusListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["AttendanceStatus"][];
+        };
+        BillingLimits: {
+            /** @description Whether the tenant is on a paid plan. */
+            isPaid?: boolean;
+            /** @description Monthly order cap (-1 / large value = unlimited). */
+            maxOrders?: number;
+            maxOutlets?: number;
+            maxUsers?: number;
+            planName?: string;
+        };
+        BillingOutlet: {
+            id?: string;
+            name?: string;
+            /**
+             * Format: date-time
+             * @description Outlet coverage end timestamp, null when not covered.
+             */
+            coverageEnd?: string | null;
+            isFreeTier?: boolean;
+            /** @description Outlet billing status (e.g. active, locked, expiring). */
+            status?: string;
+            /** @description Days until coverage lapses; null when not applicable. */
+            expiresInDays?: number | null;
+        };
+        /** @description domain.BillingOverview. */
+        BillingOverview: {
+            /** Format: double */
+            mrr: number;
+            /** Format: double */
+            totalRevenue: number;
+            /** Format: int64 */
+            pendingPayments: number;
+            /** Format: double */
+            refundedTotal: number;
+            /** Format: double */
+            paidThisMonth: number;
+            /** Format: double */
+            lifetimeGross: number;
+            /** Format: int64 */
+            paidTenantCount: number;
+            /** Format: int64 */
+            activePaidOutlets: number;
+            /** Format: int64 */
+            failedCount30d: number;
+        };
+        BillingPricing: {
+            /**
+             * Format: double
+             * @description Pre-discount per-outlet price.
+             */
+            originalUnitPrice?: number;
+            /**
+             * Format: double
+             * @description Effective per-outlet price the tenant pays.
+             */
+            unitPrice?: number;
+        };
+        /** @description Full tenant billing snapshot — mirrors TS `/api/billing/status`. Drives the billing page: plan tier, limits, per-outlet usage, real Plan-table pricing, and trial end. */
+        BillingStatus: {
+            tenant?: components["schemas"]["BillingTenant"];
+            subscription?: components["schemas"]["BillingSub"];
+            outlets?: components["schemas"]["BillingOutlet"][];
+            /** @description Number of active outlets. */
+            activeCount?: number;
+            /** @description Number of locked (past-due / coverage-lapsed) outlets. */
+            lockedCount?: number;
+            /** @description Outlets whose coverage expires within the warning window. */
+            expiringSoon?: unknown[];
+            /**
+             * Format: date-time
+             * @description Trial end timestamp (ISO 8601 UTC), null when not on trial.
+             */
+            trialEndsAt?: string | null;
+            pricing?: components["schemas"]["BillingPricing"];
+            limits?: components["schemas"]["BillingLimits"];
+            /** @description Recent SaaS payment history (currently an open array). */
+            payments?: unknown[];
+            /** @description Current outlet count (usage). */
+            outletsUsed?: number;
+            /** @description Current user count (usage). */
+            usersUsed?: number;
+            /** @description Orders this month (usage vs `limits.maxOrders`). */
+            ordersUsedMonth?: number;
+            /**
+             * Format: double
+             * @description Real per-outlet GROWTH monthly price from the Plan table.
+             */
+            growthPrice?: number;
+            /**
+             * Format: double
+             * @description Real per-outlet PRO monthly price from the Plan table.
+             */
+            proPrice?: number;
+        };
+        BillingSub: {
+            /**
+             * @description Subscription lifecycle. One of TRIAL, ACTIVE, PAST_DUE, CANCELED, NONE (no subscription row yet).
+             * @enum {string}
+             */
+            status?: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "NONE";
+            /** @description Resolved plan name (Free / GROWTH / PRO). */
+            planName?: string;
+            /**
+             * Format: date-time
+             * @description Current period end (ISO 8601 UTC), null when not set.
+             */
+            currentPeriodEnd?: string | null;
+        };
+        BillingTenant: {
+            name?: string;
+            slug?: string;
+            /** Format: email */
+            ownerEmail?: string;
+            activeModules?: string[];
+        };
+        /** @description A published blog post. `content` is Markdown. */
+        BlogPost: {
+            slug: string;
+            title: string;
+            /** @description Meta description */
+            description: string;
+            /** @description Comma-separated SEO keywords */
+            keywords?: string | null;
+            /** @description Markdown source */
+            content: string;
+            /** Format: uri */
+            coverImage?: string | null;
+            /** Format: date-time */
+            publishedAt?: string | null;
+        };
+        BlogPostEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["BlogPost"];
+        };
+        BlogPostListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["BlogPost"][];
+        };
+        /**
+         * @description The full branch/outlet entity. `operatingHours` and `pickupSlots` are
+         *     free-form JSON columns; `workDays` is a list of weekday ints
+         *     (1=Mon … 7=Sun).
+         */
+        Branch: {
+            id: string;
+            name: string;
+            address?: string | null;
+            phone?: string | null;
+            invoiceFooter?: string | null;
+            isActive: boolean;
+            tenantId: string;
+            /** Format: double */
+            latitude?: number | null;
+            /** Format: double */
+            longitude?: number | null;
+            /** @description Free-form operating-hours JSON (shape preserved from DB). */
+            operatingHours?: Record<string, never> | null;
+            whatsappLink?: string | null;
+            googleMapsLink?: string | null;
+            printerHost?: string | null;
+            printerPort: number;
+            printerName?: string | null;
+            printerEnabled: boolean;
+            /** Format: date-time */
+            printerLastSeen?: string | null;
+            printerPaperSize: string;
+            /** Format: date-time */
+            coverageEnd?: string | null;
+            isFreeTier: boolean;
+            slug?: string | null;
+            /** @description Free-form pickup-slots JSON (shape preserved from DB). */
+            pickupSlots?: Record<string, never> | null;
+            /** @description Weekday ints (1=Mon … 7=Sun). */
+            workDays: number[];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @description Per-branch aggregate counts (mirrors TS `BranchListItemDTO.counts`). */
+        BranchCounts: {
+            /** Format: int64 */
+            users: number;
+            /** Format: int64 */
+            orders: number;
+            /** Format: int64 */
+            services: number;
+            /** Format: int64 */
+            customers: number;
+        };
+        BranchEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["Branch"];
+        };
+        BranchListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["BranchListItem"][];
+        };
+        /**
+         * @description Curated list item for `/branches` (mirrors TS `BranchListItemDTO`):
+         *     a subset of `Branch` plus per-branch `counts`. Unpaginated.
+         */
+        BranchListItem: {
+            id: string;
+            name: string;
+            address?: string | null;
+            phone?: string | null;
+            invoiceFooter?: string | null;
+            isActive: boolean;
+            isFreeTier: boolean;
+            /** Format: date-time */
+            coverageEnd?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            counts: components["schemas"]["BranchCounts"];
+        };
+        /** @description Nested branch reference on a `StaffUserListItem`. */
+        BranchRef: {
+            id: string;
+            name: string;
+        };
+        CashFlow: {
+            /** Format: double */
+            income: number;
+            /** Format: double */
+            expenses: number;
+            /** Format: double */
+            net: number;
+            /** Format: double */
+            walletDeposits: number;
+        };
+        /** @description Body for POST /billing/checkout. */
+        CheckoutInput: {
+            /**
+             * @description Plan tier to purchase (resolves to a Plan row).
+             * @example GROWTH
+             */
+            planTier: string;
+            /** @description Outlet IDs to bill for. At least 1 required. */
+            branchIds?: string[];
+            /** @description Number of months to purchase (1–36). */
+            months?: number;
+            /** @description Accepted for back-compat when `planTier` is omitted. */
+            planId?: string;
+            /** @description Optional promo code to apply. */
+            promoCode?: string | null;
+        };
+        /** @description Result of POST /billing/checkout. The FE opens Midtrans Snap using `snapToken` (NOT `token`). Shape mirrors the FE handleCheckout contract. */
+        CheckoutResult: {
+            /**
+             * @description Payment status. Always `PENDING` immediately after checkout.
+             * @example PENDING
+             */
+            status?: string;
+            /** @description Midtrans Snap token (or `mock-snap-token-…` in dev without keys). */
+            snapToken?: string;
+            /**
+             * Format: uri
+             * @description Snap redirect URL.
+             */
+            redirectUrl?: string;
+            /** @description Optional human-readable message. */
+            message?: string;
+        };
+        /** @description JWT claims resolved server-side, surfaced via /auth/me. */
+        Claims: {
+            tenantId?: string;
+            branchId?: string;
+            role?: string;
+            permissions?: string[];
+        };
+        /** @description Body for the PIN-based clock toggle. */
+        ClockRequest: {
+            userId: string;
+            pin: string;
+        };
+        /**
+         * @description How staff commission is computed for a service. Mirrors the Prisma enum.
+         * @default NONE
+         * @enum {string}
+         */
+        CommissionType: "NONE" | "FLAT" | "PERCENTAGE";
+        ComparisonMetric: {
+            /** Format: double */
+            current: number;
+            /** Format: double */
+            previous: number;
+            /** Format: double */
+            changePercent: number | null;
+        };
+        /** @description Body for `POST /branches`. `tenantId` is injected from the session. */
+        CreateBranchInput: {
+            name: string;
+            address?: string | null;
+            phone?: string | null;
+            invoiceFooter?: string | null;
+            isActive?: boolean | null;
+            /** Format: double */
+            latitude?: number | null;
+            /** Format: double */
+            longitude?: number | null;
+            whatsappLink?: string | null;
+            googleMapsLink?: string | null;
+            printerHost?: string | null;
+            printerPort?: number | null;
+            printerName?: string | null;
+            printerEnabled?: boolean | null;
+            printerPaperSize?: string | null;
+            coverageEnd?: string | null;
+            isFreeTier?: boolean | null;
+            slug?: string | null;
+        };
+        /** @description Body for manual event creation (manager override). */
+        CreateEventRequest: {
+            userId: string;
+            /**
+             * @default CLOCK_IN
+             * @enum {string}
+             */
+            type: "CLOCK_IN" | "CLOCK_OUT";
+            /** @description Optional ISO timestamp; server defaults to now. */
+            timestamp?: string | null;
+            notes?: string;
+        };
+        CreateOrderInput: {
+            customerId: string;
+            items: components["schemas"]["OrderItemInput"][];
+            notes?: string;
+            discountType?: string;
+            /** Format: double */
+            discountAmount?: number;
+            /** @description ISO-8601 or YYYY-MM-DD; defaults to now when omitted. */
+            receivedAt?: string | null;
+        };
+        /** @description Body for `POST /stock-items`. */
+        CreateStockItemInput: {
+            name: string;
+            unit: string;
+            /** Format: double */
+            currentQuantity?: number | null;
+            /** Format: double */
+            lowStockThreshold?: number | null;
+            /** Format: double */
+            purchasePricePerUnit?: number | null;
+            isActive?: boolean | null;
+        };
+        /**
+         * @description Body for `POST /stock-items/{id}/movements`. `IN`/`OUT` must be positive;
+         *     `ADJUSTMENT` may be signed. `date` defaults to now when omitted.
+         */
+        CreateStockMovementInput: {
+            /** @enum {string} */
+            type: "IN" | "OUT" | "ADJUSTMENT";
+            /** Format: double */
+            quantity: number;
+            notes?: string | null;
+            /** Format: date-time */
+            date?: string | null;
+        };
+        /**
+         * @description A customer record. `phone`, `email`, `notes` are nullable pointers;
+         *     `customerStatus` is derived (NEW/ACTIVE/AT_RISK/LAPSED). `orders` is
+         *     populated only on the detail GET.
+         */
+        Customer: {
+            id: string;
+            name: string;
+            phone?: string | null;
+            /** Format: email */
+            email?: string | null;
+            notes?: string | null;
+            /** Format: double */
+            balance: number;
+            branchId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            totalOrders: number;
+            /** Format: double */
+            totalSpent: number;
+            /** Format: date-time */
+            lastOrderDate?: string | null;
+            /** @enum {string} */
+            customerStatus: "NEW" | "ACTIVE" | "AT_RISK" | "LAPSED";
+            orders?: components["schemas"]["CustomerOrder"][];
+        };
+        CustomerCreateInput: {
+            name: string;
+            phone?: string | null;
+            /** Format: email */
+            email?: string | null;
+            notes?: string | null;
+            /**
+             * @description Idempotency key (typically sent via the `X-Client-Id` header). When
+             *     set, an existing customer is returned instead of creating a duplicate.
+             */
+            clientId?: string | null;
+        };
+        /**
+         * @description A single deposit transaction. `type` is one of
+         *     TOP_UP | DEDUCTION | REFUND | ADJUSTMENT.
+         */
+        CustomerDeposit: {
+            id: string;
+            customerId: string;
+            /** @enum {string} */
+            type: "TOP_UP" | "DEDUCTION" | "REFUND" | "ADJUSTMENT";
+            /** Format: double */
+            amount: number;
+            /** Format: double */
+            balanceAfter: number;
+            notes?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CustomerDepositEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["CustomerDeposit"];
+        };
+        CustomerDepositListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["CustomerDeposit"][];
+        };
+        CustomerDepositTopUpInput: {
+            /**
+             * Format: double
+             * @description Must be > 0.
+             */
+            amount: number;
+            /**
+             * @description Defaults to `TOP_UP` when omitted.
+             * @default TOP_UP
+             * @enum {string}
+             */
+            type: "TOP_UP" | "DEDUCTION" | "REFUND" | "ADJUSTMENT";
+            /**
+             * @description Human-readable note for the transaction. Read first; falls back to
+             *     `notes` when empty.
+             */
+            description?: string;
+            /** @description Fallback note field (used when `description` is empty). */
+            notes?: string;
+        };
+        CustomerDetailEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["Customer"];
+        };
+        CustomerEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["Customer"];
+        };
+        CustomerInsights: {
+            /** Format: int64 */
+            total: number;
+            /** Format: int64 */
+            newThisWeek: number;
+            /** Format: int64 */
+            active: number;
+            /** Format: int64 */
+            atRisk: number;
+            /** Format: int64 */
+            lapsed: number;
+        };
+        CustomerListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["CustomerListItem"][];
+        };
+        /**
+         * @description Curated list item for `/customers`. Drops `branchId`/`updatedAt` and
+         *     surfaces order aggregates + derived `customerStatus`.
+         */
+        CustomerListItem: {
+            id: string;
+            name: string;
+            phone?: string | null;
+            /** Format: email */
+            email?: string | null;
+            notes?: string | null;
+            /** Format: double */
+            balance: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: int64 */
+            totalOrders: number;
+            /** Format: double */
+            totalSpent: number;
+            /** Format: date-time */
+            lastOrderDate?: string | null;
+            /** @enum {string} */
+            customerStatus: "NEW" | "ACTIVE" | "AT_RISK" | "LAPSED";
+        };
+        /** @description One order in a customer's detail history. */
+        CustomerOrder: {
+            id: string;
+            orderNumber: string;
+            status: string;
+            /** Format: double */
+            totalAmount: number;
+            /** Format: double */
+            paidAmount: number;
+            /** Format: date-time */
+            createdAt: string;
+            itemCount: number;
+            payments: components["schemas"]["CustomerPayment"][];
+        };
+        /** @description One payment row on a customer's order. */
+        CustomerPayment: {
+            id: string;
+            /** Format: double */
+            amount: number;
+            paymentMethod: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /** @description Order aggregates for a customer. */
+        CustomerStats: {
+            totalOrders: number;
+            /** Format: double */
+            totalSpent: number;
+            /** Format: date-time */
+            lastOrderDate?: string | null;
+        };
+        CustomerStatsEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["CustomerStats"];
+        };
+        /**
+         * @description Partial update of the customer. The server merges JSON over the existing
+         *     record, so send only the fields you want to change. `id` is pinned
+         *     server-side and ignored in the body.
+         */
+        CustomerUpdateInput: {
+            name?: string;
+            phone?: string | null;
+            /** Format: email */
+            email?: string | null;
+            notes?: string | null;
+            /** Format: double */
+            balance?: number;
+        };
+        DashboardComparison: {
+            revenue: components["schemas"]["ComparisonMetric"];
+            orders: components["schemas"]["ComparisonMetric"];
+            expenses: components["schemas"]["ComparisonMetric"];
+            netCashFlow: components["schemas"]["ComparisonMetric"];
+        };
+        DashboardPayment: {
+            method: string;
+            /** Format: int64 */
+            count: number;
+            /** Format: double */
+            total: number;
+        };
+        DashboardRecentOrder: {
+            id: string;
+            orderNumber: string;
+            customerName: string;
+            status: string;
+            /** Format: double */
+            totalAmount: number;
+            createdAt: string;
+        };
+        DashboardService: {
+            serviceId: string;
+            name: string;
+            /** Format: int64 */
+            orders: number;
+            /** Format: double */
+            revenue: number;
+        };
+        /** @description The 21-field computed dashboard object. */
+        DashboardStats: {
+            /** Format: int64 */
+            todayOrders: number;
+            /** Format: int64 */
+            inProgress: number;
+            /** Format: int64 */
+            readyForPickup: number;
+            /** Format: double */
+            todayRevenue: number;
+            /** Format: double */
+            todayOmset: number;
+            /** Format: double */
+            omsetChange: number | null;
+            /** Format: double */
+            previousRevenue: number;
+            /** Format: double */
+            revenueChange: number | null;
+            topCustomers: components["schemas"]["DashboardTopCustomer"][];
+            serviceBreakdown: components["schemas"]["DashboardService"][];
+            paymentMethodBreakdown: components["schemas"]["DashboardPayment"][];
+            /** @description Map of payment method → total. */
+            paymentBreakdown: {
+                [key: string]: number;
+            };
+            recentOrders: components["schemas"]["DashboardRecentOrder"][];
+            cashFlow: components["schemas"]["CashFlow"];
+            /** @description Map of order status → count. */
+            orderPipeline: {
+                [key: string]: number;
+            };
+            lowStock: components["schemas"]["LowStockItem"][];
+            customerInsights: components["schemas"]["CustomerInsights"];
+            comparison: components["schemas"]["DashboardComparison"];
+            /** Format: int64 */
+            unpaidDelivered: number;
+            unpaidOrders: components["schemas"]["UnpaidOrderDash"][];
+            turnaround: components["schemas"]["Turnaround"];
+            sparkline: number[];
+        };
+        DashboardStatsEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["DashboardStats"];
+        };
+        DashboardTopCustomer: {
+            customerId: string;
+            name: string;
+            /** Format: int64 */
+            orders: number;
+            /** Format: double */
+            totalSpent: number;
+        };
+        DemoCredentials: {
+            /**
+             * Format: email
+             * @example owner@demo.com
+             */
+            email: string;
+            /** @example demo1234 */
+            password: string;
+        };
+        DemoCredentialsEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["DemoCredentials"];
+        };
+        EnvelopeSuccess: {
+            /** @enum {boolean} */
+            success: true;
+            data: Record<string, never> | null;
+            meta?: Record<string, never> | null;
+        };
+        ErrorBody: {
+            code?: string;
+            message: string;
+        };
+        ErrorEnvelope: {
+            /** @enum {boolean} */
+            success: false;
+            error: components["schemas"]["ErrorBody"];
+        };
+        /**
+         * @description A single cost line item recorded against a branch with an optional
+         *     category. `description` and `categoryId` are nullable pointers; `category`
+         *     is populated only when a category is linked.
+         */
+        Expense: {
+            id: string;
+            /** Format: double */
+            amount: number;
+            description?: string | null;
+            /** Format: date-time */
+            date: string;
+            branchId: string;
+            categoryId?: string | null;
+            category?: components["schemas"]["ExpenseCategory"] | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /** @description Groups expenses within a branch. `description` is nullable. */
+        ExpenseCategory: {
+            id: string;
+            name: string;
+            description?: string | null;
+            branchId: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ExpenseCategoryCreateInput: {
+            /** @description Required. */
+            name: string;
+            description?: string | null;
+        };
+        ExpenseCategoryEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["ExpenseCategory"];
+        };
+        ExpenseCategoryListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["ExpenseCategory"][];
+        };
+        /**
+         * @description The server JSON-decodes the body over the existing category, so send only
+         *     the fields you want to change. `id` is pinned server-side and ignored.
+         */
+        ExpenseCategoryUpdateInput: {
+            name?: string;
+            description?: string | null;
+        };
+        /**
+         * @description DTO for creating an expense. `amount` must be > 0. `date` is optional
+         *     (defaults to now) and accepted as `YYYY-MM-DD` or RFC3339.
+         */
+        ExpenseCreateInput: {
+            /**
+             * Format: double
+             * @description Must be positive.
+             */
+            amount: number;
+            description?: string | null;
+            /** @description `YYYY-MM-DD` or RFC3339. Defaults to now when omitted. */
+            date?: string | null;
+            categoryId?: string | null;
+        };
+        ExpenseEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["Expense"];
+        };
+        ExpenseListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["Expense"][];
+        };
+        /**
+         * @description DTO for editing an expense. The server applies these fields to the loaded
+         *     entity. `date` is accepted as `YYYY-MM-DD` or RFC3339; omitted fields are
+         *     left as-is. `amount` is overwritten (not merged), so always send it.
+         */
+        ExpenseUpdateInput: {
+            /** Format: double */
+            amount?: number;
+            description?: string | null;
+            /** @description `YYYY-MM-DD` or RFC3339. Empty string leaves the date unchanged. */
+            date?: string | null;
+            categoryId?: string | null;
+        };
+        GoogleOAuthLink: {
+            /**
+             * Format: uri
+             * @description Google consent URL to open in the browser.
+             */
+            url: string;
+        };
+        GoogleOAuthLinkEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["GoogleOAuthLink"];
+        };
         HealthData: {
             /** @example ok */
             status: string;
@@ -166,20 +4053,656 @@ export interface components {
         HealthEnvelope: components["schemas"]["EnvelopeSuccess"] & {
             data?: components["schemas"]["HealthData"];
         };
-        UserInfo: {
-            id: string;
-            /** Format: email */
-            email: string;
+        HeatmapCustomerVisit: {
+            customerId: string;
             name: string;
-            /** @example OWNER */
-            role: string;
-            tenantId: string;
-            branchId: string;
+            /** Format: int64 */
+            totalOrders: number;
+            /** @description Visit counts indexed by day of week. */
+            dayDistribution: number[];
+        };
+        /** @description The heatmap aggregate object. */
+        HeatmapData: {
+            customerVisits: components["schemas"]["HeatmapCustomerVisit"][];
+            /** @description 7×24 matrix of order counts (day-of-week × hour). */
+            hourlyByDay: number[][];
+            /** @description Revenue keyed by day-of-week (0=Sun…6=Sat). */
+            revenueByDay: {
+                [key: string]: number;
+            };
+            revenueTrend: components["schemas"]["HeatmapRevenueTrendPoint"][];
+        };
+        HeatmapDataEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["HeatmapData"];
+        };
+        HeatmapRevenueTrendPoint: {
+            /** Format: date */
+            date: string;
+            /** Format: int64 */
+            orders: number;
+            /** Format: double */
+            revenue: number;
+            /** Format: double */
+            previousRevenue: number;
+        };
+        /** @description The kanban pipeline (array of order rows). */
+        KanbanData: components["schemas"]["KanbanRow"][];
+        KanbanDataListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["KanbanRow"][];
+        };
+        /** @description One line item nested inside a kanban order row. */
+        KanbanItem: {
+            serviceName: string;
+            /** Format: double */
+            quantity: number;
+            /** Format: double */
+            weightKg: number;
+        };
+        /** @description One flat order-detail row in the kanban pipeline. */
+        KanbanRow: {
+            id: string;
+            orderNumber: string;
+            customerName: string;
+            customerPhone: string;
+            status: string;
+            /** Format: double */
+            totalAmount: number;
+            /** Format: double */
+            paidAmount: number;
+            paymentStatus: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            receivedAt: string | null;
+            /** Format: date-time */
+            inProgressAt: string | null;
+            /** Format: date-time */
+            readyAt: string | null;
+            /** Format: date-time */
+            deliveredAt: string | null;
+            isExpress: boolean;
+            items: components["schemas"]["KanbanItem"][];
         };
         LoginInput: {
             /** Format: email */
             email: string;
             password: string;
+        };
+        LoginResponse: {
+            token: string;
+            user: components["schemas"]["UserInfo"];
+        };
+        LoginResponseEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["LoginResponse"];
+        };
+        LowStockItem: {
+            id: string;
+            name: string;
+            unit: string;
+            /** Format: double */
+            currentQuantity: number;
+            /** Format: double */
+            lowStockThreshold: number;
+        };
+        MeData: {
+            user: components["schemas"]["UserInfo"];
+            claims: components["schemas"]["Claims"];
+        };
+        MeEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["MeData"];
+        };
+        /** @description Raw Midtrans webhook body (snake_case keys, as sent by Midtrans). Verified via HMAC-SHA512 over `order_id + status_code + gross_amount + server_key`. */
+        MidtransWebhookInput: {
+            /** @description Matches the `providerOrderId` (`snap-<uuid>`) from checkout. */
+            order_id: string;
+            /**
+             * @description Midtrans status. capture/settlement/success advance the subscription; all others are recorded but no-op.
+             * @example settlement
+             */
+            transaction_status: string;
+            /** @description HMAC-SHA512 signature (required; empty = rejected). */
+            signature_key?: string;
+            status_code?: string;
+            gross_amount?: string;
+        };
+        OkBody: {
+            /** @enum {boolean} */
+            ok: true;
+        };
+        OkData: {
+            /** @enum {boolean} */
+            ok: true;
+        };
+        OkEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["OkBody"];
+        };
+        /** @description 4-step tenant setup checklist + computed percentage. */
+        OnboardingStatus: {
+            /** @description At least one Service exists for the tenant. */
+            servicesExist: boolean;
+            /** @description Active branch has address or phone set. */
+            outletConfigured: boolean;
+            /** @description At least one Customer exists. */
+            customersExist: boolean;
+            /** @description At least one Order exists. */
+            firstOrderPlaced: boolean;
+            /** @description Number of completed steps (0–4). */
+            done: number;
+            /** @description Total steps (always 4). */
+            total: number;
+            /** @description `done / total * 100` (0–100). */
+            percent: number;
+        };
+        OnboardingStatusEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["OnboardingStatus"];
+        };
+        Order: {
+            id: string;
+            orderNumber: string;
+            customerId: string;
+            status: components["schemas"]["OrderStatus"];
+            paymentStatus: components["schemas"]["PaymentStatus"];
+            /** Format: double */
+            totalAmount: number;
+            /** Format: double */
+            discountAmount: number;
+            discountType?: string | null;
+            notes?: string | null;
+            branchId: string;
+            tenantId: string;
+            module: string;
+            clientId?: string | null;
+            /** Format: date-time */
+            receivedAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        OrderDetail: {
+            id: string;
+            orderNumber: string;
+            status: components["schemas"]["OrderStatus"];
+            /** Format: double */
+            totalAmount: number;
+            /** Format: double */
+            discountAmount: number;
+            discountType?: string | null;
+            /** Format: double */
+            paidAmount: number;
+            paymentStatus: components["schemas"]["PaymentStatus"];
+            notes?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            receivedAt?: string | null;
+            /** Format: date-time */
+            inProgressAt?: string | null;
+            /** Format: date-time */
+            readyAt?: string | null;
+            /** Format: date-time */
+            deliveredAt?: string | null;
+            customerId: string;
+            customerName: string;
+            customerPhone?: string | null;
+            /** Format: double */
+            customerBalance: number;
+            qrisUrl?: string | null;
+            invoiceFooter?: string | null;
+            printerPaperSize?: string | null;
+            orderItems: components["schemas"]["OrderItemDetail"][];
+            payments: components["schemas"]["OrderPaymentDetail"][];
+        };
+        OrderDetailEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["OrderDetail"];
+        };
+        OrderEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["Order"];
+        };
+        OrderItemDetail: {
+            id: string;
+            serviceId: string;
+            serviceName: string;
+            /** Format: double */
+            quantity: number;
+            /** Format: double */
+            weightKg?: number | null;
+            /** Format: double */
+            pricePerUnit: number;
+            /** Format: double */
+            subtotal: number;
+            notes?: string | null;
+            /** @description Arbitrary JSON garment-count breakdown. */
+            garmentBreakdown?: Record<string, never> | null;
+        };
+        OrderItemInput: {
+            serviceId: string;
+            /** Format: double */
+            quantity: number;
+            /** Format: double */
+            weightKg?: number | null;
+            /** @description Arbitrary JSON garment-count breakdown. */
+            garmentBreakdown?: Record<string, never> | null;
+        };
+        OrderListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["OrderListItem"][];
+            meta?: components["schemas"]["OrderListMeta"];
+        };
+        OrderListItem: {
+            id: string;
+            orderNumber: string;
+            customerId: string;
+            customerName: string;
+            customerPhone?: string | null;
+            status: components["schemas"]["OrderStatus"];
+            module: string;
+            /** Format: double */
+            totalAmount: number;
+            /** Format: double */
+            paidAmount: number;
+            /** Format: double */
+            discountAmount: number;
+            discountType?: string | null;
+            paymentStatus: components["schemas"]["PaymentStatus"];
+            notes?: string | null;
+            /** Format: date-time */
+            receivedAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        OrderListMeta: {
+            total: number;
+            page: number;
+            totalPages: number;
+        };
+        OrderPaymentDetail: {
+            id: string;
+            /** Format: double */
+            amount: number;
+            paymentMethod: components["schemas"]["PaymentMethod"];
+            notes?: string | null;
+            /** Format: date-time */
+            paidAt: string;
+        };
+        /** @description A public photo attached to an order. */
+        OrderPhoto: {
+            id: string;
+            /** Format: uri */
+            url: string;
+        };
+        OrderPhotoListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["OrderPhoto"][];
+        };
+        /** @enum {string} */
+        OrderStatus: "RECEIVED" | "IN_PROGRESS" | "READY" | "DELIVERED" | "CANCELED";
+        /**
+         * @description Public order tracking snapshot (customer-facing). Sourced from the
+         *     Order + OrderItem tables; does not expose internal ids, tenant/branch,
+         *     or customer PII.
+         */
+        OrderTracking: {
+            orderNumber: string;
+            status: string;
+            paymentStatus: string;
+            /** Format: double */
+            totalAmount: number;
+            items: components["schemas"]["OrderTrackingItem"][];
+            /** Format: date-time */
+            createdAt: string;
+        };
+        OrderTrackingEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["OrderTracking"];
+        };
+        /** @description One line item in a tracked order. */
+        OrderTrackingItem: {
+            name: string;
+            /** Format: double */
+            quantity: number;
+            /** Format: double */
+            subtotal: number;
+        };
+        /** @description Meta for `apphttp.Success(list, pagination.Meta(...))` lists. */
+        PaginationMeta: {
+            total: number;
+            page: number;
+            limit: number;
+            totalPages: number;
+        };
+        /** @enum {string} */
+        PaymentMethod: "CASH" | "TRANSFER" | "QRIS" | "DEPOSIT";
+        /** @enum {string} */
+        PaymentStatus: "PENDING" | "PARTIAL" | "PAID" | "REFUNDED";
+        /** @description One row from GetTenantPerformance (map[string]any). */
+        PerformanceRow: {
+            id: string;
+            name: string;
+            slug: string;
+            isActive: boolean;
+            subscriptionStatus?: string | null;
+            /** Format: date-time */
+            trialEndsAt?: string | null;
+            trialDaysRemaining?: number | null;
+            activeOutlets: number;
+            totalOutlets: number;
+            /** Format: int64 */
+            orders30d: number;
+            /** Format: int64 */
+            ordersAll: number;
+            /** Format: double */
+            revenue30d: number;
+            /** Format: double */
+            revenueAll: number;
+            /** Format: double */
+            saasRevenuePaid: number;
+            daysSinceLastOrder?: number | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        PickupInsightBranch: {
+            tenantId: string;
+            tenantName: string;
+            branchName: string;
+            /** Format: int64 */
+            rejected: number;
+            /** Format: int64 */
+            total: number;
+            /** Format: double */
+            rate: number;
+        };
+        PickupInsightReason: {
+            reason: string;
+            /** Format: int64 */
+            count: number;
+            /** Format: double */
+            pct: number;
+        };
+        PickupInsightTenant: {
+            tenantId: string;
+            tenantName: string;
+            /** Format: int64 */
+            rejected: number;
+            /** Format: int64 */
+            total: number;
+            /** Format: double */
+            rate: number;
+        };
+        /** @description domain.PickupInsights. */
+        PickupInsights: {
+            /** Format: int64 */
+            totalAll: number;
+            /** Format: int64 */
+            totalRejected: number;
+            /** Format: double */
+            rejectionRate: number;
+            topReasons: components["schemas"]["PickupInsightReason"][];
+            topTenantsByRate: components["schemas"]["PickupInsightTenant"][];
+            topBranchesByRate: components["schemas"]["PickupInsightBranch"][];
+        };
+        PickupPendingCountData: {
+            /** Format: int64 */
+            count: number;
+        };
+        PickupPendingCountEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["PickupPendingCountData"];
+        };
+        /**
+         * @description A pickup request entity. Nullable pointers (`customerPhone`,
+         *     `customerId`, `address`, `requestedDate`, `requestedSlot`, `notes`,
+         *     `convertedOrderId`) are omitted from the JSON when nil (omitempty).
+         */
+        PickupRequest: {
+            id: string;
+            tenantId: string;
+            branchId: string;
+            status: components["schemas"]["PickupStatus"];
+            customerName: string;
+            customerPhone?: string | null;
+            customerId?: string | null;
+            address?: string | null;
+            /** Format: date-time */
+            requestedDate?: string | null;
+            requestedSlot?: string | null;
+            notes?: string | null;
+            convertedOrderId?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @description Body for POST /pickup-requests. */
+        PickupRequestCreateInput: {
+            customerName: string;
+            customerPhone?: string | null;
+            customerId?: string | null;
+            address?: string | null;
+            /** @description `YYYY-MM-DD` or RFC3339. Parsed leniently; ignored if unparseable. */
+            requestedDate?: string | null;
+            requestedSlot?: string | null;
+            notes?: string | null;
+            /** @description Required. Falls back to the request branch context when omitted. */
+            branchId?: string;
+        };
+        PickupRequestEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["PickupRequest"];
+        };
+        PickupRequestListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["PickupRequest"][];
+            meta?: components["schemas"]["PickupRequestListMeta"];
+        };
+        /** @description Pagination meta for the pickup request list (`MetaNoLimit`). */
+        PickupRequestListMeta: {
+            /** Format: int64 */
+            total: number;
+            page: number;
+            totalPages: number;
+        };
+        /**
+         * @description Pickup request lifecycle state (mirrors the Prisma enum).
+         * @enum {string}
+         */
+        PickupStatus: "PENDING" | "ACCEPTED" | "REJECTED" | "SCHEDULED" | "ASSIGNED" | "CONVERTED" | "CANCELED";
+        /** @description Status-transition ack returned by accept/reject/schedule/assign/convert. */
+        PickupStatusOkData: {
+            /** @enum {boolean} */
+            ok: true;
+            status: components["schemas"]["PickupStatus"];
+        };
+        PickupStatusOkEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["PickupStatusOkData"];
+        };
+        /**
+         * @description Shared optional body for the accept/reject/schedule/assign/convert
+         *     transitions. `scheduledDate` is required by `/schedule`; `assignedTo`
+         *     is required by `/assign` and `/convert` (where it carries the created
+         *     order id). `reason` is typically used by `/reject`. All fields optional
+         *     in the schema itself; per-endpoint requirements are enforced server-side.
+         */
+        PickupTransitionInput: {
+            /** @description `YYYY-MM-DD` or RFC3339. Required by `/schedule`. */
+            scheduledDate?: string | null;
+            scheduledSlot?: string | null;
+            /** @description Assignee id (for `/assign`) or created order id (for `/convert`). Required by both. */
+            assignedTo?: string | null;
+            reason?: string | null;
+        };
+        /**
+         * @description How a service is priced. Mirrors the Prisma enum.
+         * @default PER_KG
+         * @enum {string}
+         */
+        PricingType: "PER_KG" | "PER_ITEM" | "FLAT";
+        /**
+         * @description Printer endpoint response — always `{ success: false, error: { message } }` because
+         *     printer hardware is device-local and unreachable from the backend. Matches the error
+         *     envelope shape directly (no success `data`).
+         */
+        PrinterResult: {
+            /** @example false */
+            success: boolean;
+            error: {
+                message: string;
+            };
+        };
+        /** @description Result of POST /billing/promo/validate. `valid` is the authoritative field; when false, `reason` explains why. Validation does NOT redeem. */
+        PromoResult: {
+            valid?: boolean;
+            /** @description Rejection reason when `valid` is false (e.g. not found, expired, usage exceeded). */
+            reason?: string;
+            /**
+             * @description Promo kind when valid. FREE_MONTH | DISCOUNT_PERCENT | DISCOUNT_FIXED.
+             * @enum {string}
+             */
+            type?: "FREE_MONTH" | "DISCOUNT_PERCENT" | "DISCOUNT_FIXED";
+            /**
+             * Format: double
+             * @description Promo magnitude — months (FREE_MONTH), percent (DISCOUNT_PERCENT), or currency amount (DISCOUNT_FIXED).
+             */
+            value?: number;
+            /** @description Internal promo code ID (present when valid). */
+            promoCodeId?: string;
+        };
+        /** @description Body for POST /billing/promo/validate. */
+        PromoValidateInput: {
+            /** @description Promo code to validate. */
+            code: string;
+            /** @description Optional plan context for validation. */
+            planId?: string;
+        };
+        PublicBranch: {
+            id: string;
+            slug: string;
+            name: string;
+            address: string;
+            phone: string;
+            operatingHours: string;
+            /** Format: double */
+            latitude?: number | null;
+            /** Format: double */
+            longitude?: number | null;
+            whatsappLink: string;
+            googleMapsLink: string;
+            tenantName: string;
+        };
+        PublicPickupInput: {
+            name: string;
+            phone: string;
+            /** Format: email */
+            customerEmail?: string;
+            address?: string;
+            preferredTime?: string;
+            notes?: string;
+            tenantSlug: string;
+            serviceIds?: string[];
+            /** Format: double */
+            latitude?: number | null;
+            /** Format: double */
+            longitude?: number | null;
+            mapsLink?: string;
+        };
+        PublicPickupResult: {
+            requestId: string;
+            /**
+             * @description Pickup status (mirrors Prisma enum — PENDING / ACCEPTED / SCHEDULED / CANCELED).
+             * @example PENDING
+             */
+            status: string;
+        };
+        PublicPickupResultEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["PublicPickupResult"];
+        };
+        PublicService: {
+            id: string;
+            name: string;
+            description: string;
+            /** Format: double */
+            price: number;
+            pricingType: string;
+            duration?: number | null;
+            group?: components["schemas"]["PublicServiceGroup"] | null;
+        };
+        PublicServiceCatalogEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: {
+                services: components["schemas"]["PublicService"][];
+            };
+        };
+        PublicServiceGroup: {
+            id: string;
+            name: string;
+        };
+        PublicTenant: {
+            id: string;
+            name: string;
+            slug: string;
+            /** Format: uri */
+            logoUrl?: string | null;
+            /** @description Opaque dashboard website-config JSON (hero/tagline/about/qris/google/…). */
+            settings: {
+                [key: string]: unknown;
+            };
+            branches: components["schemas"]["PublicTenantBranch"][];
+        };
+        PublicTenantBranch: {
+            id: string;
+            name: string;
+            address?: string | null;
+            phone?: string | null;
+            slug?: string | null;
+            /** Format: double */
+            latitude?: number | null;
+            /** Format: double */
+            longitude?: number | null;
+            googleMapsLink?: string | null;
+            whatsappLink?: string | null;
+            /** @description Opaque operating-hours JSON block. */
+            operatingHours?: {
+                [key: string]: unknown;
+            };
+        };
+        PublicTenantEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["PublicTenant"];
+        };
+        PublicTicketInput: {
+            name: string;
+            /** Format: email */
+            email: string;
+            subject?: string;
+            message: string;
+            tenantSlug?: string | null;
+        };
+        PublicTicketResult: {
+            ticketId: string;
+            /**
+             * @description Ticket status (mirrors Prisma enum — OPEN / CLOSED / PENDING).
+             * @example OPEN
+             */
+            status: string;
+        };
+        PublicTicketResultEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["PublicTicketResult"];
+        };
+        PwaNonce: {
+            nonce: string;
+        };
+        PwaNonceEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["PwaNonce"];
+        };
+        /** @description Body for creating an attendance-only staff member. */
+        QuickStaffRequest: {
+            name: string;
+            /** @description Plaintext PIN; hashed with bcrypt server-side. */
+            pin: string;
+            /** @description Falls back to the auth context branch when omitted. */
+            branchId?: string;
+        };
+        RecordPaymentInput: {
+            /** Format: double */
+            amount: number;
+            paymentMethod?: string;
+            notes?: string;
+            /** @description YYYY-MM-DD or RFC3339; defaults to now when omitted. */
+            paidAt?: string;
         };
         RegisterInput: {
             tenantName: string;
@@ -202,69 +4725,1903 @@ export interface components {
              */
             trialTier: "PRO" | "GROWTH";
         };
-        LoginResponse: {
-            token: string;
-            user: components["schemas"]["UserInfo"];
+        ReportAgingBucket: {
+            count?: number;
+            /** Format: double */
+            amount?: number;
         };
-        /** @description JWT claims resolved server-side, surfaced via /auth/me. */
-        Claims: {
-            tenantId?: string;
-            branchId?: string;
-            role?: string;
+        ReportAnnualMonth: {
+            month?: number;
+            monthName?: string;
+            /** Format: double */
+            revenue?: number;
+            /** Format: double */
+            expenses?: number;
+            /** Format: double */
+            netProfit?: number;
+        };
+        ReportAttendanceRow: {
+            employeeId?: string;
+            /** Format: double */
+            totalHours?: number;
+            /** Format: int64 */
+            clockInCount?: number;
+        };
+        ReportCashByMonth: {
+            month?: string;
+            /** Format: double */
+            amount?: number;
+            isCurrent?: boolean;
+        };
+        ReportCommission: {
+            summary?: components["schemas"]["ReportCommissionSummary"];
+            byService?: components["schemas"]["ReportCommissionBySvcRow"][];
+        };
+        ReportCommissionBySvcRow: {
+            serviceId?: string;
+            name?: string;
+            pricingType?: string;
+            commissionType?: string;
+            /** Format: double */
+            commissionValue?: number;
+            /** Format: double */
+            revenue?: number;
+            /** Format: int64 */
+            orderCount?: number;
+            /** Format: double */
+            commission?: number;
+        };
+        ReportCommissionSummary: {
+            /** Format: double */
+            totalRevenue?: number;
+            /** Format: double */
+            totalCommission?: number;
+        };
+        ReportCustomerOutstanding: {
+            customerId?: string;
+            name?: string;
+            phone?: string;
+            /** Format: double */
+            totalOutstanding?: number;
+            orderCount?: number;
+        };
+        ReportCustomerSpender: {
+            customerId?: string;
+            name?: string;
+            /** Format: int64 */
+            orders?: number;
+            /** Format: double */
+            totalSpent?: number;
+        };
+        ReportCustomers: {
+            summary?: components["schemas"]["ReportCustomersSummary"];
+            topSpenders?: components["schemas"]["ReportCustomerSpender"][];
+            outstandingBalance?: components["schemas"]["ReportCustomerOutstanding"][];
+        };
+        ReportCustomersSummary: {
+            /** Format: int64 */
+            totalCustomers?: number;
+            /** Format: int64 */
+            newCustomers?: number;
+            newInPeriod?: number;
+            returningInPeriod?: number;
+            /** Format: double */
+            avgSpendPerCustomer?: number;
+        };
+        ReportDailyItem: {
+            name?: string;
+            /** Format: double */
+            qty?: number;
+        };
+        ReportDailyOrderDetail: {
+            customerName?: string;
+            /** Format: double */
+            weightKg?: number;
+            items?: components["schemas"]["ReportDailyItem"][];
+            itemSummary?: string;
+            /** Format: double */
+            amount?: number;
+        };
+        ReportDailyTransaction: {
+            date?: string;
+            dayName?: string;
+            dateNumber?: number;
+            orders?: components["schemas"]["ReportDailyOrderDetail"][];
+            /** Format: double */
+            dayTotal?: number;
+            /** Format: double */
+            runningTotal?: number;
+        };
+        ReportDailyVolume: {
+            date?: string;
+            count?: number;
+        };
+        ReportExpenseCategoryRow: {
+            category?: string;
+            /** Format: int64 */
+            count?: number;
+            /** Format: double */
+            total?: number;
+        };
+        ReportExpenseDailyRow: {
+            date?: string;
+            /** Format: double */
+            total?: number;
+            count?: number;
+        };
+        ReportExpenseDetailRow: {
+            date?: string;
+            description?: string;
+            /** Format: double */
+            amount?: number;
+        };
+        ReportExpenses: {
+            summary?: components["schemas"]["ReportExpensesSummary"];
+            byCategory?: components["schemas"]["ReportExpenseCategoryRow"][];
+            dailyTrend?: components["schemas"]["ReportExpenseDailyRow"][];
+        };
+        ReportExpensesSummary: {
+            /** Format: double */
+            totalExpenses?: number;
+            categoryCount?: number;
+            /** Format: double */
+            dailyAvg?: number;
+        };
+        ReportFinDaily: {
+            date?: string;
+            /** Format: double */
+            revenue?: number;
+            /** Format: double */
+            expenses?: number;
+            orders?: number;
+            /** Format: double */
+            profit?: number;
+        };
+        ReportFinInventory: {
+            totalItems?: number;
+            /** Format: double */
+            totalValue?: number;
+            lowStockCount?: number;
+        };
+        ReportFinOutstanding: {
+            /** Format: double */
+            total?: number;
+            customersAffected?: number;
+            ordersAffected?: number;
+            topBalances?: components["schemas"]["ReportFinTopBalance"][];
+        };
+        ReportFinSummary: {
+            /** Format: double */
+            revenue?: number;
+            /** Format: double */
+            expenses?: number;
+            /** Format: double */
+            netProfit?: number;
+            /** Format: double */
+            marginPercent?: number;
+            /** Format: int64 */
+            totalOrders?: number;
+            /** Format: double */
+            avgOrderValue?: number;
+            /** Format: double */
+            totalOutstanding?: number;
+            affectedCustomers?: number;
+        };
+        ReportFinTopBalance: {
+            name?: string;
+            /** Format: double */
+            balance?: number;
+            oldestOrder?: string;
+        };
+        /**
+         * @description Used for both `topServices` (populates `revenue`) and `topCustomers`
+         *     (populates `totalSpent`). The unused field is omitted (`omitempty`).
+         */
+        ReportFinTopItem: {
+            name?: string;
+            /** Format: int64 */
+            orderCount?: number;
+            /** Format: double */
+            revenue?: number;
+            /** Format: double */
+            totalSpent?: number;
+        };
+        ReportFinTurnaround: {
+            /** Format: double */
+            under24hPercent?: number;
+            totalDelivered?: number;
+            distribution?: {
+                [key: string]: number;
+            };
+        };
+        ReportFinancialStatement: {
+            summary?: components["schemas"]["ReportFinSummary"];
+            dailyBreakdown?: components["schemas"]["ReportFinDaily"][];
+            topServices?: components["schemas"]["ReportFinTopItem"][];
+            /** @description Free-form expense-by-category entries (Go `[]interface{}`). */
+            expensesByCategory?: unknown[];
+            /** @description Free-form payment-method breakdown entries (Go `[]interface{}`). */
+            byPaymentMethod?: unknown[];
+            topCustomers?: components["schemas"]["ReportFinTopItem"][];
+            outstanding?: components["schemas"]["ReportFinOutstanding"];
+            turnaround?: components["schemas"]["ReportFinTurnaround"];
+            inventory?: components["schemas"]["ReportFinInventory"];
+        };
+        ReportInventory: {
+            summary?: components["schemas"]["ReportInventorySummary"];
+            stockLevels?: components["schemas"]["ReportInventoryStockRow"][];
+            recentMovements?: components["schemas"]["ReportInventoryMovement"][];
+        };
+        ReportInventoryMovement: {
+            name?: string;
+            type?: string;
+            /** Format: double */
+            quantity?: number;
+            date?: string;
+            notes?: string;
+        };
+        ReportInventoryStockRow: {
+            name?: string;
+            unit?: string;
+            /** Format: double */
+            quantity?: number;
+            /** Format: double */
+            threshold?: number;
+            /** Format: double */
+            value?: number;
+            isLow?: boolean;
+        };
+        ReportInventorySummary: {
+            totalItems?: number;
+            /** Format: double */
+            totalValue?: number;
+            lowStockCount?: number;
+            recentPurchases?: number;
+        };
+        ReportMonthlyPnL: {
+            month?: number;
+            year?: number;
+            monthName?: string;
+            pnl?: components["schemas"]["ReportPnLDetail"];
+            expenseDetails?: components["schemas"]["ReportExpenseDetailRow"][];
+            dailyTransactions?: components["schemas"]["ReportDailyTransaction"][];
+            annualComparison?: components["schemas"]["ReportAnnualMonth"][];
+        };
+        ReportOrderServiceUsage: {
+            serviceId?: string;
+            name?: string;
+            pricingType?: string;
+            /** Format: int64 */
+            orderCount?: number;
+            /** Format: double */
+            quantity?: number;
+            /** Format: double */
+            weightKg?: number;
+            /** Format: double */
+            revenue?: number;
+        };
+        ReportOrderStatusGroup: {
+            status?: string;
+            /** Format: int64 */
+            count?: number;
+            /** Format: double */
+            totalAmount?: number;
+        };
+        ReportOrders: {
+            summary?: components["schemas"]["ReportOrdersSummary"];
+            byStatus?: components["schemas"]["ReportOrderStatusGroup"][];
+            serviceBreakdown?: components["schemas"]["ReportOrderServiceUsage"][];
+            turnaroundDistribution?: components["schemas"]["ReportTurnaroundDist"];
+            dailyVolume?: components["schemas"]["ReportDailyVolume"][];
+        };
+        ReportOrdersSummary: {
+            /** Format: int64 */
+            totalOrders?: number;
+            /** Format: double */
+            avgTurnaroundHours?: number | null;
+            /** Format: double */
+            totalItems?: number;
+            /** Format: double */
+            totalWeightKg?: number;
+        };
+        ReportOutstanding: {
+            summary?: components["schemas"]["ReportOutstandingSummary"];
+            customers?: components["schemas"]["ReportOutstandingCustomer"][];
+        };
+        ReportOutstandingCustomer: {
+            customerId?: string;
+            name?: string;
+            phone?: string;
+            /** Format: double */
+            totalOutstanding?: number;
+            orderCount?: number;
+            oldestOrder?: string;
+            orders?: components["schemas"]["ReportOutstandingOrder"][];
+        };
+        ReportOutstandingOrder: {
+            orderNumber?: string;
+            /** Format: double */
+            outstanding?: number;
+            createdAt?: string;
+        };
+        ReportOutstandingSummary: {
+            /** Format: double */
+            totalOutstanding?: number;
+            customersAffected?: number;
+            ordersAffected?: number;
+        };
+        ReportPaymentCollMonth: {
+            month?: string;
+            paymentCount?: number;
+            /** Format: double */
+            totalCollected?: number;
+            orderCount?: number;
+            payments?: components["schemas"]["ReportPaymentDetail"][];
+        };
+        ReportPaymentCollSummary: {
+            /** Format: double */
+            totalCollected?: number;
+            totalUnpaidOrders?: number;
+            /** Format: double */
+            totalOutstanding?: number;
+            oldestUnpaid?: string | null;
+        };
+        ReportPaymentCollection: {
+            summary?: components["schemas"]["ReportPaymentCollSummary"];
+            paymentsCollectedByMonth?: components["schemas"]["ReportPaymentCollMonth"][];
+            unpaidByMonth?: components["schemas"]["ReportUnpaidMonth"][];
+        };
+        ReportPaymentDetail: {
+            paymentId?: string;
+            /** Format: double */
+            amount?: number;
+            paymentDate?: string;
+            orderNumber?: string;
+            orderId?: string;
+            customerName?: string;
+            customerId?: string;
+            customerPhone?: string;
+            orderCreatedDate?: string;
+        };
+        ReportPiutang: {
+            monthlySummary?: components["schemas"]["ReportPiutangMonthly"][];
+            agingBuckets?: {
+                [key: string]: components["schemas"]["ReportAgingBucket"];
+            };
+            /** Format: double */
+            totalOutstanding?: number;
+            outstandingOrderCount?: number;
+            orders?: components["schemas"]["ReportPiutangOrder"][];
+        };
+        ReportPiutangMonthly: {
+            month?: string;
+            newOrders?: number;
+            /** Format: double */
+            newPiutang?: number;
+            /** Format: double */
+            paidSoFar?: number;
+            /** Format: double */
+            stillOutstanding?: number;
+            fullyPaidCount?: number;
+        };
+        ReportPiutangOrder: {
+            id?: string;
+            orderNumber?: string;
+            customer?: string;
+            status?: string;
+            /** Format: double */
+            totalAmount?: number;
+            /** Format: double */
+            paidAmount?: number;
+            /** Format: double */
+            outstanding?: number;
+            createdAt?: string;
+            ageDays?: number;
+            bucket?: string;
+            /** @description Free-form payment entries (currently `[]any` in Go). */
+            payments?: unknown[];
+        };
+        ReportPnLDetail: {
+            income?: components["schemas"]["ReportPnLIncome"];
+            /** Format: double */
+            unpaidBalance?: number;
+            /** Format: double */
+            cashCollected?: number;
+            cashCollectedByMonth?: components["schemas"]["ReportCashByMonth"][];
+            expenses?: components["schemas"]["ReportPnLExpenseRow"][];
+            /** Format: double */
+            totalExpenses?: number;
+            /** Format: double */
+            netProfit?: number;
+            /** Format: double */
+            marginPercent?: number;
+        };
+        ReportPnLExpenseRow: {
+            category?: string;
+            /** Format: double */
+            amount?: number;
+        };
+        ReportPnLIncome: {
+            /** Format: double */
+            perKg?: number;
+            /** Format: double */
+            perItem?: number;
+            /** Format: double */
+            total?: number;
+        };
+        ReportProfit: {
+            summary?: components["schemas"]["ReportProfitSummary"];
+            dailyComparison?: components["schemas"]["ReportProfitDailyRow"][];
+        };
+        ReportProfitDailyRow: {
+            date?: string;
+            /** Format: double */
+            revenue?: number;
+            /** Format: double */
+            expenses?: number;
+            /** Format: double */
+            profit?: number;
+        };
+        ReportProfitSummary: {
+            /** Format: double */
+            revenue?: number;
+            /** Format: double */
+            expenses?: number;
+            /** Format: double */
+            netProfit?: number;
+            /** Format: double */
+            marginPercent?: number;
+        };
+        ReportRevenue: {
+            summary?: components["schemas"]["ReportRevenueSummary"];
+            byPaymentMethod?: components["schemas"]["ReportRevenueMethod"][];
+            dailyTrend?: components["schemas"]["ReportRevenueDaily"][];
+            byPaymentStatus?: components["schemas"]["ReportRevenuePayStat"][];
+        };
+        ReportRevenueDaily: {
+            date?: string;
+            /** Format: double */
+            revenue?: number;
+            /** Format: double */
+            grossRevenue?: number;
+            /** Format: double */
+            netRevenue?: number;
+            orders?: number;
+            byMethod?: {
+                [key: string]: number;
+            };
+        };
+        ReportRevenueMethod: {
+            method?: string;
+            /** Format: int64 */
+            count?: number;
+            /** Format: double */
+            total?: number;
+        };
+        ReportRevenuePayStat: {
+            status?: string;
+            /** Format: int64 */
+            count?: number;
+            /** Format: double */
+            totalAmount?: number;
+            /** Format: double */
+            paidAmount?: number;
+        };
+        ReportRevenueSummary: {
+            /** Format: double */
+            grossRevenue?: number;
+            /** Format: double */
+            totalDiscount?: number;
+            /** Format: double */
+            netRevenue?: number;
+            /** Format: double */
+            totalPaid?: number;
+            /** Format: int64 */
+            ordersCount?: number;
+        };
+        ReportServices: {
+            services?: components["schemas"]["ReportServicesItem"][];
+            byPricingType?: {
+                [key: string]: components["schemas"]["ReportServicesPricingAgg"];
+            };
+        };
+        ReportServicesItem: {
+            serviceId?: string;
+            name?: string;
+            /** Format: double */
+            totalQuantity?: number;
+            /** Format: double */
+            totalWeightKg?: number;
+            /** Format: double */
+            totalRevenue?: number;
+            /** Format: double */
+            avgOrderValue?: number;
+            /** Format: double */
+            basePrice?: number;
+            /** Format: int64 */
+            orderCount?: number;
+            pricingType?: string;
+        };
+        ReportServicesPricingAgg: {
+            /** Format: int64 */
+            orderCount?: number;
+            /** Format: double */
+            revenue?: number;
+            /** Format: double */
+            totalQuantity?: number;
+            /** Format: double */
+            totalWeightKg?: number;
+        };
+        ReportTurnaroundDist: {
+            under24h?: number;
+            under48h?: number;
+            under72h?: number;
+            over72h?: number;
+        };
+        ReportUnpaidMonth: {
+            month?: string;
+            count?: number;
+            /** Format: double */
+            totalOutstanding?: number;
+            orders?: components["schemas"]["ReportUnpaidOrder"][];
+        };
+        ReportUnpaidOrder: {
+            orderId?: string;
+            orderNumber?: string;
+            /** Format: double */
+            totalAmount?: number;
+            /** Format: double */
+            paidAmount?: number;
+            /** Format: double */
+            outstanding?: number;
+            createdAt?: string;
+            customerName?: string;
+            customerId?: string;
+            customerPhone?: string;
+        };
+        /**
+         * @description The RBAC role entity (mirrors the Prisma `Role` model). `description`
+         *     and `color` are nullable pointers; `permissions` is stored as `_text`
+         *     and serialized as a JSON array.
+         */
+        Role: {
+            id: string;
+            name: string;
+            description?: string | null;
+            isSystem: boolean;
+            color?: string | null;
+            permissions: string[];
+            tenantId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /**
+         * @description Role creation body. `name` is required. `permissions` defaults to an
+         *     empty array; `color` defaults to `purple` when omitted/empty.
+         */
+        RoleCreateInput: {
+            name: string;
+            description?: string | null;
+            color?: string | null;
             permissions?: string[];
         };
-        MeData: {
-            user: components["schemas"]["UserInfo"];
-            claims: components["schemas"]["Claims"];
+        RoleEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["Role"];
+        };
+        RoleListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["RoleListItem"][];
+        };
+        /**
+         * @description Curated list item for `/roles`. Drops `tenantId`/`updatedAt` and adds
+         *     `userCount`. `permissions` is emitted as a JSON array.
+         */
+        RoleListItem: {
+            id: string;
+            name: string;
+            description: string | null;
+            color: string | null;
+            permissions: string[];
+            isSystem: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: int64 */
+            userCount: number;
+        };
+        /** @description Nested role reference on a `StaffUserListItem`. */
+        RoleRef: {
+            id: string;
+            name: string;
+            color: string | null;
+        };
+        /** @description Partial update — send only the fields to change. */
+        RoleUpdateInput: {
+            name?: string;
+            description?: string | null;
+            color?: string | null;
+            permissions?: string[];
+        };
+        /**
+         * @description The priced service entity scoped to a branch + module. Returned by
+         *     single-resource endpoints (GET / POST / PATCH). `description` and
+         *     `groupId` are nullable pointers.
+         */
+        Service: {
+            id: string;
+            name: string;
+            description?: string | null;
+            pricingType: components["schemas"]["PricingType"];
+            /** Format: double */
+            basePrice: number;
+            commissionType: components["schemas"]["CommissionType"];
+            /** Format: double */
+            commissionValue: number;
+            module: string;
+            isActive: boolean;
+            isDefaultSpeed: boolean;
+            branchId: string;
+            groupId?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /**
+         * @description DTO for creating a service. `name` is required. Defaults applied
+         *     server-side: `pricingType` → `PER_KG`, `commissionType` → `NONE`,
+         *     `module` → `LAUNDRY`, `isActive` → `true`, `isDefaultSpeed` → `false`.
+         */
+        ServiceCreateInput: {
+            /** @description Required. */
+            name: string;
+            description?: string | null;
+            pricingType?: components["schemas"]["PricingType"];
+            /** Format: double */
+            basePrice?: number;
+            commissionType?: components["schemas"]["CommissionType"];
+            /** Format: double */
+            commissionValue?: number;
+            module?: string;
+            isActive?: boolean | null;
+            isDefaultSpeed?: boolean | null;
+            groupId?: string | null;
+        };
+        ServiceEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["Service"];
+        };
+        /**
+         * @description Groups services within a branch + module (e.g. speed variants).
+         *     `description` is a nullable pointer.
+         */
+        ServiceGroup: {
+            id: string;
+            name: string;
+            description?: string | null;
+            sortOrder: number;
+            module: string;
+            branchId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /**
+         * @description DTO for creating a service group. `name` is required. Defaults applied
+         *     server-side: `module` → `LAUNDRY`, `sortOrder` → `0`.
+         */
+        ServiceGroupCreateInput: {
+            /** @description Required. */
+            name: string;
+            description?: string | null;
+            sortOrder?: number | null;
+            module?: string;
+        };
+        ServiceGroupEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["ServiceGroup"];
+        };
+        ServiceGroupListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["ServiceGroup"][];
+        };
+        /** @description Nested group object on a `ServiceListItem` (null when the service has no group). */
+        ServiceGroupRef: {
+            id: string;
+            name: string;
+        } | null;
+        /**
+         * @description The server JSON-decodes the body over the existing group, so send only
+         *     the fields you want to change. `id` is pinned server-side and ignored.
+         */
+        ServiceGroupUpdateInput: {
+            name?: string;
+            description?: string | null;
+            sortOrder?: number;
+            module?: string;
+        };
+        ServiceListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["ServiceListItem"][];
+        };
+        /**
+         * @description The curated list DTO returned by `GET /services`. Drops `branchId`
+         *     (tenant-scoped, redundant to the caller) and adds the nested `group`.
+         */
+        ServiceListItem: {
+            id: string;
+            name: string;
+            description?: string | null;
+            pricingType: components["schemas"]["PricingType"];
+            /** Format: double */
+            basePrice: number;
+            commissionType: components["schemas"]["CommissionType"];
+            /** Format: double */
+            commissionValue: number;
+            module: string;
+            isActive: boolean;
+            isDefaultSpeed: boolean;
+            groupId?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            group?: components["schemas"]["ServiceGroupRef"] | null;
+        };
+        /**
+         * @description Partial update input. The server loads the existing service and applies
+         *     only the fields the body supplies. Empty / zero / nil values are ignored
+         *     (the existing value is kept) — so to clear `description`/`groupId`, send
+         *     an explicit `null`. `id` + `branchId` are preserved from the loaded entity.
+         */
+        ServiceUpdateInput: {
+            name?: string;
+            description?: string | null;
+            pricingType?: components["schemas"]["PricingType"];
+            /** Format: double */
+            basePrice?: number;
+            commissionType?: components["schemas"]["CommissionType"];
+            /** Format: double */
+            commissionValue?: number;
+            module?: string;
+            groupId?: string | null;
+            isActive?: boolean | null;
+            isDefaultSpeed?: boolean | null;
         };
         SessionVersionData: {
             ok: boolean;
             sessionVersion: number;
         };
-        /** @description A published blog post. `content` is Markdown. */
-        BlogPost: {
-            slug: string;
-            title: string;
-            /** @description Meta description */
-            description: string;
-            /** @description Comma-separated SEO keywords */
-            keywords?: string | null;
-            /** @description Markdown source */
-            content: string;
-            /** Format: uri */
-            coverImage?: string | null;
-            /** Format: date-time */
-            publishedAt?: string | null;
-        };
-        BlogPostListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
-            data?: components["schemas"]["BlogPost"][];
-        };
-        BlogPostEnvelope: components["schemas"]["EnvelopeSuccess"] & {
-            data?: components["schemas"]["BlogPost"];
-        };
-        EnvelopeSuccess: {
-            /** @enum {boolean} */
-            success: true;
-            data: Record<string, never> | null;
-            meta?: Record<string, never> | null;
-        };
-        LoginResponseEnvelope: components["schemas"]["EnvelopeSuccess"] & {
-            data?: components["schemas"]["LoginResponse"];
-        };
-        MeEnvelope: components["schemas"]["EnvelopeSuccess"] & {
-            data?: components["schemas"]["MeData"];
-        };
         SessionVersionEnvelope: components["schemas"]["EnvelopeSuccess"] & {
             data?: components["schemas"]["SessionVersionData"];
         };
-        ErrorBody: {
-            code?: string;
-            message: string;
+        /** @description Full staff member (quick-staff creation response). */
+        Staff: {
+            id: string;
+            name: string;
+            branchId: string;
+            qrToken?: string | null;
+            isActive: boolean;
+            /** Format: date-time */
+            createdAt: string;
         };
-        ErrorEnvelope: {
+        /**
+         * @description Minimal clock-grid projection of a staff member — only the fields the
+         *     `/attendance/staff` list exposes.
+         */
+        StaffItem: {
+            id: string;
+            name: string;
+        };
+        StaffItemEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["Staff"];
+        };
+        StaffItemListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["StaffItem"][];
+        };
+        /**
+         * @description The users-module user (tenant staff). Mirrors the Prisma `User` model.
+         *     `email`, `phone`, `roleId`, and `qrToken` are nullable pointers.
+         *     `passwordHash` and `pinHash` are never serialized.
+         */
+        StaffUser: {
+            id: string;
+            /** Format: email */
+            email?: string | null;
+            name: string;
+            phone?: string | null;
+            /** @enum {string} */
+            role: "OWNER" | "MANAGER" | "EMPLOYEE";
+            roleId?: string | null;
+            tenantId: string;
+            branchId: string;
+            sessionVersion: number;
+            isActive: boolean;
+            qrToken?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /**
+         * @description Staff user creation body. `name` is required. The system role enum is
+         *     derived from `roleId`'s name when `role` is omitted. `pin` must be at
+         *     least 4 digits when provided.
+         */
+        StaffUserCreateInput: {
+            name: string;
+            /** Format: email */
+            email?: string | null;
+            password?: string | null;
+            phone?: string | null;
+            /** @enum {string} */
+            role?: "OWNER" | "MANAGER" | "EMPLOYEE";
+            roleId?: string | null;
+            branchId?: string;
+            pin?: string | null;
+            isActive?: boolean | null;
+        };
+        StaffUserEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["StaffUser"];
+        };
+        StaffUserListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["StaffUserListItem"][];
+        };
+        /**
+         * @description Curated list item for `/users`. Drops
+         *     `isActive`/`sessionVersion`/`tenantId`/`updatedAt`/`qrToken` and adds
+         *     nested `branch` + `roleRef`. Nullable pointers (`email`, `phone`,
+         *     `roleId`) are emitted without `omitempty` on the list shape.
+         */
+        StaffUserListItem: {
+            id: string;
+            /** Format: email */
+            email?: string | null;
+            name: string;
+            phone?: string | null;
+            /** @enum {string} */
+            role: "OWNER" | "MANAGER" | "EMPLOYEE";
+            roleId: string | null;
+            branchId: string;
+            /** Format: date-time */
+            createdAt: string;
+            branch: components["schemas"]["BranchRef"];
+            roleRef: components["schemas"]["RoleRef"];
+        };
+        StaffUserResetPasswordEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: {
+                tempPassword: string;
+            };
+        };
+        /** @description PIN to hash and store. Must be at least 4 digits. */
+        StaffUserSetPinInput: {
+            pin: string;
+        };
+        /** @description Partial update — send only the fields to change. */
+        StaffUserUpdateInput: {
+            /** Format: email */
+            email?: string | null;
+            name?: string;
+            phone?: string | null;
+            /** @enum {string} */
+            role?: "OWNER" | "MANAGER" | "EMPLOYEE";
+            roleId?: string | null;
+            branchId?: string;
+            isActive?: boolean | null;
+        };
+        StatusOkData: {
             /** @enum {boolean} */
-            success: false;
-            error: components["schemas"]["ErrorBody"];
+            ok: true;
+            status: components["schemas"]["OrderStatus"];
+        };
+        StatusOkEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["StatusOkData"];
+        };
+        /**
+         * @description A tracked consumable/supply within a branch. Quantities are doubles to
+         *     support fractional units (litres, kilograms).
+         */
+        StockItem: {
+            id: string;
+            name: string;
+            unit: string;
+            /** Format: double */
+            currentQuantity: number;
+            /** Format: double */
+            lowStockThreshold: number;
+            /** Format: double */
+            purchasePricePerUnit: number;
+            isActive: boolean;
+            branchId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        StockItemEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["StockItem"];
+        };
+        StockItemListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["StockItem"][];
+        };
+        /** @description One IN/OUT/ADJUSTMENT delta recorded against a stock item. */
+        StockMovement: {
+            id: string;
+            stockItemId: string;
+            /** @enum {string} */
+            type: "IN" | "OUT" | "ADJUSTMENT";
+            /** Format: double */
+            quantity: number;
+            /** Format: date-time */
+            date: string;
+            notes?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        StockMovementEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["StockMovement"];
+        };
+        StockMovementListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["StockMovement"][];
+        };
+        /** @description Row from ListAdmins / CreateAdmin (map[string]any). */
+        SuperAdminAdmin: {
+            id: string;
+            /** Format: email */
+            email: string;
+            name: string;
+            /** @default SUPER_ADMIN */
+            role: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /** @description POST /admins body. */
+        SuperAdminAdminInput: {
+            /** Format: email */
+            email: string;
+            name: string;
+            password: string;
+            /** @default SUPER_ADMIN */
+            role: string;
+        };
+        SuperAdminAiChatInput: {
+            question: string;
+            history?: {
+                /** @enum {string} */
+                role: "user" | "assistant";
+                content: string;
+            }[];
+        };
+        SuperAdminAuditLog: {
+            id: string;
+            action: string;
+            targetType: string;
+            targetId: string;
+            tenantId?: string | null;
+            actorId: string;
+            actorEmail: string;
+            reason?: string | null;
+            diff?: {
+                [key: string]: unknown;
+            } | null;
+            ipAddress?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        SuperAdminAuditLogListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminAuditLog"][];
+            meta?: components["schemas"]["PaginationMeta"];
+        };
+        SuperAdminBlogPost: {
+            id: string;
+            slug: string;
+            title: string;
+            description: string;
+            keywords?: string | null;
+            content: string;
+            coverImage?: string | null;
+            published: boolean;
+            /** Format: date-time */
+            publishedAt?: string | null;
+            authorId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        SuperAdminBlogPostEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminBlogPost"];
+        };
+        SuperAdminBlogPostInput: {
+            slug?: string;
+            title?: string;
+            description?: string;
+            keywords?: string | null;
+            content?: string;
+            coverImage?: string | null;
+            published?: boolean;
+        };
+        SuperAdminBlogPostListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminBlogPost"][];
+            meta?: components["schemas"]["PaginationMeta"];
+        };
+        SuperAdminCommentInput: {
+            body: string;
+        };
+        SuperAdminErrorLog: {
+            id: string;
+            requestId: string;
+            method: string;
+            url: string;
+            httpStatus: number;
+            /** @enum {string} */
+            code: "INTERNAL_ERROR" | "DATABASE_ERROR" | "EXTERNAL_SERVICE_ERROR";
+            message: string;
+            stack?: string | null;
+            tenantId?: string | null;
+            userId?: string | null;
+            ipAddress?: string | null;
+            resolved: boolean;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        SuperAdminErrorLogResolveEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminErrorLogResolveResult"];
+        };
+        SuperAdminErrorLogResolveResult: {
+            ok: boolean;
+            /** @description `true` for POST, `false` for DELETE. */
+            resolved: boolean;
+        };
+        SuperAdminErrorLogRowsEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: {
+                rows: components["schemas"]["SuperAdminErrorLog"][];
+                page: number;
+                hasNext: boolean;
+            };
+        };
+        SuperAdminFeatureFlag: {
+            id: string;
+            key: string;
+            name: string;
+            description?: string | null;
+            enabled: boolean;
+            category: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @description Feature flag with its per-tenant overrides (GET /feature-flags/{id}). */
+        SuperAdminFeatureFlagDetail: components["schemas"]["SuperAdminFeatureFlag"] & {
+            overrides?: components["schemas"]["SuperAdminTenantFeatureFlag"][];
+        };
+        SuperAdminFeatureFlagDetailEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminFeatureFlagDetail"];
+        };
+        SuperAdminFeatureFlagEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminFeatureFlag"];
+        };
+        SuperAdminFeatureFlagInput: {
+            key?: string;
+            name?: string;
+            description?: string | null;
+            enabled?: boolean;
+            category?: string;
+        };
+        SuperAdminFeatureFlagListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminFeatureFlag"][];
+        };
+        /**
+         * @description `pagination.Meta` shape used by the bare-array + meta list handlers
+         *     (promo-codes, referrals).
+         */
+        SuperAdminPageMeta: {
+            total: number;
+            page: number;
+            limit: number;
+            totalPages: number;
+        };
+        /** @description A cross-tenant SaaS payment row. */
+        SuperAdminPayment: {
+            id: string;
+            tenantId: string;
+            tenantName: string;
+            /** Format: double */
+            amount: number;
+            outletCount: number;
+            /** Format: double */
+            unitPrice: number;
+            monthsPurchased: number;
+            /** @enum {string} */
+            kind: "RENEWAL" | "TOPUP" | "INITIAL";
+            /** @enum {string} */
+            status: "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+            midtransOrderId?: string | null;
+            /** Format: date-time */
+            coverageStart?: string | null;
+            /** Format: date-time */
+            coverageEnd?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            paidAt?: string | null;
+        };
+        SuperAdminPaymentEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminPayment"];
+        };
+        /**
+         * @description `writeRows` paginated shape — used by listPayments. Lives under the
+         *     envelope `data` key (rows + page + hasNext, no meta block).
+         */
+        SuperAdminPaymentRows: {
+            rows: components["schemas"]["SuperAdminPayment"][];
+            page: number;
+            hasNext: boolean;
+        };
+        SuperAdminPaymentRowsEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminPaymentRows"];
+        };
+        /** @description A subscription plan tier. */
+        SuperAdminPlan: {
+            id: string;
+            name: string;
+            description: string | null;
+            maxOutlets: number;
+            maxUsers: number;
+            maxOrders: number;
+            /** Format: double */
+            priceMonthly: number;
+            /** Format: double */
+            priceYearly: number;
+            modules: string[];
+            /** @description Raw JSON feature map (plan-gated feature flags). */
+            features?: {
+                [key: string]: unknown;
+            } | null;
+            isActive: boolean;
+            /** @enum {string|null} */
+            tier?: "FREE" | "GROWTH" | "PRO" | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        SuperAdminPlanEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminPlan"];
+        };
+        /** @description POST/PATCH /plans body (all fields optional — partial update). */
+        SuperAdminPlanInput: {
+            name?: string | null;
+            description?: string | null;
+            maxOutlets?: number | null;
+            maxUsers?: number | null;
+            maxOrders?: number | null;
+            /** Format: double */
+            priceMonthly?: number | null;
+            /** Format: double */
+            priceYearly?: number | null;
+            isActive?: boolean | null;
+            /** @enum {string|null} */
+            tier?: "FREE" | "GROWTH" | "PRO" | null;
+        };
+        SuperAdminPlanListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminPlan"][];
+        };
+        /** @description A promotional / discount code. */
+        SuperAdminPromoCode: {
+            id: string;
+            code: string;
+            description: string | null;
+            /** @enum {string} */
+            type: "FREE_MONTH" | "DISCOUNT_PERCENT" | "DISCOUNT_FIXED";
+            /** Format: double */
+            value: number;
+            maxRedemptions?: number | null;
+            redemptionCount: number;
+            /** Format: date-time */
+            validFrom?: string | null;
+            /** Format: date-time */
+            validUntil?: string | null;
+            isActive: boolean;
+            applicablePlan?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        SuperAdminPromoCodeEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminPromoCode"];
+        };
+        /** @description POST/PATCH /promo-codes body (all fields optional — partial update). */
+        SuperAdminPromoCodeInput: {
+            code?: string | null;
+            description?: string | null;
+            /** @enum {string|null} */
+            type?: "FREE_MONTH" | "DISCOUNT_PERCENT" | "DISCOUNT_FIXED" | null;
+            /** Format: double */
+            value?: number | null;
+            maxRedemptions?: number | null;
+            /** Format: date-time */
+            validFrom?: string | null;
+            /** Format: date-time */
+            validUntil?: string | null;
+            isActive?: boolean | null;
+            applicablePlan?: string | null;
+        };
+        SuperAdminPromoCodeListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminPromoCode"][];
+            meta?: components["schemas"]["SuperAdminPageMeta"];
+        };
+        SuperAdminPwaForceUpdateEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminPwaForceUpdateResult"];
+        };
+        SuperAdminPwaForceUpdateResult: {
+            /** @example force-updated */
+            status: string;
+        };
+        /** @description A tenant referral (referrer → referred). */
+        SuperAdminReferral: {
+            id: string;
+            referrerId: string;
+            referredId: string;
+            /** @enum {string} */
+            status: "PENDING" | "REWARDED" | "REJECTED" | "EXPIRED";
+            rewardMonths: number;
+            reason?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            rewardedAt?: string | null;
+            /** @description Denormalized for list views. */
+            referrerName?: string;
+            /** @description Denormalized for list views. */
+            referredName?: string;
+        };
+        SuperAdminReferralEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminReferral"];
+        };
+        SuperAdminReferralListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminReferral"][];
+            meta?: components["schemas"]["SuperAdminPageMeta"];
+        };
+        /** @description PATCH /referrals/{id} body. */
+        SuperAdminReferralUpdateInput: {
+            /** @enum {string} */
+            status: "PENDING" | "REWARDED" | "REJECTED" | "EXPIRED";
+            /** @description Optional free-text reason (audit / row display). */
+            reason?: string;
+        };
+        /** @description domain.SaaSPayment (included in tenant billing). */
+        SuperAdminSaaSPayment: {
+            id: string;
+            tenantId: string;
+            tenantName: string;
+            /** Format: double */
+            amount: number;
+            outletCount: number;
+            /** Format: double */
+            unitPrice: number;
+            monthsPurchased: number;
+            /** @enum {string} */
+            kind: "RENEWAL" | "TOPUP" | "INITIAL";
+            /** @enum {string} */
+            status: "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+            midtransOrderId?: string | null;
+            /** Format: date-time */
+            coverageStart?: string | null;
+            /** Format: date-time */
+            coverageEnd?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            paidAt?: string | null;
+        };
+        /** @description domain.PlatformStats. */
+        SuperAdminStats: {
+            /** Format: int64 */
+            totalTenants: number;
+            /** Format: int64 */
+            activeTenants: number;
+            /** Format: int64 */
+            pendingTenants: number;
+            /** Format: int64 */
+            totalUsers: number;
+            /** Format: int64 */
+            activeUsers: number;
+            /** Format: double */
+            mrr: number;
+            /** Format: int64 */
+            trialTenants: number;
+            /** Format: int64 */
+            newThisMonth: number;
+        };
+        /** @description domain.Subscription. */
+        SuperAdminSubscription: {
+            id: string;
+            tenantId: string;
+            planId: string;
+            /** @enum {string} */
+            status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "EXPIRED";
+            /** Format: date-time */
+            currentPeriodStart?: string | null;
+            /** Format: date-time */
+            currentPeriodEnd?: string | null;
+            paidOutletCount: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @description application.SubscriptionInput (PATCH /tenants/{id}/subscription). */
+        SuperAdminSubscriptionInput: {
+            /**
+             * @description Set to extend_trial to extend the trial; otherwise fields patch the Subscription.
+             * @enum {string}
+             */
+            op?: "" | "extend_trial";
+            /** @description extend_trial only — days to add. */
+            days?: number;
+            /** @description extend_trial only — audit reason. */
+            reason?: string;
+            planId?: string;
+            status?: string | null;
+            /** Format: date-time */
+            currentPeriodEnd?: string | null;
+            paidOutletCount?: number | null;
+        };
+        /** @description domain.Tenant. */
+        SuperAdminTenant: {
+            id: string;
+            name: string;
+            slug: string;
+            /** Format: email */
+            ownerEmail: string;
+            ownerName?: string | null;
+            ownerPhone?: string | null;
+            /** Format: uri */
+            logoUrl?: string | null;
+            customDomain?: string | null;
+            activeModules?: string[];
+            /** @description Arbitrary JSON (settings JSONB). */
+            settings?: Record<string, never> | null;
+            isActive: boolean;
+            /** Format: date-time */
+            approvedAt?: string | null;
+            /** Format: date-time */
+            onboardingCompletedAt?: string | null;
+            isDemo: boolean;
+            /** Format: date-time */
+            demoExpiresAt?: string | null;
+            /** Format: date-time */
+            trialEndsAt?: string | null;
+            trialTier?: string | null;
+            websiteEnabled: boolean;
+            /** Format: date-time */
+            websitePublishedAt?: string | null;
+            referralCode?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @description Composite returned by GET /tenants/{id}/billing. */
+        SuperAdminTenantBilling: {
+            subscription?: components["schemas"]["SuperAdminSubscription"] | null;
+            payments: components["schemas"]["SuperAdminSaaSPayment"][];
+        };
+        /** @description Composite returned by GET /tenants/{id} (map[string]any). */
+        SuperAdminTenantDetail: {
+            tenant: components["schemas"]["SuperAdminTenant"];
+            plans: components["schemas"]["SuperAdminPlan"][];
+            subscription?: components["schemas"]["SuperAdminSubscription"] | null;
+            planName: string;
+            subscriptionStatus: string;
+        };
+        SuperAdminTenantFeatureFlag: {
+            id: string;
+            flagId: string;
+            tenantId: string;
+            enabled: boolean;
+            reason?: string | null;
+            /** @description Denormalized for list views. */
+            tenantName?: string;
+            /** @description Denormalized for list views. */
+            tenantSlug?: string;
+            /** @description Denormalized for list views. */
+            flagKey?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        SuperAdminTenantFlagEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminTenantFeatureFlag"];
+        };
+        SuperAdminTenantFlagInput: {
+            tenantId: string;
+            enabled: boolean;
+            reason?: string;
+        };
+        SuperAdminTenantFlagListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminTenantFeatureFlag"][];
+        };
+        /** @description application.TenantInput (PATCH /tenants/{id} body). All fields optional. */
+        SuperAdminTenantInput: {
+            name?: string | null;
+            ownerName?: string | null;
+            ownerPhone?: string | null;
+            /** Format: email */
+            ownerEmail?: string | null;
+            /** Format: uri */
+            logoUrl?: string | null;
+            isActive?: boolean | null;
+        };
+        SuperAdminTicket: {
+            id: string;
+            subject: string;
+            description: string;
+            /** @enum {string} */
+            category: "BILLING" | "TECHNICAL" | "ACCOUNT" | "OTHER";
+            /** @enum {string} */
+            priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
+            /** @enum {string} */
+            status: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+            tenantId?: string | null;
+            submitterName: string;
+            submitterEmail: string;
+            submitterPhone?: string | null;
+            csatRating?: number | null;
+            csatComment?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            resolvedAt?: string | null;
+        };
+        SuperAdminTicketComment: {
+            id: string;
+            ticketId: string;
+            authorName: string;
+            authorEmail: string;
+            /** @enum {string} */
+            authorRole: "TENANT_USER" | "SUPER_ADMIN" | "SUPPORT";
+            body: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        SuperAdminTicketCommentEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminTicketComment"];
+        };
+        /** @description Ticket with its comment thread (GET /tickets/{id}). */
+        SuperAdminTicketDetail: components["schemas"]["SuperAdminTicket"] & {
+            comments?: components["schemas"]["SuperAdminTicketComment"][];
+        };
+        SuperAdminTicketDetailEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminTicketDetail"];
+        };
+        SuperAdminTicketEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["SuperAdminTicket"];
+        };
+        SuperAdminTicketPriorityInput: {
+            /** @enum {string} */
+            priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
+        };
+        SuperAdminTicketRowsEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: {
+                rows: components["schemas"]["SuperAdminTicket"][];
+                page: number;
+                hasNext: boolean;
+            };
+        };
+        SuperAdminTicketStatusInput: {
+            /** @enum {string} */
+            status: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+        };
+        /** @description domain.User. */
+        SuperAdminUser: {
+            id: string;
+            /** Format: email */
+            email: string;
+            name: string;
+            phone?: string | null;
+            role: string;
+            roleId?: string | null;
+            tenantId: string;
+            branchId?: string | null;
+            isActive: boolean;
+            /** Format: date-time */
+            emailVerified?: string | null;
+            /** Format: date-time */
+            lastLoginAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @description Body for `PATCH /tenant/onboarding`. Both fields optional. */
+        TenantOnboardingInput: {
+            /** @description Defaults to `["laundry"]` when null. */
+            activeModules?: string[];
+            /** @description Merged into the tenant settings object. */
+            settings?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * @description Tenant self-view exposed by the tenant-management module. `settings` is
+         *     a free-form JSON object; timestamp fields are RFC3339 strings or null.
+         *     Not the full cross-tenant model used by super-admin.
+         */
+        TenantProfile: {
+            id: string;
+            name: string;
+            slug: string;
+            /** Format: email */
+            ownerEmail: string;
+            ownerName?: string | null;
+            ownerPhone?: string | null;
+            logoUrl?: string | null;
+            customDomain?: string | null;
+            activeModules: string[];
+            /** @description Free-form settings JSON (onboarding + website + whatsapp templates). */
+            settings?: {
+                [key: string]: unknown;
+            } | null;
+            isActive: boolean;
+            /** Format: date-time */
+            onboardingCompletedAt?: string | null;
+            websiteEnabled: boolean;
+            /** Format: date-time */
+            websitePublishedAt?: string | null;
+            referralCode?: string | null;
+            /** Format: date-time */
+            trialEndsAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        TenantProfileEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["TenantProfile"];
+        };
+        /** @description The tenant's referral code, share URL, and usage against the reward cap. */
+        TenantReferralInfo: {
+            /** @description Empty when no referral code is set. */
+            code: string;
+            /**
+             * Format: int64
+             * @description Referrals that reached REWARDED.
+             */
+            rewarded: number;
+            /**
+             * Format: int64
+             * @description Referrals not yet rewarded.
+             */
+            pending: number;
+            /** @description Max rewarded referrals (12). */
+            cap: number;
+            /** @description Subscription months awarded per rewarded referral (1). */
+            rewardMonths: number;
+            /** @description `https://hivepos.id/register?ref=<code>`. */
+            shareUrl: string;
+        };
+        TenantReferralInfoEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["TenantReferralInfo"];
+        };
+        /** @description Body for `POST /tickets`. `subject` is required; category/priority default server-side. */
+        TenantTicketCreateInput: {
+            subject: string;
+            description?: string;
+            /** @description Defaults to `OTHER` when empty. */
+            category?: string;
+            /** @description Defaults to `NORMAL` when empty. */
+            priority?: string;
+        };
+        /** @description Full ticket detail = summary fields + CSAT comment, submitter snapshot, and comments. */
+        TenantTicketDetail: components["schemas"]["TenantTicketSummary"] & {
+            csatComment?: string | null;
+            submitterName: string;
+            submitterEmail: string;
+            comments: components["schemas"]["TicketComment"][];
+        };
+        TenantTicketDetailEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["TenantTicketDetail"];
+        };
+        /** @description One row in the `/tickets` list (no comments). */
+        TenantTicketSummary: {
+            id: string;
+            subject: string;
+            description: string;
+            /** @description Stored upper-case enum text (e.g. `OTHER`, `BILLING`). */
+            category: string;
+            /** @description Stored upper-case enum text (e.g. `NORMAL`, `HIGH`). */
+            priority: string;
+            /** @enum {string} */
+            status: "OPEN" | "RESOLVED" | "CLOSED";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            resolvedAt?: string | null;
+            /** Format: date-time */
+            closedAt?: string | null;
+            csatRating?: number | null;
+            commentCount: number;
+        };
+        /** @description One entry in a ticket's comment thread. */
+        TicketComment: {
+            id: string;
+            authorName: string;
+            /** @description Author role tag (e.g. `TENANT_USER`, `SUPER_ADMIN`). */
+            authorRole: string;
+            body: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        TicketCommentEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["TicketComment"];
+        };
+        /** @description Body for `POST /tickets/{id}/comments`. `body` is required. */
+        TicketCommentInput: {
+            body: string;
+        };
+        /** @description Body for `POST /tickets/{id}/csat`. `rating` is required (1–5). */
+        TicketCsatInput: {
+            rating: number;
+            /** @description Optional free-text feedback. */
+            comment?: string;
+        };
+        /** @description A `ticket.*` audit-log entry surfaced in the unread feed. */
+        TicketEvent: {
+            id: string;
+            /** @description Audit action string (e.g. `ticket.created`). */
+            kind: string;
+            ticketId: string;
+            /** @description Empty string when unset. */
+            actorEmail: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        TicketListEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["TenantTicketSummary"][];
+        };
+        TicketUnreadEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["TicketUnreadResult"];
+        };
+        /** @description Unread ticket-event payload. */
+        TicketUnreadResult: {
+            unreadCount: number;
+            /** Format: date-time */
+            lastReadAt?: string | null;
+            events: components["schemas"]["TicketEvent"][];
+        };
+        Turnaround: {
+            /** Format: double */
+            avgHours: number | null;
+            /** Format: double */
+            fastestHours: number | null;
+            /** Format: double */
+            slowestHours: number | null;
+            completedCount: number;
+        };
+        UnpaidOrderDash: {
+            id: string;
+            orderNumber: string;
+            customerName: string;
+            customerPhone: string;
+            /** Format: double */
+            totalAmount: number;
+            status: string;
+            paymentStatus: string;
+            createdAt: string;
+        };
+        /**
+         * @description Body for `PATCH /branches/{id}`. Any `Branch` field may be sent; the
+         *     server decodes the body directly onto the fetched entity, so this is a
+         *     partial `Branch`.
+         */
+        UpdateBranchInput: {
+            name?: string;
+            address?: string | null;
+            phone?: string | null;
+            invoiceFooter?: string | null;
+            isActive?: boolean;
+            /** Format: double */
+            latitude?: number | null;
+            /** Format: double */
+            longitude?: number | null;
+            whatsappLink?: string | null;
+            googleMapsLink?: string | null;
+            printerHost?: string | null;
+            printerPort?: number;
+            printerName?: string | null;
+            printerEnabled?: boolean;
+            printerPaperSize?: string;
+            /** Format: date-time */
+            coverageEnd?: string | null;
+            isFreeTier?: boolean;
+            slug?: string | null;
+        };
+        /** @description Body for editing an event. Both fields optional. */
+        UpdateEventRequest: {
+            /** @enum {string|null} */
+            type?: "CLOCK_IN" | "CLOCK_OUT" | null;
+            timestamp?: string | null;
+        };
+        UpdateOrderInput: {
+            customerId: string;
+            notes?: string;
+            receivedAt?: string | null;
+            discountType?: string;
+            /** Format: double */
+            discountAmount?: number;
+            items: components["schemas"]["OrderItemInput"][];
+        };
+        /** @description Partial profile update. All fields optional; at least one required. */
+        UpdateProfileInput: {
+            /** @description New display name. */
+            name?: string | null;
+            /** @description New phone. Send an empty string to clear. */
+            phone?: string | null;
+            /** @description Required when `newPassword` is present (verified via bcrypt). */
+            currentPassword?: string | null;
+            /** @description New password. Ignored unless `currentPassword` is present and valid. */
+            newPassword?: string | null;
+        };
+        /**
+         * @description Body for `PATCH /stock-items/{id}`. Any `StockItem` field may be sent;
+         *     the server decodes the body directly onto the fetched entity, so this is
+         *     modeled as a partial `StockItem`.
+         */
+        UpdateStockItemInput: {
+            name?: string;
+            unit?: string;
+            /** Format: double */
+            currentQuantity?: number;
+            /** Format: double */
+            lowStockThreshold?: number;
+            /** Format: double */
+            purchasePricePerUnit?: number;
+            isActive?: boolean;
+        };
+        UserInfo: {
+            id: string;
+            /** Format: email */
+            email: string;
+            name: string;
+            /** @example OWNER */
+            role: string;
+            tenantId: string;
+            branchId: string;
+        };
+        /** @description The current user's editable profile, including Google link state. */
+        UserProfile: {
+            id: string;
+            name?: string | null;
+            email?: string | null;
+            phone?: string | null;
+            /** @example OWNER */
+            role: string;
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC timestamp.
+             */
+            createdAt: string;
+            /** @description Google OAuth sub when the account is linked to Google; null otherwise. */
+            googleId?: string | null;
+            /**
+             * Format: uri
+             * @description Google profile picture URL when linked; null otherwise.
+             */
+            avatar?: string | null;
+        };
+        UserProfileEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["UserProfile"];
+        };
+        /**
+         * @description Website configuration returned by `GET/PATCH /tenant/website`. `settings`
+         *     is the `settings.website` JSON object (tagline, hero photo, FAQs, etc.)
+         *     and may be `{}` when unset.
+         */
+        WebsiteConfig: {
+            /** @description Always `PRO`. */
+            plan: string;
+            slug: string;
+            websiteEnabled: boolean;
+            /** @description Millis-precision UTC (`YYYY-MM-DDTHH:mm:ss.sssZ`) or null. */
+            websitePublishedAt?: string | null;
+            /** @description `<slug>.hivepos.id`. */
+            subdomain: string;
+            /** @description Free-form website content settings. */
+            settings: {
+                [key: string]: unknown;
+            };
+        };
+        WebsiteConfigEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["WebsiteConfig"];
+        };
+        /**
+         * @description Body for `PATCH /tenant/website`. Every field is an optional nullable
+         *     pointer — omitted fields are left unchanged. `areaServed`, `faqs`, and
+         *     `testimonials` accept arbitrary JSON.
+         */
+        WebsiteInput: {
+            tagline?: string | null;
+            heroPhotoUrl?: string | null;
+            about?: string | null;
+            instagram?: string | null;
+            qrisImageUrl?: string | null;
+            /** Format: double */
+            googleRating?: number | null;
+            googleReviewCount?: number | null;
+            yearEstablished?: number | null;
+            avgProcessingMinutes?: number | null;
+            /** @description Arbitrary JSON (array of strings or object). */
+            areaServed?: unknown;
+            /** @description Arbitrary JSON (array of FAQ objects). */
+            faqs?: unknown;
+            /** @description Arbitrary JSON (array of testimonial objects). */
+            testimonials?: unknown;
+            enabled?: boolean | null;
+        };
+        /** @description Body forwarded to the gateway connect endpoint (opaque). */
+        WhatsAppConnectInput: {
+            [key: string]: unknown;
+        };
+        /** @description Result returned by the gateway connect endpoint (opaque). */
+        WhatsAppConnectResult: {
+            [key: string]: unknown;
+        };
+        /** @description Body forwarded to the gateway disconnect endpoint (opaque). */
+        WhatsAppDisconnectInput: {
+            [key: string]: unknown;
+        };
+        /** @description Result returned by the gateway disconnect endpoint (opaque). */
+        WhatsAppDisconnectResult: {
+            [key: string]: unknown;
+        };
+        /** @description QR pairing payload from the Baileys gateway (opaque shape). */
+        WhatsAppQR: {
+            [key: string]: unknown;
+        };
+        /** @description Message send body. Matches the gateway contract used by both this endpoint and the internal `SendAsync(phone, message)` helper. */
+        WhatsAppSendInput: {
+            /**
+             * @description Recipient phone number (E.164 or gateway-accepted format).
+             * @example 6281234567890
+             */
+            phone: string;
+            /** @description Message body text. */
+            message: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** @description Result returned by the gateway send endpoint (opaque). */
+        WhatsAppSendResult: {
+            [key: string]: unknown;
+        };
+        /** @description Connection status returned by the Baileys gateway. Field names are defined by the gateway service (hivepos-api forwards the body verbatim inside the envelope); treat as an opaque gateway payload. */
+        WhatsAppStatus: {
+            [key: string]: unknown;
+        };
+        /**
+         * @description WhatsApp template catalog. `overrides` are tenant customizations,
+         *     `defaults` the system catalog, `effective` = defaults merged with
+         *     overrides, and `manifest` the static template descriptor array.
+         */
+        WhatsAppTemplates: {
+            overrides: {
+                [key: string]: string;
+            };
+            defaults: {
+                [key: string]: string;
+            };
+            effective: {
+                [key: string]: string;
+            };
+            /** @description Static descriptor list (id, label, category, variables, defaultBody, maxLength). */
+            manifest: {
+                [key: string]: unknown;
+            }[];
+        };
+        WhatsAppTemplatesEnvelope: components["schemas"]["EnvelopeSuccess"] & {
+            data?: components["schemas"]["WhatsAppTemplates"];
         };
     };
     responses: {
@@ -295,14 +6652,1367 @@ export interface components {
                 "application/json": components["schemas"]["ErrorEnvelope"];
             };
         };
+        /** @description Authenticated but not allowed (e.g. missing tenant context). */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorBody"];
+            };
+        };
+        /**
+         * @description The resource is referenced by other records (e.g. a service is used by
+         *     order items) and cannot be deleted until those are reassigned/removed.
+         */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorEnvelope"];
+            };
+        };
     };
-    parameters: never;
+    parameters: {
+        /** @description Customer identifier. */
+        CustomerId: string;
+        /** @description Expense identifier. */
+        ExpenseId: string;
+        /** @description Expense category identifier. */
+        ExpenseCategoryId: string;
+        /** @description Stock item identifier. */
+        StockItemId: string;
+        /** @description Branch identifier. */
+        BranchId: string;
+        /** @description Pickup request identifier. */
+        PickupRequestId: string;
+        /** @description Human-readable order number (e.g. `INV-2024-0001`). */
+        OrderNumber: string;
+        /** @description Window start (YYYY-MM-DD). Preferred form. */
+        FromDate: string;
+        /** @description Window end (YYYY-MM-DD). Whole end day is included. */
+        ToDate: string;
+        /** @description Alias for `from` (used if `from` is absent). */
+        StartDateAlias: string;
+        /** @description Alias for `to` (used if `to` is absent). */
+        EndDateAlias: string;
+        /** @description Service identifier. */
+        ServiceId: string;
+        /** @description Service group identifier. */
+        ServiceGroupId: string;
+        /** @description Tenant ID. */
+        TenantIdPath: string;
+        /** @description User ID. */
+        UserIdPath: string;
+        /** @description SuperAdmin ID. */
+        AdminIdPath: string;
+        /** @description Support ticket identifier (e.g. `tck_…`). */
+        TicketId: string;
+        /** @description Staff user identifier. */
+        StaffUserId: string;
+        /** @description Role identifier. */
+        RoleId: string;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    clockAttendance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClockRequest"];
+            };
+        };
+        responses: {
+            /** @description The created clock event. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceEventEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAttendanceEvents: {
+        parameters: {
+            query?: {
+                /** @description Filter to a single staff member. */
+                userId?: string;
+                /** @description Inclusive lower bound (YYYY-MM-DD). */
+                from?: string;
+                /** @description Inclusive upper bound (YYYY-MM-DD). */
+                to?: string;
+                /** @description Normalized server-side; not surfaced in the response. */
+                page?: number;
+                /** @description Normalized server-side; not surfaced in the response. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Clock events matching the filter (bare array). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceEventListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createAttendanceEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEventRequest"];
+            };
+        };
+        responses: {
+            /** @description The created event. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceEventEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    deleteAttendanceEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The clock event ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted — no content. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateAttendanceEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The clock event ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateEventRequest"];
+            };
+        };
+        responses: {
+            /** @description Update acknowledged. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createQuickStaff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuickStaffRequest"];
+            };
+        };
+        responses: {
+            /** @description The created staff member. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffItemEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listAttendanceStaff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Staff eligible to clock (bare array, unpaginated). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffItemListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listAttendanceStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Staff clock status for today (bare array). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceStatusListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    googleOAuthCallback: {
+        parameters: {
+            query: {
+                /** @description Authorization code from Google. */
+                code: string;
+                /** @description CSRF state that must match the `google_oauth_state` cookie. */
+                state: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to the frontend (login, register, or profile) with the resolved outcome. */
+            302: {
+                headers: {
+                    /** @description `/login?googleToken=…`, `/register?google…`, or `/profile?linked=google`. */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid state or missing code. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Google token exchange or userinfo failed. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Google OAuth not configured on the server. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    startGoogleOAuth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to Google's OAuth consent screen. */
+            302: {
+                headers: {
+                    /** @description Google authorization URL. */
+                    Location?: string;
+                    /** @description `google_oauth_state` and `oauth_origin` cookies (HMAC-signed, HttpOnly). */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Google OAuth not configured on the server. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    startGoogleLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Consent URL ready. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleOAuthLinkEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description Google OAuth not configured on the server. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    unlinkGoogle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Google link removed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginInput"];
+            };
+        };
+        responses: {
+            /** @description Credentials accepted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponseEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cookies cleared. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current session context. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getSessionVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current session version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionVersionEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    bumpSessionVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session version bumped. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionVersionEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createBillingCheckout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckoutInput"];
+            };
+        };
+        responses: {
+            /** @description Checkout result containing the Snap token. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["CheckoutResult"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    validateBillingPromo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromoValidateInput"];
+            };
+        };
+        responses: {
+            /** @description Promo validation result (always 200, even when invalid). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["PromoResult"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getBillingStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Billing status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["BillingStatus"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    handleBillingWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MidtransWebhookInput"];
+            };
+        };
+        responses: {
+            /** @description Webhook accepted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: {
+                            /** @example true */
+                            ok?: boolean;
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    listBranches: {
+        parameters: {
+            query?: {
+                /** @description Case-insensitive name substring. */
+                search?: string;
+                /** @description Filter by `isActive`. */
+                active?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Branches (bare array under `data`). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description Missing tenant context. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createBranch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBranchInput"];
+            };
+        };
+        responses: {
+            /** @description Created branch. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description Missing tenant context, or outlet (plan) limit reached. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getBranch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Branch identifier. */
+                id: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Branch. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteBranch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Branch identifier. */
+                id: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateBranch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Branch identifier. */
+                id: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBranchInput"];
+            };
+        };
+        responses: {
+            /** @description Updated branch. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listCustomers: {
+        parameters: {
+            query?: {
+                branchId?: string;
+                search?: string;
+                status?: "NEW" | "ACTIVE" | "AT_RISK" | "LAPSED";
+                sort?: string;
+                order?: "asc" | "desc";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Customer list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createCustomer: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key. When set, returns the existing customer
+                 *     instead of creating a duplicate.
+                 */
+                "X-Client-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Customer created (or returned idempotently for an existing `clientId`). */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description A customer with the given phone already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Customer identifier. */
+                id: components["parameters"]["CustomerId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The customer, including embedded `orders` history. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerDetailEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Customer identifier. */
+                id: components["parameters"]["CustomerId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted — no content. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Customer identifier. */
+                id: components["parameters"]["CustomerId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerUpdateInput"];
+            };
+        };
+        responses: {
+            /** @description Updated customer. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listCustomerDeposits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Customer identifier. */
+                id: components["parameters"]["CustomerId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deposit transactions (bare array under `data`). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerDepositListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    topUpCustomerDeposit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Customer identifier. */
+                id: components["parameters"]["CustomerId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerDepositTopUpInput"];
+            };
+        };
+        responses: {
+            /** @description Created deposit transaction. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerDepositEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getCustomerStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Customer identifier. */
+                id: components["parameters"]["CustomerId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Customer stats. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerStatsEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getDashboardHeatmap: {
+        parameters: {
+            query?: {
+                /** @description Branch scope; `ALL` disables scoping. */
+                branchId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The heatmap object. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeatmapDataEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getDashboardKanban: {
+        parameters: {
+            query?: {
+                /** @description Branch scope; `ALL` disables scoping. */
+                branchId?: string;
+                /** @description Filter the pipeline to a module. */
+                module?: "LAUNDRY" | "FNB" | "SALON";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Kanban order rows (bare array). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KanbanDataListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getDashboardStats: {
+        parameters: {
+            query?: {
+                /** @description Filter metrics to a module. */
+                module?: "LAUNDRY" | "FNB" | "SALON";
+                /** @description Inclusive lower bound (YYYY-MM-DD). Defaults to today-30. */
+                from?: string;
+                /** @description Inclusive upper bound (YYYY-MM-DD). Defaults to today. */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The aggregate stats object. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardStatsEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    startDemo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: email
+                     * @description Optional lead-capture email (ignored for auth).
+                     */
+                    email?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Shared demo credentials. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoCredentialsEnvelope"];
+                };
+            };
+            /** @description Rate limited (10 / hour). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listExpenseCategories: {
+        parameters: {
+            query?: {
+                branchId?: string;
+                search?: string;
+                page?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Expense category list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategoryListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpenseCategoryCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Created expense category. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategoryEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    deleteExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Expense category identifier. */
+                id: components["parameters"]["ExpenseCategoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted — no content. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Expense category identifier. */
+                id: components["parameters"]["ExpenseCategoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpenseCategoryUpdateInput"];
+            };
+        };
+        responses: {
+            /** @description Updated expense category. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategoryEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listExpenses: {
+        parameters: {
+            query?: {
+                branchId?: string;
+                categoryId?: string;
+                /** @description Inclusive lower date bound (YYYY-MM-DD or RFC3339). */
+                from?: string;
+                /** @description Inclusive upper date bound (YYYY-MM-DD or RFC3339). */
+                to?: string;
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Expense list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpenseCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Created expense. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Expense identifier. */
+                id: components["parameters"]["ExpenseId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The expense, including the embedded `category` when set. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Expense identifier. */
+                id: components["parameters"]["ExpenseId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted — no content. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Expense identifier. */
+                id: components["parameters"]["ExpenseId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpenseUpdateInput"];
+            };
+        };
+        responses: {
+            /** @description Updated expense. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     getHealth: {
         parameters: {
             query?: never;
@@ -321,6 +8031,3624 @@ export interface operations {
                     "application/json": components["schemas"]["HealthEnvelope"];
                 };
             };
+        };
+    };
+    getOnboardingStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Onboarding progress. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingStatusEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listOrders: {
+        parameters: {
+            query?: {
+                branchId?: string;
+                status?: components["schemas"]["OrderStatus"];
+                search?: string;
+                paymentStatus?: components["schemas"]["PaymentStatus"];
+                dateFrom?: string;
+                dateTo?: string;
+                sortBy?: string;
+                sortOrder?: "asc" | "desc";
+                page?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Orders list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description Missing tenant context. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createOrder: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Idempotency key; re-POST with the same value returns the original order. */
+                "X-Client-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOrderInput"];
+            };
+        };
+        responses: {
+            /** @description Order created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description Missing tenant/branch context, or plan order limit reached. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getOrderById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Order ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Order detail. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Order ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOrderInput"];
+            };
+        };
+        responses: {
+            /** @description Updated order. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Order ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted (no content). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateOrderNotes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Order ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    notes: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Notes updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    recordOrderPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Order ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordPaymentInput"];
+            };
+        };
+        responses: {
+            /** @description Payment recorded; updated order returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    voidOrderPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Order ID. */
+                id: string;
+                /** @description Payment ID to void. */
+                paymentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payment voided; updated order returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    advanceOrderStatusPost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Order ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    status: components["schemas"]["OrderStatus"];
+                };
+            };
+        };
+        responses: {
+            /** @description Status updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusOkEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    advanceOrderStatusPatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Order ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    status: components["schemas"]["OrderStatus"];
+                };
+            };
+        };
+        responses: {
+            /** @description Status updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusOkEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPickupRequests: {
+        parameters: {
+            query?: {
+                branchId?: string;
+                status?: components["schemas"]["PickupStatus"];
+                search?: string;
+                page?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated pickup request list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PickupRequestListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createPickupRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PickupRequestCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Pickup request created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PickupRequestEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    countPendingPickupRequests: {
+        parameters: {
+            query?: {
+                branchId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pending count. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PickupPendingCountEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getPickupRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Pickup request identifier. */
+                id: components["parameters"]["PickupRequestId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pickup request. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PickupRequestEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    acceptPickupRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Pickup request identifier. */
+                id: components["parameters"]["PickupRequestId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request accepted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PickupStatusOkEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    assignPickupRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Pickup request identifier. */
+                id: components["parameters"]["PickupRequestId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PickupTransitionInput"];
+            };
+        };
+        responses: {
+            /** @description Request assigned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PickupStatusOkEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    convertPickupRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Pickup request identifier. */
+                id: components["parameters"]["PickupRequestId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PickupTransitionInput"];
+            };
+        };
+        responses: {
+            /** @description Request converted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PickupStatusOkEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    rejectPickupRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Pickup request identifier. */
+                id: components["parameters"]["PickupRequestId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PickupTransitionInput"];
+            };
+        };
+        responses: {
+            /** @description Request rejected. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PickupStatusOkEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    schedulePickupRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Pickup request identifier. */
+                id: components["parameters"]["PickupRequestId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PickupTransitionInput"];
+            };
+        };
+        responses: {
+            /** @description Request scheduled. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PickupStatusOkEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    scanPrinters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Device-required error (manual IP guidance). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrinterResult"];
+                };
+            };
+        };
+    };
+    testPrinter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Device-required error (built-in self-test guidance). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrinterResult"];
+                };
+            };
+        };
+    };
+    listPublicBlogPosts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Published posts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BlogPostListEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPublicBlogPost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The post. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BlogPostEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPublicBranches: {
+        parameters: {
+            query: {
+                /** @description Tenant slug (also accepted via `X-Tenant-Slug` header). */
+                slug: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Public branch list (bare array). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["PublicBranch"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    trackPublicOrder: {
+        parameters: {
+            query: {
+                orderNumber: string;
+                /** @description Optional phone — only the last 4 characters are used for verification. */
+                phone?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tracked order (no customer PII). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderTrackingEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createPublicPickupRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicPickupInput"];
+            };
+        };
+        responses: {
+            /** @description Pickup request created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicPickupResultEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    listPublicServices: {
+        parameters: {
+            query: {
+                /** @description Tenant slug (also accepted via `X-Tenant-Slug` header). */
+                slug: string;
+                /** @description Optional branch id to scope the catalog. */
+                branchId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Public service catalog wrapper. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicServiceCatalogEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    getPublicTenant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant slug (also accepted via `?slug=` or `X-Tenant-Slug` header). */
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Public tenant payload. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicTenantEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createPublicTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicTicketInput"];
+            };
+        };
+        responses: {
+            /** @description Ticket created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicTicketResultEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    getPwaNonce: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Nonce value. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PwaNonceEnvelope"];
+                };
+            };
+            /** @description Nonce read failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterInput"];
+            };
+        };
+        responses: {
+            /** @description Tenant + owner created, logged in. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponseEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    getReportAttendance: {
+        parameters: {
+            query?: {
+                /** @description Window start (YYYY-MM-DD). Preferred form. */
+                from?: components["parameters"]["FromDate"];
+                /** @description Window end (YYYY-MM-DD). Whole end day is included. */
+                to?: components["parameters"]["ToDate"];
+                /** @description Alias for `from` (used if `from` is absent). */
+                startDate?: components["parameters"]["StartDateAlias"];
+                /** @description Alias for `to` (used if `to` is absent). */
+                endDate?: components["parameters"]["EndDateAlias"];
+            };
+            header?: never;
+            path: {
+                /** @description Branch identifier. */
+                id: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Attendance report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["ReportAttendanceRow"][];
+                        meta?: {
+                            /**
+                             * Format: date-time
+                             * @description Window start (echoed `from`, or 1 month ago when omitted).
+                             */
+                            from?: string;
+                            /**
+                             * Format: date-time
+                             * @description Window end (echoed `to`, or now when omitted).
+                             */
+                            to?: string;
+                            /** @description Number of work days in the window (currently fixed at 27). */
+                            totalWorkDays?: number;
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getReportCommission: {
+        parameters: {
+            query?: {
+                /** @description Window start (YYYY-MM-DD). Preferred form. */
+                from?: components["parameters"]["FromDate"];
+                /** @description Window end (YYYY-MM-DD). Whole end day is included. */
+                to?: components["parameters"]["ToDate"];
+                /** @description Alias for `from` (used if `from` is absent). */
+                startDate?: components["parameters"]["StartDateAlias"];
+                /** @description Alias for `to` (used if `to` is absent). */
+                endDate?: components["parameters"]["EndDateAlias"];
+            };
+            header?: never;
+            path: {
+                /** @description Branch identifier. */
+                id: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Commission report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["ReportCommission"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getReportCustomers: {
+        parameters: {
+            query?: {
+                /** @description Window start (YYYY-MM-DD). Preferred form. */
+                from?: components["parameters"]["FromDate"];
+                /** @description Window end (YYYY-MM-DD). Whole end day is included. */
+                to?: components["parameters"]["ToDate"];
+                /** @description Alias for `from` (used if `from` is absent). */
+                startDate?: components["parameters"]["StartDateAlias"];
+                /** @description Alias for `to` (used if `to` is absent). */
+                endDate?: components["parameters"]["EndDateAlias"];
+            };
+            header?: never;
+            path: {
+                /** @description Branch identifier. */
+                id: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Customers report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["ReportCustomers"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getReportExpenses: {
+        parameters: {
+            query?: {
+                /** @description Window start (YYYY-MM-DD). Preferred form. */
+                from?: components["parameters"]["FromDate"];
+                /** @description Window end (YYYY-MM-DD). Whole end day is included. */
+                to?: components["parameters"]["ToDate"];
+                /** @description Alias for `from` (used if `from` is absent). */
+                startDate?: components["parameters"]["StartDateAlias"];
+                /** @description Alias for `to` (used if `to` is absent). */
+                endDate?: components["parameters"]["EndDateAlias"];
+            };
+            header?: never;
+            path: {
+                /** @description Branch identifier. */
+                id: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Expenses report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["ReportExpenses"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    exportReport: {
+        parameters: {
+            query?: {
+                /** @description Report type to export. */
+                type?: "orders" | "revenue" | "expenses" | "profit" | "customers" | "services" | "commission" | "outstanding" | "piutang" | "inventory" | "financial";
+                /** @description Window start (YYYY-MM-DD). Preferred form. */
+                from?: components["parameters"]["FromDate"];
+                /** @description Window end (YYYY-MM-DD). Whole end day is included. */
+                to?: components["parameters"]["ToDate"];
+                /** @description Alias for `from` (used if `from` is absent). */
+                startDate?: components["parameters"]["StartDateAlias"];
+                /** @description Alias for `to` (used if `to` is absent). */
+                endDate?: components["parameters"]["EndDateAlias"];
+            };
+            header?: never;
+            path: {
+                /** @description Branch identifier. */
+                id: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CSV file */
+            200: {
+                headers: {
+                    /** @description `attachment; filename="report-<type>.csv"` */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getReportFinancialStatement: {
+        parameters: {
+            query?: {
+                /** @description Window start (YYYY-MM-DD). Preferred form. */
+                from?: components["parameters"]["FromDate"];
+                /** @description Window end (YYYY-MM-DD). Whole end day is included. */
+                to?: components["parameters"]["ToDate"];
+                /** @description Alias for `from` (used if `from` is absent). */
+                startDate?: components["parameters"]["StartDateAlias"];
+                /** @description Alias for `to` (used if `to` is absent). */
+                endDate?: components["parameters"]["EndDateAlias"];
+            };
+            header?: never;
+            path: {
+                /** @description Branch identifier. */
+                id: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Financial statement report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["ReportFinancialStatement"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getReportInventory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Inventory report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["ReportInventory"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getReportMonthlyPnL: {
+        parameters: {
+            query?: {
+                /** @description Month number (1-12). Defaults to current month when omitted/invalid. */
+                month?: number;
+                /** @description Full year (e.g. 2026). Defaults to current year when omitted/invalid. */
+                year?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Monthly P&L report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["ReportMonthlyPnL"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getReportOrders: {
+        parameters: {
+            query?: {
+                /** @description Window start (YYYY-MM-DD). Preferred form. */
+                from?: components["parameters"]["FromDate"];
+                /** @description Window end (YYYY-MM-DD). Whole end day is included. */
+                to?: components["parameters"]["ToDate"];
+                /** @description Alias for `from` (used if `from` is absent). */
+                startDate?: components["parameters"]["StartDateAlias"];
+                /** @description Alias for `to` (used if `to` is absent). */
+                endDate?: components["parameters"]["EndDateAlias"];
+            };
+            header?: never;
+            path: {
+                /** @description Branch identifier. */
+                id: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Orders report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["ReportOrders"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getReportOutstanding: {
+        parameters: {
+            query?: {
+                /** @description Window start (YYYY-MM-DD). Preferred form. */
+                from?: components["parameters"]["FromDate"];
+                /** @description Window end (YYYY-MM-DD). Whole end day is included. */
+                to?: components["parameters"]["ToDate"];
+                /** @description Alias for `from` (used if `from` is absent). */
+                startDate?: components["parameters"]["StartDateAlias"];
+                /** @description Alias for `to` (used if `to` is absent). */
+                endDate?: components["parameters"]["EndDateAlias"];
+            };
+            header?: never;
+            path: {
+                /** @description Branch identifier. */
+                id: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Outstanding report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["ReportOutstanding"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getReportPaymentCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payment collection report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["ReportPaymentCollection"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getReportPiutangTracker: {
+        parameters: {
+            query?: {
+                /** @description Window start (YYYY-MM-DD). Preferred form. */
+                from?: components["parameters"]["FromDate"];
+                /** @description Window end (YYYY-MM-DD). Whole end day is included. */
+                to?: components["parameters"]["ToDate"];
+                /** @description Alias for `from` (used if `from` is absent). */
+                startDate?: components["parameters"]["StartDateAlias"];
+                /** @description Alias for `to` (used if `to` is absent). */
+                endDate?: components["parameters"]["EndDateAlias"];
+            };
+            header?: never;
+            path: {
+                /** @description Branch identifier. */
+                id: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Piutang tracker report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["ReportPiutang"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getReportProfit: {
+        parameters: {
+            query?: {
+                /** @description Window start (YYYY-MM-DD). Preferred form. */
+                from?: components["parameters"]["FromDate"];
+                /** @description Window end (YYYY-MM-DD). Whole end day is included. */
+                to?: components["parameters"]["ToDate"];
+                /** @description Alias for `from` (used if `from` is absent). */
+                startDate?: components["parameters"]["StartDateAlias"];
+                /** @description Alias for `to` (used if `to` is absent). */
+                endDate?: components["parameters"]["EndDateAlias"];
+            };
+            header?: never;
+            path: {
+                /** @description Branch identifier. */
+                id: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Profit report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["ReportProfit"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getReportRevenue: {
+        parameters: {
+            query?: {
+                /** @description Window start (YYYY-MM-DD). Preferred form. */
+                from?: components["parameters"]["FromDate"];
+                /** @description Window end (YYYY-MM-DD). Whole end day is included. */
+                to?: components["parameters"]["ToDate"];
+                /** @description Alias for `from` (used if `from` is absent). */
+                startDate?: components["parameters"]["StartDateAlias"];
+                /** @description Alias for `to` (used if `to` is absent). */
+                endDate?: components["parameters"]["EndDateAlias"];
+            };
+            header?: never;
+            path: {
+                /** @description Branch identifier. */
+                id: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revenue report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["ReportRevenue"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getReportServices: {
+        parameters: {
+            query?: {
+                /** @description Window start (YYYY-MM-DD). Preferred form. */
+                from?: components["parameters"]["FromDate"];
+                /** @description Window end (YYYY-MM-DD). Whole end day is included. */
+                to?: components["parameters"]["ToDate"];
+                /** @description Alias for `from` (used if `from` is absent). */
+                startDate?: components["parameters"]["StartDateAlias"];
+                /** @description Alias for `to` (used if `to` is absent). */
+                endDate?: components["parameters"]["EndDateAlias"];
+            };
+            header?: never;
+            path: {
+                /** @description Branch identifier. */
+                id: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Services report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["ReportServices"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listRoles: {
+        parameters: {
+            query?: {
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Role list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoleCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Role created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Role identifier. */
+                id: components["parameters"]["RoleId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The role. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Role identifier. */
+                id: components["parameters"]["RoleId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted — no content. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Role identifier. */
+                id: components["parameters"]["RoleId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoleUpdateInput"];
+            };
+        };
+        responses: {
+            /** @description Acknowledgement that the update was applied. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listServiceGroups: {
+        parameters: {
+            query?: {
+                branchId?: string;
+                /** @description Module filter (e.g. `LAUNDRY`). */
+                module?: string;
+                page?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Service group list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceGroupListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createServiceGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceGroupCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Created service group. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceGroupEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getServiceGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Service group identifier. */
+                id: components["parameters"]["ServiceGroupId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The service group. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceGroupEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteServiceGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Service group identifier. */
+                id: components["parameters"]["ServiceGroupId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted — no content. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateServiceGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Service group identifier. */
+                id: components["parameters"]["ServiceGroupId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceGroupUpdateInput"];
+            };
+        };
+        responses: {
+            /** @description Updated service group. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceGroupEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listServices: {
+        parameters: {
+            query?: {
+                branchId?: string;
+                /** @description Module filter (e.g. `LAUNDRY`). */
+                module?: string;
+                search?: string;
+                /** @description Active filter (`true` / `false`). */
+                active?: string;
+                groupId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Service list (curated items with nested `group`). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Created service. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Service identifier. */
+                id: components["parameters"]["ServiceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The service. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Service identifier. */
+                id: components["parameters"]["ServiceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted — no content. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    updateService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Service identifier. */
+                id: components["parameters"]["ServiceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceUpdateInput"];
+            };
+        };
+        responses: {
+            /** @description Updated service. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listStockItems: {
+        parameters: {
+            query?: {
+                /** @description Scope to a specific branch (defaults to the session branch). */
+                branchId?: string;
+                /** @description Case-insensitive name substring. */
+                search?: string;
+                /** @description Filter by `isActive`. */
+                active?: boolean;
+                /** @description Only items whose `currentQuantity` is at/below `lowStockThreshold`. */
+                lowOnly?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stock items (bare array under `data`). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StockItemListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description Missing tenant/branch context. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createStockItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateStockItemInput"];
+            };
+        };
+        responses: {
+            /** @description Created stock item. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StockItemEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description Missing tenant/branch context. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteStockItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Stock item identifier. */
+                id: components["parameters"]["StockItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateStockItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Stock item identifier. */
+                id: components["parameters"]["StockItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateStockItemInput"];
+            };
+        };
+        responses: {
+            /** @description Updated stock item. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StockItemEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listStockMovements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Stock item identifier. */
+                id: components["parameters"]["StockItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Movements (bare array under `data`). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StockMovementListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createStockMovement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Stock item identifier. */
+                id: components["parameters"]["StockItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateStockMovementInput"];
+            };
+        };
+        responses: {
+            /** @description Created movement. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StockMovementEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminListAdmins: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Admin list (bare array). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["SuperAdminAdmin"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminCreateAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuperAdminAdminInput"];
+            };
+        };
+        responses: {
+            /** @description Created admin. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["SuperAdminAdmin"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminDeleteAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SuperAdmin ID. */
+                id: components["parameters"]["AdminIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Delete acknowledged. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: {
+                            ok: boolean;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminUpdateAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SuperAdmin ID. */
+                id: components["parameters"]["AdminIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    role: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Update acknowledged. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: {
+                            ok: boolean;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminGetAiChatConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description AI assistant config. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiChatConfigEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminAiChat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuperAdminAiChatInput"];
+            };
+        };
+        responses: {
+            /** @description SSE stream of chat deltas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminListAuditLogs: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                search?: string;
+                sort?: string;
+                order?: "asc" | "desc";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audit log entries (paginated). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminAuditLogListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminGetBillingOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Billing overview. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["BillingOverview"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["BadRequest"];
+        };
+    };
+    superAdminListPayments: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                search?: string;
+                /** @description Filter by payment status. */
+                status?: "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+                from?: string;
+                to?: string;
+                sort?: string;
+                order?: "asc" | "desc";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payment rows (paginated). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminPaymentRowsEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminRefundPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The refunded payment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminPaymentEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminListBlogPosts: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                search?: string;
+                /** @description Filter by published state (handler accepts free-form). */
+                status?: string;
+                sort?: string;
+                order?: "asc" | "desc";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Blog posts (paginated). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminBlogPostListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminCreateBlogPost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuperAdminBlogPostInput"];
+            };
+        };
+        responses: {
+            /** @description The created blog post. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminBlogPostEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminGetBlogPost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The blog post. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminBlogPostEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminDeleteBlogPost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. No body. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminUpdateBlogPost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuperAdminBlogPostInput"];
+            };
+        };
+        responses: {
+            /** @description The updated blog post. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminBlogPostEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminListErrorLogs: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                search?: string;
+                code?: "INTERNAL_ERROR" | "DATABASE_ERROR" | "EXTERNAL_SERVICE_ERROR";
+                resolved?: "true" | "false";
+                from?: string;
+                to?: string;
+                sort?: string;
+                order?: "asc" | "desc";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Error log rows (paginated). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminErrorLogRowsEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminResolveErrorLog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resolution result. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminErrorLogResolveEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminReopenErrorLog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resolution result. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminErrorLogResolveEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminListFeatureFlags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All feature flags. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminFeatureFlagListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminCreateFeatureFlag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuperAdminFeatureFlagInput"];
+            };
+        };
+        responses: {
+            /** @description The created feature flag. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminFeatureFlagEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminGetFeatureFlag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The feature flag with overrides. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminFeatureFlagDetailEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminDeleteFeatureFlag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. No body. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminUpdateFeatureFlag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuperAdminFeatureFlagInput"];
+            };
+        };
+        responses: {
+            /** @description The updated feature flag. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminFeatureFlagEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminListTenantFlags: {
+        parameters: {
+            query?: {
+                /** @description Tenant name search fragment. */
+                q?: string;
+                /** @description When `true`, return only tenants with an explicit override. */
+                overrideOnly?: boolean;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tenant flag rows. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminTenantFlagListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminUpsertTenantFlag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuperAdminTenantFlagInput"];
+            };
+        };
+        responses: {
+            /** @description The upserted tenant flag. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminTenantFlagEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminDeleteTenantFlag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Override removed. No body. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminStartImpersonation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    tenantId?: string;
+                    userId?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Impersonation token. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: {
+                            token: string;
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminStopImpersonation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stop acknowledged. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: {
+                            stopped: boolean;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminUpdateMyPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    currentPassword?: string;
+                    newPassword: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Password updated (no content). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminRevokeMySessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Other sessions revoked (no content). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminListPerformance: {
+        parameters: {
+            query?: {
+                sort?: "rev30d" | "revAll" | "orders30d" | "ordersAll" | "name";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Performance rows (bare array). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["PerformanceRow"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["BadRequest"];
+        };
+    };
+    superAdminGetPickupInsights: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pickup insights. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["PickupInsights"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["BadRequest"];
+        };
+    };
+    superAdminListPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All plans. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminPlanListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminCreatePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuperAdminPlanInput"];
+            };
+        };
+        responses: {
+            /** @description The created plan. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminPlanEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminDeletePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted (no content). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminUpdatePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuperAdminPlanInput"];
+            };
+        };
+        responses: {
+            /** @description The updated plan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminPlanEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminListPromoCodes: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                search?: string;
+                /** @description Free-text status filter (handler does not enum-validate). */
+                status?: string;
+                sort?: string;
+                order?: "asc" | "desc";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Promo codes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminPromoCodeListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminCreatePromoCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuperAdminPromoCodeInput"];
+            };
+        };
+        responses: {
+            /** @description The created promo code. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminPromoCodeEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminDeletePromoCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted (no content). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminUpdatePromoCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuperAdminPromoCodeInput"];
+            };
+        };
+        responses: {
+            /** @description The updated promo code. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminPromoCodeEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminPwaForceUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Force-update acknowledged. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminPwaForceUpdateEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminListReferrals: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                search?: string;
+                /** @description Filter by referral status. */
+                status?: "PENDING" | "REWARDED" | "REJECTED" | "EXPIRED";
+                sort?: string;
+                order?: "asc" | "desc";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Referrals. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminReferralListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminUpdateReferral: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuperAdminReferralUpdateInput"];
+            };
+        };
+        responses: {
+            /** @description The updated referral. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminReferralEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminGetStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Platform stats. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["SuperAdminStats"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["BadRequest"];
+        };
+    };
+    superAdminListTenants: {
+        parameters: {
+            query?: {
+                search?: string;
+                status?: string;
+                page?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated tenant list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["SuperAdminTenant"][];
+                        meta?: components["schemas"]["PaginationMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["BadRequest"];
+        };
+    };
+    superAdminGetTenant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID. */
+                id: components["parameters"]["TenantIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tenant detail composite. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["SuperAdminTenantDetail"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminUpdateTenant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID. */
+                id: components["parameters"]["TenantIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuperAdminTenantInput"];
+            };
+        };
+        responses: {
+            /** @description Updated tenant. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["SuperAdminTenant"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminApproveTenant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID. */
+                id: components["parameters"]["TenantIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approved tenant. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["SuperAdminTenant"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminGetTenantBilling: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID. */
+                id: components["parameters"]["TenantIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tenant billing composite. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["SuperAdminTenantBilling"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["BadRequest"];
+        };
+    };
+    superAdminUpdateTenantSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID. */
+                id: components["parameters"]["TenantIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuperAdminSubscriptionInput"];
+            };
+        };
+        responses: {
+            /** @description Updated subscription. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["SuperAdminSubscription"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminSuspendTenant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID. */
+                id: components["parameters"]["TenantIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Suspended tenant. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["SuperAdminTenant"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminReactivateTenant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID. */
+                id: components["parameters"]["TenantIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reactivated tenant. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["SuperAdminTenant"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminToggleTenantWhatsApp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID. */
+                id: components["parameters"]["TenantIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    enabled: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Toggle result. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: {
+                            ok: boolean;
+                            whatsappEnabled: boolean;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminListTickets: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                search?: string;
+                status?: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+                sort?: string;
+                order?: "asc" | "desc";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ticket rows (paginated). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminTicketRowsEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminGetTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The ticket with comments. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminTicketDetailEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminAddTicketComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuperAdminCommentInput"];
+            };
+        };
+        responses: {
+            /** @description The created comment. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminTicketCommentEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminUpdateTicketPriority: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuperAdminTicketPriorityInput"];
+            };
+        };
+        responses: {
+            /** @description The updated ticket. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminTicketEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminUpdateTicketStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuperAdminTicketStatusInput"];
+            };
+        };
+        responses: {
+            /** @description The updated ticket. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperAdminTicketEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminListUsers: {
+        parameters: {
+            query?: {
+                search?: string;
+                status?: string;
+                page?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated user list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["SuperAdminUser"][];
+                        meta?: components["schemas"]["PaginationMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminResetUserPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User ID. */
+                id: components["parameters"]["UserIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Temporary password. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: {
+                            tempPassword: string;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    superAdminSuspendUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User ID. */
+                id: components["parameters"]["UserIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Suspended user. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["SuperAdminUser"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    superAdminReactivateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User ID. */
+                id: components["parameters"]["UserIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reactivated user. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["SuperAdminUser"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
     postTelemetry: {
@@ -369,7 +11697,7 @@ export interface operations {
             };
         };
     };
-    login: {
+    completeTenantOnboarding: {
         parameters: {
             query?: never;
             header?: never;
@@ -378,23 +11706,86 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["LoginInput"];
+                "application/json": components["schemas"]["TenantOnboardingInput"];
             };
         };
         responses: {
-            /** @description Credentials accepted. */
+            /** @description Onboarding updated; returns the tenant profile. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LoginResponseEnvelope"];
+                    "application/json": components["schemas"]["TenantProfileEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTenantReferral: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Referral info. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantReferralInfoEnvelope"];
                 };
             };
             401: components["responses"]["Unauthorized"];
         };
     };
-    register: {
+    getTenantWebsite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Website config. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebsiteConfigEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    deleteTenantWebsite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Website disabled. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    updateTenantWebsite: {
         parameters: {
             query?: never;
             header?: never;
@@ -403,23 +11794,123 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RegisterInput"];
+                "application/json": components["schemas"]["WebsiteInput"];
             };
         };
         responses: {
-            /** @description Tenant + owner created, logged in. */
+            /** @description Website config after update. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebsiteConfigEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getTenantWhatsAppTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description WhatsApp templates. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhatsAppTemplatesEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    updateTenantWhatsAppTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WhatsAppTemplates"];
+            };
+        };
+        responses: {
+            /** @description Templates after update. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhatsAppTemplatesEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listTickets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ticket summary list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TenantTicketCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Ticket created. */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LoginResponseEnvelope"];
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        /** @description `{ id }` of the created ticket. */
+                        data?: {
+                            id: string;
+                        };
+                    };
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
         };
     };
-    getMe: {
+    getTicketUnread: {
         parameters: {
             query?: never;
             header?: never;
@@ -428,19 +11919,19 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Current session context. */
+            /** @description Unread ticket event summary. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MeEnvelope"];
+                    "application/json": components["schemas"]["TicketUnreadEnvelope"];
                 };
             };
             401: components["responses"]["Unauthorized"];
         };
     };
-    listPublicBlogPosts: {
+    markTicketUnreadRead: {
         parameters: {
             query?: never;
             header?: never;
@@ -449,42 +11940,188 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Published posts. */
+            /** @description Read marker updated. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BlogPostListEnvelope"];
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: {
+                            /** @enum {boolean} */
+                            ok: true;
+                        };
+                    };
                 };
             };
-            404: components["responses"]["NotFound"];
+            401: components["responses"]["Unauthorized"];
         };
     };
-    getPublicBlogPost: {
+    getTicket: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                slug: string;
+                /** @description Support ticket identifier (e.g. `tck_…`). */
+                id: components["parameters"]["TicketId"];
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description The post. */
+            /** @description Ticket detail. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BlogPostEnvelope"];
+                    "application/json": components["schemas"]["TenantTicketDetailEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description Caller is not the submitter nor in the same tenant. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
             404: components["responses"]["NotFound"];
         };
     };
-    bumpSessionVersion: {
+    addTicketComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Support ticket identifier (e.g. `tck_…`). */
+                id: components["parameters"]["TicketId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TicketCommentInput"];
+            };
+        };
+        responses: {
+            /** @description Comment added (ticket may have been reopened). */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketCommentEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description Caller is not the submitter nor in the same tenant. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setTicketCsat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Support ticket identifier (e.g. `tck_…`). */
+                id: components["parameters"]["TicketId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TicketCsatInput"];
+            };
+        };
+        responses: {
+            /** @description CSAT recorded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: {
+                            id: string;
+                            csatRating: number;
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description Not the submitter, ticket not resolved, or already rated. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    trackOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Human-readable order number (e.g. `INV-2024-0001`). */
+                orderNumber: components["parameters"]["OrderNumber"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Order tracking snapshot. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderTrackingEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    trackOrderPhotos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Human-readable order number (e.g. `INV-2024-0001`). */
+                orderNumber: components["parameters"]["OrderNumber"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Photo list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderPhotoListEnvelope"];
+                };
+            };
+        };
+    };
+    getCurrentUser: {
         parameters: {
             query?: never;
             header?: never;
@@ -493,16 +12130,453 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Session version bumped. */
+            /** @description Current user context. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionVersionEnvelope"];
+                    "application/json": components["schemas"]["AccountUserEnvelope"];
                 };
             };
             401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getUserProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The current user's profile. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfileEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateUserProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProfileInput"];
+            };
+        };
+        responses: {
+            /** @description Updated profile. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfileEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listStaffUsers: {
+        parameters: {
+            query?: {
+                branchId?: string;
+                search?: string;
+                role?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Staff user list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffUserListEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createStaffUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffUserCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Staff user created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffUserEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getStaffUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Staff user identifier. */
+                id: components["parameters"]["StaffUserId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The staff user. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffUserEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteStaffUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Staff user identifier. */
+                id: components["parameters"]["StaffUserId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted — no content. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateStaffUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Staff user identifier. */
+                id: components["parameters"]["StaffUserId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffUserUpdateInput"];
+            };
+        };
+        responses: {
+            /** @description Acknowledgement that the update was applied. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setStaffUserPin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Staff user identifier. */
+                id: components["parameters"]["StaffUserId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffUserSetPinInput"];
+            };
+        };
+        responses: {
+            /** @description PIN stored. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    resetStaffUserPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Staff user identifier. */
+                id: components["parameters"]["StaffUserId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Temp password generated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffUserResetPasswordEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    connectWhatsApp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["WhatsAppConnectInput"];
+            };
+        };
+        responses: {
+            /** @description Connect result (gateway-defined shape, wrapped in envelope). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["WhatsAppConnectResult"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description WhatsApp gateway unreachable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Circuit breaker open (gateway degraded). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    disconnectWhatsApp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["WhatsAppDisconnectInput"];
+            };
+        };
+        responses: {
+            /** @description Disconnect result (gateway-defined shape, wrapped in envelope). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["WhatsAppDisconnectResult"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description WhatsApp gateway unreachable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Circuit breaker open (gateway degraded). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getWhatsAppQR: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description QR payload (gateway-defined shape, wrapped in envelope). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["WhatsAppQR"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description WhatsApp gateway unreachable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Circuit breaker open (gateway degraded). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sendWhatsAppMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WhatsAppSendInput"];
+            };
+        };
+        responses: {
+            /** @description Send result (gateway-defined shape, wrapped in envelope). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["WhatsAppSendResult"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description WhatsApp gateway unreachable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Circuit breaker open (gateway degraded). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getWhatsAppStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connection status (gateway-defined shape, wrapped in envelope). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSuccess"] & {
+                        data?: components["schemas"]["WhatsAppStatus"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description WhatsApp gateway unreachable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Circuit breaker open (gateway degraded). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
 }

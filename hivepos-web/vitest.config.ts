@@ -6,9 +6,12 @@ export default defineConfig({
   plugins: [react()],
   resolve: { alias: { "@": path.resolve(__dirname) } },
   test: {
-    // ponytail: node env for now (logic tests). Switch to jsdom + add jsdom dep
-    // when the first component test lands.
+    // Default node env for logic tests; component tests opt into jsdom via a
+    // per-file `// @vitest-environment jsdom` pragma (jsdom is a devDep).
+    // setupFiles registers @testing-library/jest-dom matchers + RTL cleanup so
+    // those component tests (toBeInTheDocument, etc.) resolve.
     environment: "node",
+    setupFiles: ["./lib/test/setup.tsx"],
     include: [
       "app/**/*.test.{ts,tsx}",
       "components/**/*.test.{ts,tsx}",

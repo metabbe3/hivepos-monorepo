@@ -77,6 +77,9 @@ describe("FormField", () => {
   });
 
   it("uses the canonical label styling on the Label", () => {
+    // Canonical LABEL_CLASS = "text-xs font-medium text-muted-foreground" (not
+    // uppercase — the FormField label is small + muted, matching the muted-card
+    // grouping used across dashboard forms).
     render(
       <FormField label="Email">
         <input />
@@ -84,7 +87,7 @@ describe("FormField", () => {
     );
     const label = screen.getByText("Email").closest("label");
     expect(label?.className).toContain("text-xs");
-    expect(label?.className).toContain("uppercase");
+    expect(label?.className).toContain("font-medium");
     expect(label?.className).toContain("text-muted-foreground");
   });
 });
