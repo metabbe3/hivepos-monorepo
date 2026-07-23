@@ -25,3 +25,7 @@ server
 
 # Contract backfill fragments (transient; merged into openapi.yaml by scripts/merge-contracts.ts)
 contracts/_staging/
+
+# Service worker — generated from scripts/sw.template.js by gen-sw-version.mjs (prebuild).
+# VERSION = build-time epoch ms (non-deterministic), so it must not be tracked.
+public/sw.js

@@ -1,5 +1,10 @@
 // hivePOS service worker — installability + offline app shell.
 //
+// This is the SOURCE template. `scripts/gen-sw-version.mjs` (prebuild) copies it
+// to `public/sw.js` with VERSION injected. `public/sw.js` is generated + gitignored
+// (its VERSION = build-time epoch ms, non-deterministic) — never edit or commit it;
+// edit THIS file.
+//
 // ponytail: hand-rolled (no Serwist/Workbox) to avoid a dependency + Next.js 16
 // compat risk. ~60 lines covers the app-shell + runtime-caching model.
 //
@@ -16,9 +21,8 @@
 //     takes over — no stale-data risk.
 //   - Non-GET + cross-origin: bypass (straight to network).
 
-// VERSION is a placeholder — the real value is injected at build time by
-// `scripts/gen-sw-version.mjs` (prebuild). Do not hand-edit; see that script.
-const VERSION = "1784780520788";
+// VERSION is injected at build time by `scripts/gen-sw-version.mjs` (prebuild).
+const VERSION = "{{VERSION}}";
 const SHELL_CACHE = `hivepos-shell-v${VERSION}`;
 const RUNTIME_CACHE = `hivepos-runtime-v${VERSION}`;
 const SHELL_PRECACHE = ["/"];
