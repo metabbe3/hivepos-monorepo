@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +26,20 @@ import { OrderPaymentsLog } from "@/components/orders/order-payments-log";
 import { OrderPaymentDialog } from "@/components/orders/order-payment-dialog";
 import { OrderEditForm } from "@/components/orders/order-edit-form";
 
+// hivepos-api returns a minimal order (no items/customer fields); default so the
+// detail page + sub-components don't crash on undefined arrays/strings.
+function normalizeOrderDetail(raw: OrderDetail): OrderDetail {
+  return {
+    ...raw,
+    orderItems: raw.orderItems ?? [],
+    payments: raw.payments ?? [],
+    paidAmount: raw.paidAmount ?? 0,
+    customerName: raw.customerName ?? "",
+    customerPhone: raw.customerPhone ?? "",
+    notes: raw.notes ?? "",
+  };
+}
+
 export default function OrderDetailPage({
   params,
 }: {
@@ -41,6 +55,10 @@ export default function OrderDetailPage({
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
+  // autoEditEntered guards the ?edit=true auto-enter effect so it runs at most
+  // once per mount. Without it, any later order mutation (payment, edit-save
+  // refetch) flips editMode back to true and re-enters editing.
+  const autoEditEntered = useRef(false);
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [payForm, setPayForm] = useState<PayFormState>({
     amount: "",
@@ -52,19 +70,7 @@ export default function OrderDetailPage({
   useEffect(() => {
     params.then(({ id }) => {
       apiFetch<OrderDetail>(`/api/orders/${id}`)
-        .then((res) =>
-          setOrder({
-            ...res.data,
-            // hivepos-api returns a minimal order (no items/customer fields); default so the
-            // detail page + sub-components don't crash on undefined arrays/strings.
-            orderItems: res.data.orderItems ?? [],
-            payments: res.data.payments ?? [],
-            paidAmount: res.data.paidAmount ?? 0,
-            customerName: res.data.customerName ?? "",
-            customerPhone: res.data.customerPhone ?? "",
-            notes: res.data.notes ?? "",
-          } as OrderDetail),
-        )
+        .then((res) => setOrder(normalizeOrderDetail(res.data)))
         .catch(() => {
           // leave order null; loading cleared below
         })
@@ -72,18 +78,19 @@ export default function OrderDetailPage({
     });
   }, [params]);
 
-  // Auto-enter edit mode from ?edit=true
+  // Auto-enter edit mode from ?edit=true — at most once per mount (see autoEditEntered).
   useEffect(() => {
+    if (autoEditEntered.current) return;
     if (
       order &&
       searchParams.get("edit") === "true" &&
-      !editMode &&
       !isEmployee &&
       order.status !== "DELIVERED"
     ) {
       setEditMode(true);
+      autoEditEntered.current = true;
     }
-  }, [order, searchParams, editMode, isEmployee]);
+  }, [order, searchParams, isEmployee]);
 
   async function updateStatus(newStatus: string) {
     if (!order) return;
@@ -125,15 +132,7 @@ export default function OrderDetailPage({
         paidAt: new Date().toISOString().slice(0, 10),
       });
       const refetched = await apiFetch<OrderDetail>(`/api/orders/${order.id}`);
-      setOrder({
-        ...refetched.data,
-        orderItems: refetched.data.orderItems ?? [],
-        payments: refetched.data.payments ?? [],
-        paidAmount: refetched.data.paidAmount ?? 0,
-        customerName: refetched.data.customerName ?? "",
-        customerPhone: refetched.data.customerPhone ?? "",
-        notes: refetched.data.notes ?? "",
-      } as OrderDetail);
+      setOrder(normalizeOrderDetail(refetched.data));
     } catch (err) {
       const errMsg = err instanceof ApiClientError ? err.message : "";
       const errorMsg = errMsg.toLowerCase().includes("wallet balance")
@@ -198,11 +197,14 @@ export default function OrderDetailPage({
   }) {
     if (!order) return;
     try {
-      const result = await apiFetch<OrderDetail>(`/api/orders/${order.id}`, {
+      await apiFetch(`/api/orders/${order.id}`, {
         method: "PUT",
-        body: payload as unknown as Record<string, unknown>,
+        body: payload,
       });
-      setOrder(result.data);
+      // BE PUT returns the minimal order (no items/customer/payments) — re-fetch
+      // the full detail so view-mode render has orderItems etc. Mirrors handlePayment.
+      const refetched = await apiFetch<OrderDetail>(`/api/orders/${order.id}`);
+      setOrder(normalizeOrderDetail(refetched.data));
       setEditMode(false);
       toast.success(t("orders.updateSuccess"));
     } catch (err) {

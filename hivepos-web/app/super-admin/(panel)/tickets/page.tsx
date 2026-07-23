@@ -162,7 +162,7 @@ function TicketsInner() {
       header: "Subject",
       render: (t) => (
         <div className="max-w-md">
-          <div className="font-medium text-foreground">{t.subject}</div>
+          <div className="font-medium text-foreground whitespace-normal break-words">{t.subject}</div>
           <div className="mt-0.5 truncate text-xs text-muted-foreground" title={t.description}>
             {t.description}
           </div>

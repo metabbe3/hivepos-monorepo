@@ -18,7 +18,7 @@
 
 // VERSION is a placeholder — the real value is injected at build time by
 // `scripts/gen-sw-version.mjs` (prebuild). Do not hand-edit; see that script.
-const VERSION = "1784530791363";
+const VERSION = "1784780520788";
 const SHELL_CACHE = `hivepos-shell-v${VERSION}`;
 const RUNTIME_CACHE = `hivepos-runtime-v${VERSION}`;
 const SHELL_PRECACHE = ["/"];
