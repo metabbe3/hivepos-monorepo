@@ -87,6 +87,10 @@ For any feature touching **both** `hivepos-api` and `hivepos-web`:
 - **Transient fetch failure ≠ logout**: `reloadSession` clears the token only on a real 401/403 — never on an abort/429/5xx/network blip (else a valid session logs out on a navigation abort). See `hivepos-web/docs/lessons-learned.md` #11.
 - **Service-worker cache must version per build**: `hivepos-web/scripts/gen-sw-version.mjs` injects a build-unique `VERSION` into `public/sw.js` in `prebuild`. A constant `VERSION` = redeployed fixes never reach the browser (stale chunks). See `hivepos-web/docs/lessons-learned.md` #12.
 
+## DB-safety guard (auto-backup before data-destroying commands)
+
+A PreToolUse hook (`.claude/settings.json` → `.claude/hooks/db-safety.sh`) intercepts Bash commands that can delete DB data — `DROP TABLE/DATABASE/SCHEMA`, `TRUNCATE`, `DELETE FROM`, `prisma migrate reset` / `db push --force-reset`, `docker compose down -v` / `--volumes`, `docker volume rm …pgdata`, `pg_restore --clean`. Before allowing any of them it takes a timestamped `pg_dump` of `pos_saas` to `./backups/pre-change_<ts>.sql.gz` (same dump shape as `scripts/db-backup.sh`). If the backup fails (postgres down / unreachable) the command is **blocked** — destructive ops never run without a fresh backup. Over-matches just produce an extra gzipped backup (the safe failure mode). Complements the 12h `db-backup` sidecar. **Restore:** `gunzip -c ./backups/pre-change_<ts>.sql.gz | docker exec -i hivepos-postgres-1 psql -U posadmin -d pos_saas`. Scope: inspects the Bash command string only — SQL run inside the app or app-driven migrations isn't seen.
+
 ## Env vars (keys copied from legacy pos-saas/.env)
 
 - **Midtrans**: `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`, `MIDTRANS_ENV` (api) + `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY`, `NEXT_PUBLIC_MIDTRANS_ENV` (web).
