@@ -19,6 +19,12 @@ const csp = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  images: {
+    remotePatterns: [{ protocol: "https", hostname: "**" }],
+    // ponytail: hostname "**" = open /_next/image proxy (anyone can fetch+transform arbitrary
+    // https imgs). Acceptable: low-traffic site, CSP already allows any https img. Upgrade path:
+    // curated host list or move uploads to owned storage (R2), then restrict remotePatterns.
+  },
   experimental: {
     // Tree-shake barrel imports so only the icons/charts actually used ship.
     optimizePackageImports: ["lucide-react", "recharts"],

@@ -46,7 +46,15 @@ export function middleware(req: NextRequest) {
   }
 
   // No tenant slug → platform request, pass through.
-  if (!tenantSlug) return NextResponse.next();
+  if (!tenantSlug) {
+    const res = NextResponse.next();
+    // noindex auth-gated/platform routes — belt for robots.txt. Client-component layouts
+    // (dashboard, super-admin) can't export metadata, so the header is the meta-level noindex.
+    // PLATFORM_PATHS covers login/register + every dashboard/admin area (scattered URL roots).
+    const isPlatformPath = PLATFORM_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
+    if (isPlatformPath) res.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return res;
+  }
 
   // ── Tenant subdomain: serve ONLY the public website ──
 

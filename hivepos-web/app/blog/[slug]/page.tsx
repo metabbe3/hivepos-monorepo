@@ -8,6 +8,7 @@ import { renderMarkdown, estimateReadTime } from "@/lib/blog/render";
 import { BlogFooter, BlogHeader } from "@/components/blog/blog-shell";
 import { ReadingProgress } from "@/components/blog/reading-progress";
 import { TableOfContents } from "@/components/blog/table-of-contents";
+import Image from "next/image";
 
 // force-dynamic: always read from the API at request time.
 export const dynamic = "force-dynamic";
@@ -168,9 +169,12 @@ export default async function BlogPostPage({
           {/* Cover */}
           {post.coverImage && (
             <div className="mx-auto max-w-4xl px-5 sm:px-6">
-              <img
+              <Image
                 src={post.coverImage}
-                alt=""
+                alt={post.title}
+                width={1600}
+                height={900}
+                sizes="(min-width: 768px) 1024px, 100vw"
                 className="-mt-8 mb-4 aspect-[16/9] w-full rounded-2xl border border-slate-200 object-cover shadow-sm"
               />
             </div>

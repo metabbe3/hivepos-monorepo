@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -156,11 +157,13 @@ function ItemCard({ item }: { item: TrackingItem }) {
       {/* Photo — if available */}
       {hasPhoto && (
         <div className="px-4 pt-3.5">
-          <img
+          <Image
             src={item.photoUrl!}
             alt={item.service}
+            width={800}
+            height={320}
+            sizes="(min-width: 768px) 600px, 100vw"
             className="w-full h-40 object-cover rounded-lg bg-slate-100"
-            loading="lazy"
           />
         </div>
       )}

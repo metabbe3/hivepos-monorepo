@@ -11,7 +11,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL("https://hivepos.id"),
   title: "hivePOS",
-  description: "Kasir laundry ringan di browser, untuk UMKM Indonesia.",
+  description: "Kasir laundry ringan di browser untuk UMKM Indonesia — kiloan, satuan, WhatsApp order, multi-outlet, QRIS, laporan, cetak struk. 1 outlet gratis selamanya, tanpa install.",
   openGraph: {
     type: "website",
     siteName: "hivePOS",

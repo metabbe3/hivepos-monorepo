@@ -7,6 +7,7 @@ import { Plus_Jakarta_Sans, Inter } from "next/font/google";
 import { apiFetch } from "@/modules/shared";
 import type { TenantPublicData } from "@/lib/tenant-cache";
 import { renderWhatsAppTemplate, type TemplateOverrides } from "@/lib/whatsapp-templates";
+import Image from "next/image";
 
 // ponytail: "Clean & Safe" template — off-white canvas, sky-blue accent,
 // soft radii, real shadows. The visual language of trust for laundry.
@@ -850,13 +851,12 @@ export default async function TenantSitePage() {
               <div className="md:col-span-5">
                 <div className="relative aspect-[4/5] sm:aspect-[5/4] md:aspect-[4/5] rounded-3xl overflow-hidden border border-white/20 shadow-lg">
                   {settings.heroPhotoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <Image
                       src={settings.heroPhotoUrl}
                       alt={`${tenant.name} — laundry di ${kelurahan}`}
+                      fill
+                      sizes="(min-width: 768px) 40vw, 100vw"
                       className="absolute inset-0 h-full w-full object-cover"
-                      width={800}
-                      height={1000}
                     />
                   ) : (
                     <div className="absolute inset-0 flex flex-col justify-between p-8 sm:p-10">
