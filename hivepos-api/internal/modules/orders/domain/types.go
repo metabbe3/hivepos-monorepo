@@ -46,6 +46,12 @@ const (
 )
 
 // Order is the domain entity.
+//
+// ponytail: money fields (TotalAmount, DiscountAmount; OrderItem.PricePerUnit/Subtotal) are
+// float64 in Go/transport. The DB stores Decimal(12,2) so precision is safe at rest; float64
+// risk is only in Go accumulation/comparison, and compare code uses epsilons (1e-9, see
+// infrastructure/repository.go overpayment guard). Upgrade path if a rounding bug appears:
+// int64 minor-units (cents) across domain + the ::float DB casts.
 type Order struct {
 	ID             string        `json:"id"`
 	OrderNumber    string        `json:"orderNumber"`

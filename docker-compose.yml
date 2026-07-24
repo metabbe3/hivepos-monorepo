@@ -66,6 +66,10 @@ services:
 
   postgres:
     image: postgres:17-alpine
+    # DEV ONLY: exposes Postgres on host :5437 so local Go/Next.js (per CLAUDE.md shared
+    # DB) can connect. PROD must NOT expose this port (internal network only) and must use
+    # sslmode=require + client certs (the DATABASE_URL sslmode=disable at L35 is dev-only).
+    # Apply via a docker-compose.prod.yml override, not here.
     ports: ["5437:5432"]
     volumes:
       # Named volume, NOT a bind mount. PGDATA was previously bind-mounted into

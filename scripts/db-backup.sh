@@ -30,6 +30,18 @@ while :; do
 
     # Retention: prune dumps older than RETAIN_DAYS. Best-effort.
     find /backups -name 'pos_saas_*.sql.gz' -type f -mtime "+$RETAIN_DAYS" -delete 2>/dev/null || true
+
+    # Offsite mirror (DR — the sidecar otherwise keeps backups only on one host). No-op
+    # unless BACKUP_REMOTE (an rclone remote:path) is set AND rclone is installed.
+    # Enable: set BACKUP_REMOTE + run `rclone config` in the sidecar/host. Best-effort —
+    # a failed mirror never affects the local backup or the loop.
+    if [ -n "${BACKUP_REMOTE:-}" ] && command -v rclone >/dev/null 2>&1; then
+      if rclone copy "$FILE" "$BACKUP_REMOTE" 2>/dev/null; then
+        echo "[backup] offsite mirror ok → ${BACKUP_REMOTE}"
+      else
+        echo "[backup] offsite mirror FAILED (local backup intact)"
+      fi
+    fi
   else
     echo "[backup] $(date -u +%FT%TZ) FAILED — leaving previous backups intact"
     rm -f "$FILE.tmp"
