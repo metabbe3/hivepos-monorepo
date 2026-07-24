@@ -243,7 +243,7 @@ function Stars({ rating, size = 16 }: { rating: number; size?: number }) {
   // Render 5 stars; filled for rating, muted for the rest.
   const full = Math.round(rating);
   return (
-    <div className="flex items-center gap-0.5" aria-label={`${rating} dari 5 bintang`}>
+    <div role="img" className="flex items-center gap-0.5" aria-label={`${rating} dari 5 bintang`}>
       {Array.from({ length: 5 }).map((_, i) => (
         <span key={i} style={i < full ? { color: "#F59E0B" } : { color: "#CBD5E1" }}>
           <Icon name="star" size={size} />
