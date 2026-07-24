@@ -12,15 +12,31 @@
 | `npx tsx scripts/seed-super-admin.ts` | Create super-admin user |
 | `npx tsx scripts/seed-billing.ts` | Backfill billing state |
 
-**No `migrations/` folder.** This project uses `db push`, not `migrate dev`. Schema state lives in `prisma/schema.prisma` + the DB.
+**Dev uses `db push` (fast, no history).** Schema state lives in `prisma/schema.prisma` + the DB. `db push` is fine for local/dev iteration but has **no migration history, no review gate, no rollback** — so it must NOT be how prod schema changes are applied.
 
-After editing `schema.prisma`:
+After editing `schema.prisma` (dev):
 ```bash
 npm run db:push     # apply to DB
 # client is regenerated automatically by postinstall / next build
 ```
 
 Additive changes (new model, new column) are safe. Destructive changes (rename, drop) — `db push` will prompt for confirmation.
+
+## Production migrations (reviewed, replayable, reversible)
+
+Prod schema changes go through `prisma migrate`, NOT `db push`:
+
+1. **Baseline once** (creates the `migrations/` history from the current schema):
+   ```bash
+   npm run db:migrate               # prisma migrate dev — generates migrations/ + migration_lock.toml
+   ```
+   Commit `migrations/`. This is a one-time step; until it's done `migrate deploy` has nothing to deploy.
+2. **Every schema change** → `npm run db:migrate` locally → review the generated `migrations/<ts>_<name>/migration.sql` → commit it in the same PR as the `schema.prisma` edit.
+3. **Apply in prod** (CI/deploy or runbook): `npm run db:migrate:deploy` (`prisma migrate deploy`) — applies pending migrations only, non-interactively. Check state with `npm run db:migrate:status`.
+
+**Rollback:** `migrate deploy` applies forward-only. To revert a bad migration, write a new reversing migration (never edit/delete applied ones). Always test destructive migrations against a restore first (see root `scripts/db-backup.sh` + the DB-safety hook).
+
+**Why:** `db push` in prod silently drifts dev/prod and can't roll back — a reviewed-migration pipeline is the last line of defense for shared-tenant data. (ponytail: `db push` stays for dev because it's 10× faster to iterate with; the cost is only paid in prod where it matters.)
 
 ## Schema conventions
 
