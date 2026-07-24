@@ -18,7 +18,7 @@ function StorefrontPreview() {
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2.5">
         <span className="h-2 w-2 rounded-full bg-brand" />
-        <span className="font-mono text-xs text-slate-500">honeybee.hivepos.id</span>
+        <span className="font-mono text-xs text-slate-600">honeybee.hivepos.id</span>
       </div>
       <div className="p-5">
         <div className="flex items-center justify-between">
@@ -32,7 +32,7 @@ function StorefrontPreview() {
         <p className="mt-2 font-display text-lg font-bold leading-snug text-slate-900">
           Bersih, wangi, tepat waktu.
         </p>
-        <div className="mt-2 flex items-center gap-3 text-xs text-slate-500">
+        <div className="mt-2 flex items-center gap-3 text-xs text-slate-600">
           <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
             <Star className="h-3.5 w-3.5 fill-brand text-brand" />
             4.9 Google
@@ -115,7 +115,7 @@ export function WebsiteSpotlight() {
               <div className="border-t border-slate-200 pt-5">
                 <div className="flex items-center gap-2">
                   <GroupIcon className="h-4 w-4 text-brand" strokeWidth={1.75} />
-                  <h3 className="font-display text-sm font-bold text-slate-500">
+                  <h3 className="font-display text-sm font-bold text-slate-600">
                     {name}
                   </h3>
                 </div>
@@ -123,7 +123,7 @@ export function WebsiteSpotlight() {
                   {items.map((feature) => (
                     <li key={feature.title} className="text-sm">
                       <span className="font-semibold text-slate-900">{feature.title}</span>
-                      <span className="block text-xs leading-relaxed text-slate-500">
+                      <span className="block text-xs leading-relaxed text-slate-600">
                         {feature.desc}
                       </span>
                     </li>

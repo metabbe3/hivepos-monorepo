@@ -323,7 +323,7 @@ body {
      sky as the single committed accent. Hex (not oklch) for iOS Safari < 15.4. */
   --color-secondary: #0284c7;
   --color-secondary-foreground: #ffffff;
-  --color-brand: #0284c7;
+  --color-brand: #0369a1;
   --color-brand-700: #0369a1;
 
   /* indigo → trust blue (#2563EB family). Standard Tailwind blue ramp. */

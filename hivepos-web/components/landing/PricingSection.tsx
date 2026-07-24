@@ -41,18 +41,18 @@ export function PricingSection() {
                 <h3 className="font-display text-2xl font-extrabold text-slate-900">
                   {plan.name}
                 </h3>
-                <p className="mt-1 text-sm text-slate-500">{plan.desc}</p>
+                <p className="mt-1 text-sm text-slate-600">{plan.desc}</p>
 
                 <div className="mt-5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   {plan.originalPrice && (
-                    <span className="font-display text-base font-bold text-slate-400 line-through price">
+                    <span className="font-display text-base font-bold text-slate-500 line-through price">
                       {plan.originalPrice}
                     </span>
                   )}
                   <span className="font-display text-4xl font-extrabold tracking-tight text-slate-900 price">
                     {plan.price}
                   </span>
-                  <span className="text-sm font-semibold text-slate-400">{plan.period}</span>
+                  <span className="text-sm font-semibold text-slate-500">{plan.period}</span>
                   {plan.discount && (
  <span className="rounded bg-brand px-2 py-0.5 text-[11px] font-bold text-white">
                       {plan.discount}
@@ -90,7 +90,7 @@ export function PricingSection() {
         </ScrollReveal>
 
         <ScrollReveal delay={2}>
-          <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-slate-500">
+          <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-slate-600">
             Harga per <strong className="font-semibold text-slate-700">outlet</strong>, bukan per
             user. Semua staff di outlet tersebut ikut tercakung. Bisa upgrade kapan saja.
           </p>

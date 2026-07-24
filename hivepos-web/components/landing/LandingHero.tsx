@@ -57,7 +57,7 @@ export function LandingHero() {
             <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4 lg:mt-8">
               <PosPreview />
             </div>
-            <p className="mt-3 text-center text-xs text-slate-400">
+            <p className="mt-3 text-center text-xs text-slate-500">
               Tampilan asli dari Honey Bee Laundry, laundry kami sendiri.
             </p>
           </div>

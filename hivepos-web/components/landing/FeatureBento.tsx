@@ -75,7 +75,7 @@ export function FeatureBento() {
                   {feature.visual === "receipt" && (
                     <div className="mt-5 rounded-md border border-dashed border-slate-300 bg-white p-3">
                       <div className="space-y-1.5">
-                        <div className="flex justify-between text-[10px] text-slate-400">
+                        <div className="flex justify-between text-[10px] text-slate-500">
                           <span>Struk hivePOS</span>
                           <span className="font-mono">#0001</span>
                         </div>

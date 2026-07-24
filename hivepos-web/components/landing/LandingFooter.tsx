@@ -56,7 +56,7 @@ export function LandingFooter() {
 
           {/* Produk */}
           <div>
-            <h2 className="text-xs font-bold text-slate-500">Produk</h2>
+            <h2 className="text-xs font-bold text-slate-400">Produk</h2>
             <ul className="mt-4 space-y-2.5 text-sm">
               {PRODUCT_LINKS.map((link) => (
                 <li key={link.href}>
@@ -73,7 +73,7 @@ export function LandingFooter() {
 
           {/* Mulai */}
           <div>
-            <h2 className="text-xs font-bold text-slate-500">Mulai</h2>
+            <h2 className="text-xs font-bold text-slate-400">Mulai</h2>
             <ul className="mt-4 space-y-2.5 text-sm">
               {START_LINKS.map((link) => (
                 <li key={link.href}>
@@ -90,8 +90,8 @@ export function LandingFooter() {
         </div>
 
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-slate-800 pt-8 md:flex-row">
-          <p className="text-sm text-slate-500">© 2026 hivePOS. Aplikasi Kasir Laundry.</p>
-          <p className="flex items-center gap-1.5 text-sm text-slate-500">
+          <p className="text-sm text-slate-400">© 2026 hivePOS. Aplikasi Kasir Laundry.</p>
+          <p className="flex items-center gap-1.5 text-sm text-slate-400">
             Dibuat di Indonesia <IndonesianFlag />
           </p>
         </div>

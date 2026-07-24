@@ -26,7 +26,7 @@ function StatusChip({ status }: { status: Status }) {
       ? "bg-brand/10 text-brand"
       : status === "Diproses"
         ? "bg-slate-100 text-slate-600"
-        : "bg-slate-50 text-slate-400";
+        : "bg-slate-50 text-slate-600";
   return (
     <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${cls}`}>
       {status}
@@ -40,7 +40,7 @@ export function PosPreview() {
       {/* App header */}
       <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
         <div>
-          <p className="text-[11px] font-semibold text-slate-400">
+          <p className="text-[11px] font-semibold text-slate-500">
             Honey Bee Laundry
           </p>
           <p className="font-display text-sm font-bold text-slate-900">Pesanan Hari Ini</p>
@@ -49,7 +49,7 @@ export function PosPreview() {
           <p className="font-display text-2xl font-extrabold leading-none text-slate-900 tabular-nums">
             18
           </p>
-          <p className="text-[11px] text-slate-400">order</p>
+          <p className="text-[11px] text-slate-500">order</p>
         </div>
       </div>
 
@@ -59,7 +59,7 @@ export function PosPreview() {
           <li key={o.no} className="flex items-center gap-3 px-4 py-2.5">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="font-mono text-[11px] text-slate-400">HBL-{o.no}</span>
+                <span className="font-mono text-[11px] text-slate-500">HBL-{o.no}</span>
                 <span className="truncate text-sm font-semibold text-slate-900">{o.name}</span>
               </div>
               <p className="truncate text-xs text-slate-500">{o.service}</p>
@@ -73,7 +73,7 @@ export function PosPreview() {
       {/* Footer total */}
       <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/60 px-4 py-3">
         <div>
-          <p className="text-[11px] text-slate-400">Omzet hari ini</p>
+          <p className="text-[11px] text-slate-600">Omzet hari ini</p>
           <p className="font-display text-base font-extrabold text-slate-900 tabular-nums">
             Rp 792.000
           </p>

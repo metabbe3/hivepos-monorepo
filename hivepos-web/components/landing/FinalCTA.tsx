@@ -37,7 +37,7 @@ export function FinalCTA() {
               Lihat Demo
             </Link>
           </div>
-          <p className="mt-5 text-sm text-white/70">
+          <p className="mt-5 text-sm text-white/90">
             atau{" "}
             <a
               href="https://wa.me/6285121309381?text=Halo%20saya%20tertarik%20dengan%20hivePOS"
