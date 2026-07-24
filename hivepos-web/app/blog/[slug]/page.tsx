@@ -10,6 +10,7 @@ import { SITE_URL as SITE } from "@/lib/site";
 import { ReadingProgress } from "@/components/blog/reading-progress";
 import { TableOfContents } from "@/components/blog/table-of-contents";
 import Image from "next/image";
+import "../blog-prose.css";
 
 // force-dynamic: always read from the API at request time.
 export const dynamic = "force-dynamic";

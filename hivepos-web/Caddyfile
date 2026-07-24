@@ -3,7 +3,9 @@
 # Cloudflare terminates TLS in front — Caddy always sees HTTP, so X-Forwarded-Proto
 # comes from Cloudflare (or defaults to https in production).
 :80 {
-	encode gzip zstd
+	# brotli first — best ratio for CSS/JS; gzip/zstd fallback. Per the render-blocking
+	# CSS goal, brotli shrinks the ~40KiB global stylesheet on the wire vs gzip-only.
+	encode zstd br gzip
 
 	handle /api/* {
 		reverse_proxy api:8080

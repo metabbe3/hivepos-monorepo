@@ -1,0 +1,24 @@
+/* ponytail: typography scoped to /blog only — keeps ~12-16KiB of .prose rules
+   out of the global (landing) render-blocking chunk. Must be a full Tailwind
+   entry (@import "tailwindcss"): @tailwindcss/typography emits into the
+   components layer, which only renders when the Tailwind pipeline runs. Without
+   the import, the plugin registers but emits nothing (verified). Turbopack
+   code-splits this file to the /blog route, so landing never loads it.
+   .prose is consumed by app/blog/[slug]/page.tsx only (grep-confirmed).
+   Trade-off: blog route re-loads Tailwind base already in the global chunk —
+   acceptable, blog isn't the perf-critical landing. Upgrade path: none. */
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* Blog article editorial drop cap — moved here from globals.css so this
+   blog-only rule ships on /blog alone, not the global render-blocking chunk.
+   Theme vars (--font-display, --color-brand) resolve via the Tailwind import. */
+.prose-dropcap > p:first-of-type::first-letter {
+  float: left;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 3.4em;
+  line-height: 0.72;
+  margin: 0.08em 0.12em 0 0;
+  color: var(--color-brand);
+}
