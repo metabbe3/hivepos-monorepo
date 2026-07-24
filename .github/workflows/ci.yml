@@ -11,6 +11,10 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+  packages: write   # GHCR push (GITHUB_TOKEN)
+
 jobs:
   api:
     name: hivepos-api (go)
@@ -34,6 +38,25 @@ jobs:
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
           govulncheck ./...
+
+      - name: Login to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build always (proves the image builds); push :latest + :sha-<short> only on main.
+      - name: Build & push api image (GHCR)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deployments/Dockerfile
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/hivepos-api:latest
+            ghcr.io/${{ github.repository_owner }}/hivepos-api:sha-${{ github.sha }}
 
   web:
     name: hivepos-web (next)
@@ -64,10 +87,23 @@ jobs:
       - name: Build (standalone)
         run: npm run build
 
-      - name: Docker build
-        run: docker build -t hivepos-web:ci .
+      - name: Login to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      # ponytail: GHCR push + host deploy not wired — fill docker/login-action +
-      # SSH/watchtower once the target is known. The build step proves the image builds.
-      - name: Image push + deploy (TODO)
-        run: echo "push/deploy not wired yet"
+      # Build always (proves the image builds); push :latest + :sha-<short> only on main.
+      # Host auto-deploy: run watchtower on the prod box pulling ghcr.io/metabbe3/*:latest.
+      # ponytail: SSH/blue-green deploy not wired — watchtower pull-restart is the simple path;
+      # swap for SSH + compose roll when zero-downtime / health-gated rollout is needed.
+      - name: Build & push web image (GHCR)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/hivepos-web:latest
+            ghcr.io/${{ github.repository_owner }}/hivepos-web:sha-${{ github.sha }}
