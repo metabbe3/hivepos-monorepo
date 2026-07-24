@@ -1,3 +1,5 @@
+import { SITE_URL } from "@/lib/site";
+
 interface JsonLdProps {
   branch: {
     name: string;
@@ -14,11 +16,11 @@ export function JsonLd({ branch, services, faqs }: JsonLdProps) {
   const localBusinessData = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
-    "@id": "https://hivepos.id/#laundry",
+    "@id": `${SITE_URL}/#laundry`,
     name: branch.name || "hivePOS",
     description:
       "Laundry Kemayoran, Jakarta Pusat. Layanan antar jemput cuci kiloan, cuci sepatu, bedcover, setrika. Melayani Senen, Tanah Tinggi, Gunung Sahari & sekitarnya.",
-    url: "https://hivepos.id",
+    url: SITE_URL,
     telephone: branch.phone,
     address: branch.address
       ? {

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Laundry Website Tidak Ditemukan",
@@ -20,7 +21,7 @@ export default function TenantNotFound() {
         hubungi laundry langsung untuk informasi layanan.
       </p>
       <Link
-        href="https://hivepos.id"
+        href={SITE_URL}
         className="mt-8 inline-flex items-center gap-2 rounded-full bg-indigo-600 px-6 py-3 text-base font-bold text-white shadow-lg transition hover:bg-indigo-700"
       >
         Kunjungi hivePOS

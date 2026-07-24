@@ -6,6 +6,7 @@ import { ArrowLeft, Clock, CalendarDays, MessageCircle } from "lucide-react";
 import { apiFetch } from "@/modules/shared";
 import { renderMarkdown, estimateReadTime } from "@/lib/blog/render";
 import { BlogFooter, BlogHeader } from "@/components/blog/blog-shell";
+import { SITE_URL as SITE } from "@/lib/site";
 import { ReadingProgress } from "@/components/blog/reading-progress";
 import { TableOfContents } from "@/components/blog/table-of-contents";
 import Image from "next/image";
@@ -30,7 +31,7 @@ interface BlogPostRef {
   keywords?: string | null;
 }
 
-const SITE = "https://hivepos.id";
+// SITE → env-backed SITE_URL (aliased on import from @/lib/site).
 
 async function fetchPost(slug: string): Promise<BlogPost | null> {
   try {

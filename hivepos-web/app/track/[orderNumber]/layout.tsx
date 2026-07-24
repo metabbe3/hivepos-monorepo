@@ -1,4 +1,5 @@
 import type { Metadata, ResolvingMetadata } from "next";
+import { SITE_URL } from "@/lib/site";
 
 interface Props {
   params: Promise<{ orderNumber: string }>;
@@ -12,7 +13,7 @@ export async function generateMetadata(
 
   try {
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL || "https://hivepos.id"}/api/track/${orderNumber}`,
+      `${SITE_URL}/api/track/${orderNumber}`,
       { next: { revalidate: 60 } }
     );
     if (!res.ok) throw new Error("not found");
@@ -42,7 +43,7 @@ export async function generateMetadata(
         title,
         description,
         type: "website",
-        url: `https://hivepos.id/track/${orderNumber}`,
+        url: `${SITE_URL}/track/${orderNumber}`,
         siteName: branchName,
       },
       twitter: {

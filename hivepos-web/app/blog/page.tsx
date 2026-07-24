@@ -4,6 +4,7 @@ import { Star } from "lucide-react";
 import { apiFetch } from "@/modules/shared";
 import { estimateReadTime } from "@/lib/blog/render";
 import { BlogFooter, BlogHeader } from "@/components/blog/blog-shell";
+import { SITE_URL } from "@/lib/site";
 
 // force-dynamic: always read from the API at request time — new/edited posts appear
 // immediately with no rebuild.
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Blog hivePOS — Tips Bisnis Laundry",
     description: "Panduan aplikasi kasir laundry, sistem kiloan, dan tips optimasi bisnis laundry.",
-    url: "https://hivepos.id/blog",
+    url: `${SITE_URL}/blog`,
     type: "website",
     locale: "id_ID",
   },

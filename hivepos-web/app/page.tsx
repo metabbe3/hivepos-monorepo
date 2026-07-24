@@ -12,6 +12,7 @@ import { LandingFAQ } from "@/components/landing/LandingFAQ";
 import { FinalCTA } from "@/components/landing/FinalCTA";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 import { SAAS_FAQS } from "@/lib/landing-data-saas";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "hivePOS — Kasir Laundry Online | Alternatif Moka POS untuk UMKM",
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
     title: "hivePOS — Kasir Laundry Online",
     description:
       "Pro gratis 60 hari — kasir kiloan, WhatsApp order, multi-outlet, jalan di browser. 1 outlet gratis selamanya. Alternatif Moka POS untuk UMKM.",
-    url: "https://hivepos.id",
+    url: SITE_URL,
     type: "website",
     locale: "id_ID",
   },
@@ -49,7 +50,7 @@ const softwareAppJsonLd = {
   "@type": "SoftwareApplication",
   name: "hivePOS",
   description: "Aplikasi kasir laundry untuk UMKM Indonesia. Browser-native, tanpa install. Kiloan, satuan, WhatsApp order, multi-outlet.",
-  url: "https://hivepos.id",
+  url: SITE_URL,
   applicationCategory: "BusinessApplication",
   operatingSystem: "Web Browser",
   offers: [

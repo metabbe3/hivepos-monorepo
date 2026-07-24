@@ -8,6 +8,7 @@ import { apiFetch } from "@/modules/shared";
 import type { TenantPublicData } from "@/lib/tenant-cache";
 import { renderWhatsAppTemplate, type TemplateOverrides } from "@/lib/whatsapp-templates";
 import Image from "next/image";
+import { SITE_URL, SITE_DOMAIN } from "@/lib/site";
 
 // ponytail: "Clean & Safe" template — off-white canvas, sky-blue accent,
 // soft radii, real shadows. The visual language of trust for laundry.
@@ -19,7 +20,7 @@ import Image from "next/image";
 //   against </script> injection. Safe.
 // - Reveal observer <script>: 100% static JS, no tenant data. Safe.
 
-const SITE_URL = "https://hivepos.id";
+// SITE_URL + SITE_DOMAIN sourced from @/lib/site (env-backed NEXT_PUBLIC_BASE_URL).
 
 const jakarta = Plus_Jakarta_Sans({
   weight: ["600", "700", "800"],
@@ -265,7 +266,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const kelurahan = extractKelurahan(primaryBranch?.address ?? null);
   const settings = readSettings(tenant);
   const tagline = settings.tagline ?? `Laundry kiloan selesai 3 jam di ${kelurahan}. Garansi bersih atau dicuci ulang.`;
-  const subdomain = `${tenant.slug}.hivepos.id`;
+  const subdomain = `${tenant.slug}.${SITE_DOMAIN}`;
   const title = `${tenant.name} — Laundry ${kelurahan} | Antar-Jemput Gratis`;
   const ogImage = settings.heroPhotoUrl ?? tenant.logoUrl ?? "/og-default.png";
 
@@ -307,7 +308,7 @@ export default async function TenantSitePage() {
   const about = settings.about ?? `${tenant.name} melayani cuci kiloan, satuan, setrika, dan cuci sepatu di ${kelurahan} dan sekitarnya. Pickup gratis, hasil terjamin, harga transparan.`;
   const hours = formatOperatingHours(primaryBranch?.operatingHours);
   const openStatus = computeOpenStatus(hours);
-  const subdomain = `${tenant.slug}.hivepos.id`;
+  const subdomain = `${tenant.slug}.${SITE_DOMAIN}`;
   const waLink = primaryBranch?.whatsappLink;
   const whatsappTemplates: TemplateOverrides =
     ((tenant.settings as { whatsappTemplates?: TemplateOverrides } | null)?.whatsappTemplates) ?? {};

@@ -6,21 +6,26 @@ import { PwaForceUpdateWatcher } from "@/components/shared/pwa-force-update-watc
 import { ClientErrorReporter } from "@/components/shared/client-error-reporter";
 import { Toaster } from "@/components/ui/sonner";
 import { GA_ID } from "@/lib/analytics";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://hivepos.id"),
+  metadataBase: new URL(SITE_URL),
   title: "hivePOS",
   description: "Kasir laundry ringan di browser untuk UMKM Indonesia — kiloan, satuan, WhatsApp order, multi-outlet, QRIS, laporan, cetak struk. 1 outlet gratis selamanya, tanpa install.",
   openGraph: {
     type: "website",
     siteName: "hivePOS",
     locale: "id_ID",
-    url: "https://hivepos.id",
+    url: SITE_URL,
   },
   twitter: {
     card: "summary_large_image",
   },
+  // GSC ownership verification — meta rendered only when the token is set in env.
+  ...(process.env.NEXT_PUBLIC_GSC_VERIFICATION
+    ? { verification: { google: process.env.NEXT_PUBLIC_GSC_VERIFICATION } }
+    : {}),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
