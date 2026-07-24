@@ -411,6 +411,185 @@ export const BLOG_POSTS: BlogPost[] = [
       },
     ],
   },
+
+  {
+    slug: "cara-hitung-harga-laundry-kiloan",
+    title: "Cara Hitung Harga Laundry Kiloan (Rumus + Contoh 2026)",
+    description:
+      "Panduan hitung harga laundry kiloan: rumus per kg, minimum charge, campur kiloan dan satuan, serta contoh perhitungan lengkap untuk usaha laundry UMKM Indonesia.",
+    keywords: "cara hitung harga laundry kiloan, harga kiloan laundry, rumus harga laundry, perhitungan harga laundry",
+    publishedAt: "2026-07-24",
+    readTime: "5 menit",
+    sections: [
+      {
+        heading: "Dasar Harga Laundry Kiloan",
+        body: [
+          "Laundry kiloan menjual jasa cuci berdasarkan berat cucian per kilogram. Model ini berbeda dengan satuan (per potong) yang dipakai untuk barang khusus seperti sepatu, bed cover, atau karpet.",
+          "Harga kiloan umumnya Rp 5.000–Rp 8.000/kg untuk cuci setrika, tergantung kota, layanan (reguler vs express), dan biaya operasional Anda. Sebelum menetapkan tarif, hitung dulu biaya per kg agar tidak rugi.",
+        ],
+      },
+      {
+        heading: "Rumus Menghitung Harga Kiloan",
+        body: [
+          "Rumus dasarnya sederhana: **Total = berat (kg) × harga per kg**, ditambah minimum charge bila cucian terlalu sedikit.",
+          "Contoh: harga Rp 7.000/kg dengan minimum charge 2 kg. Cucian 1,5 kg tetap dikenakan tarif 2 kg (Rp 14.000) karena di bawah minimum. Cucian 4 kg = 4 × Rp 7.000 = Rp 28.000.",
+          "Minimum charge penting agar order kecil tidak bikin rugi — mesin, air, listrik, dan tenaga kerja tetap mengeluarkan biaya tetap per siklus.",
+        ],
+      },
+      {
+        heading: "Campur Kiloan dan Satuan dalam Satu Struk",
+        body: [
+          "Pelanggan sering mencampur cucian kiloan dengan barang satuan dalam satu order. Hitung keduanya terpisah lalu jumlahkan:",
+          "- Kiloan: 3,2 kg × Rp 7.000 = Rp 22.400\n- Satuan: 1 bed cover Rp 25.000 + 1 sepatu Rp 20.000 = Rp 45.000\n- **Total: Rp 67.400**",
+          "Aplikasi kasir laundry yang baik menghitung campuran ini otomatis tanpa Anda jumlah manual, sekaligus membulatkan angka dan mencetak struk rapi.",
+        ],
+      },
+      {
+        heading: "Tips Pasang Harga yang Sehat",
+        body: [
+          "Jangan menetapkan harga hanya karena ikut kompetitor. Hitung biaya riel per kg: detergen, pewangi, listrik mesin, air, dan upah karyawan. Sisihkan margin minimal 30–40% agar usaha sehat.",
+          "Survei tarif 3–5 laundry di area Anda sebagai referensi, lalu posisikan harga Anda. Lebih baik bersaing di kualitas dan kecepatan daripada harga yang menekan margin sampai rugi.",
+        ],
+      },
+      {
+        heading: "Otomatiskan Perhitungan dengan Aplikasi",
+        body: [
+          "Menghitung manual rentan salah, apalagi saat ramai. Aplikasi kasir laundry menghitung kiloan, satuan, paket, dan minimum charge otomatis lalu mencetak struk serta menyimpan laporan.",
+          "**hivePOS** menghitung harga kiloan & satuan otomatis, mendukung garment breakdown dan minimum charge, lalu mencetak struk thermal atau kirim [nota via WhatsApp](/blog/kirim-nota-laundry-via-whatsapp). Outlet pertama gratis — [daftar](/register) dan praktikkan sistem kiloan hari ini.",
+        ],
+      },
+    ],
+  },
+
+  {
+    slug: "aplikasi-kasir-laundry-gratis-tanpa-install",
+    title: "Aplikasi Kasir Laundry Gratis Tanpa Install (Berbasis Browser)",
+    description:
+      "Rekomendasi aplikasi kasir laundry gratis tanpa install: berbasis browser, jalan di HP, tablet, atau PC, kiloan otomatis, WhatsApp order, dan struk thermal. Outlet pertama gratis selamanya.",
+    keywords: "aplikasi kasir laundry gratis, aplikasi laundry tanpa install, aplikasi laundry berbasis web, kasir laundry gratis",
+    publishedAt: "2026-07-24",
+    readTime: "4 menit",
+    sections: [
+      {
+        heading: "Kenapa Pilih Aplikasi Berbasis Browser?",
+        body: [
+          "Aplikasi berbasis browser dibuka langsung dari Chrome, Safari, atau Edge — tanpa download dan tanpa instalasi. Artinya Anda tidak perlu beli perangkat khusus: pakai HP, tablet, atau laptop yang sudah ada.",
+          "Keuntungannya: bebas pindah perangkat, update otomatis tanpa ribet, dan data aman di cloud. Berbeda dengan app Android yang sering terkunci ke satu perangkat saja.",
+        ],
+      },
+      {
+        heading: "Fitur yang Harus Ada di Aplikasi Laundry Gratis",
+        body: [
+          "Walaupun gratis, aplikasi kasir laundry harus tetap punya fitur inti:",
+          "- **Harga kiloan & satuan** otomatis\n- **Cetak struk thermal** (Bluetooth/USB/WiFi)\n- **Laporan penjualan** harian dan bulanan\n- **WhatsApp order** untuk konfirmasi ke pelanggan\n- **Tracking status** cucian (diterima → siap)",
+          "Hindari aplikasi yang hanya 'mencatat' tanpa alur order lengkap — itu masih setara buku catatan digital.",
+        ],
+      },
+      {
+        heading: "Aplikasi Kasir Laundry Gratis Tanpa Install: hivePOS",
+        body: [
+          "**hivePOS** adalah kasir laundry berbasis browser — buka dari HP, tablet, atau PC tanpa instalasi apa pun. Mendukung kiloan, satuan, garment breakdown, WhatsApp order, cetak struk thermal 4 metode, dan laporan penjualan.",
+          "Outlet pertama **gratis selamanya**, bukan trial 14 hari. Cabang berikutnya mulai Rp 49K/outlet/bulan. Cocok untuk UMKM laundry yang ingin mulai tanpa biaya di muka.",
+        ],
+      },
+      {
+        heading: "Cara Mulai Hari Ini",
+        body: [
+          "Cukup daftar, buka hivePOS di browser, atur layanan dan harga kiloan Anda (butuh sekitar 2 menit), lalu terima order pertama. Tidak ada kontrak atau paket tahunan wajib.",
+          "Bandingkan juga dengan opsi lain di [cara memilih aplikasi kasir laundry](/blog/cara-memilih-aplikasi-kasir-laundry) atau lihat perbandingan [alternatif Moka POS untuk laundry](/alternatif-moka-pos-laundry) sebelum memutuskan.",
+        ],
+      },
+    ],
+  },
+
+  {
+    slug: "cara-mencegah-cucian-tertukar-laundry",
+    title: "Cara Mencegah Cucian Tertukar & Hilang di Laundry",
+    description:
+      "Cara mencegah cucian tertukar dan hilang di laundry: label kode order, foto bukti sebelum-sesudah, tracking status, dan SOP serah terima. Kurangi komplain dan risiko ganti rugi.",
+    keywords: "cucian tertukar laundry, cucian hilang laundry, mencegah cucian tertukar, label order laundry",
+    publishedAt: "2026-07-24",
+    readTime: "5 menit",
+    sections: [
+      {
+        heading: "Kenapa Cucian Sering Tertukar?",
+        body: [
+          "Cucian tertukar atau hilang adalah masalah paling sering — dan paling merusak kepercayaan pelanggan. Penyebab utamanya: label manual yang mudah lepas, pencatatan tidak rapi, dan volume cucian yang tinggi saat ramai.",
+          "Selain komplain, ada risiko hukum: menurut UU Perlindungan Konsumen (Pasal 19), usaha laundry wajib ganti rugi atas cucian yang hilang atau rusak akibat kelalaian. Mencegah jauh lebih murah daripada ganti rugi.",
+        ],
+      },
+      {
+        heading: "Label & Kode Order untuk Setiap Cucian",
+        body: [
+          "Beri setiap order **kode unik** (nomor order) dan tempel label tahan air pada setrika/kantong cucian. Label harus bertahan sampai cucian dikembalikan.",
+          "Jangan andalkan nama pelanggan saja — nama bisa sama dan ingatan karyawan bisa keliru. Kode order + label fisik adalah standar minimum yang mencegah tertukar.",
+        ],
+      },
+      {
+        heading: "Foto Bukti Sebelum dan Sesudah",
+        body: [
+          "Foto cucian saat diterima (bisa dipakai menunjukkan noda awal) dan foto saat selesai sebelum dikembalikan. Bukti foto menyelesaikan banyak potensi sengketa: pelanggan tidak bisa mengaku barang hilang atau rusak jika sudah ada foto serah terima.",
+          "Simpan foto terhubung ke kode order agar mudah dicari saat ada komplain.",
+        ],
+      },
+      {
+        heading: "Tracking Status dan Konfirmasi WhatsApp",
+        body: [
+          "Catat status cucian di setiap tahap: diterima, dicuci, dikeringkan, disetrika, siap diambil. Karyawan jadi tahu urutan kerja tanpa saling bertanya, dan pelanggan bisa cek status sendiri tanpa harus menelpon.",
+          "Kirim konfirmasi WhatsApp otomatis saat cucian diterima dan saat siap diambil. Pelanggan merasa dipantau dan risiko salah serah terima menurun drastis.",
+        ],
+      },
+      {
+        heading: "SOP Serah Terima yang Konsisten",
+        body: [
+          "Buat alur baku: terima → foto → label kode → cuci sesuai urutan → cek sebelum dikembalikan → serahkan dengan kode cocok. Konsistensi lebih penting daripada alat mahal.",
+          "**hivePOS** membantu: setiap order dapat kode otomatis, status tracking real-time, konfirmasi [nota via WhatsApp](/blog/kirim-nota-laundry-via-whatsapp), dan bukti foto sebelum-sesudah. [Daftar gratis](/register) untuk menerapkan SOP anti-tertukar hari ini.",
+        ],
+      },
+    ],
+  },
+
+  {
+    slug: "kirim-nota-laundry-via-whatsapp",
+    title: "Cara Kirim Nota Laundry via WhatsApp Otomatis",
+    description:
+      "Cara kirim nota dan struk laundry via WhatsApp otomatis ke pelanggan: hemat waktu, profesional, kurangi komplain. Lengkap dengan template pesan dan aplikasi yang mendukungnya.",
+    keywords: "kirim nota laundry via whatsapp, struk laundry whatsapp, nota digital laundry, kirim tagihan laundry wa",
+    publishedAt: "2026-07-24",
+    readTime: "4 menit",
+    sections: [
+      {
+        heading: "Kenapa Kirim Nota via WhatsApp?",
+        body: [
+          "Pelanggan laundry di Indonesia nyaris semuanya pakai WhatsApp. Mengirim nota langsung ke chat mereka lebih cepat daripada struk kertas, meninggalkan jejak digital yang bisa dicek ulang, dan terlihat lebih profesional.",
+          "Nota digital juga mengurangi komplain: pelanggan bisa melihat rincian harga, status, dan kode order kapan saja tanpa harus menelpon atau menunggu struk fisik.",
+        ],
+      },
+      {
+        heading: "Yang Harus Ada di Nota Digital",
+        body: [
+          "Nota laundry yang baik memuat:",
+          "- **Nama + nomor pelanggan**\n- **Kode order** dan tanggal\n- **Rincian layanan** (kiloan/satuan, berat, harga)\n- **Total** dan status pembayaran\n- **Estimasi siap** dan link cek status",
+          "Jangan kirim hanya angka total tanpa rincian — itu memancing pertanyaan dan kurang meyakinkan.",
+        ],
+      },
+      {
+        heading: "Template Pesan Nota Laundry",
+        body: [
+          "Contoh template sederhana yang bisa disesuaikan:",
+          "*Laundry [Nama Outlet]*\nKode: ORD-1024\nTanggal: 24 Juli 2026\n\nCuci Setrika 3,2 kg — Rp 22.400\nBed cover (satuan) — Rp 25.000\n\nTotal: Rp 47.400\nStatus: Diterima, siap 26 Juli\nCek status: [link]",
+          "Pakai template yang sama di setiap order agar konsisten dan hemat waktu — tidak perlu ketik ulang dari nol.",
+        ],
+      },
+      {
+        heading: "Otomatisasi dengan Aplikasi",
+        body: [
+          "Mengirim manual lewat screenshot atau ketik ulang lama dan rawan salah. Aplikasi kasir laundry yang baik mengirim nota WhatsApp otomatis begitu order dibuat atau status berubah.",
+          "**hivePOS** mengirim nota + konfirmasi status cucian ke WhatsApp pelanggan otomatis dengan template yang konsisten, sekaligus mencetak struk thermal bila dibutuhkan. Outlet pertama gratis — [daftar](/register) dan coba kirim nota via WhatsApp hari ini.",
+        ],
+      },
+    ],
+  },
 ];
 
 // Lightweight card view for the homepage "Artikel Terbaru" section — keeps the

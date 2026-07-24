@@ -2,8 +2,9 @@ import Link from "next/link";
 import { Check, X, ArrowRight, Star, ChevronDown } from "lucide-react";
 import { BlogFooter, BlogHeader } from "@/components/blog/blog-shell";
 import { COMPETITORS, type Competitor } from "@/lib/alternatif-data";
+import { SITE_URL as SITE } from "@/lib/site";
 
-const SITE = "https://hivepos.id";
+// SITE → env-backed SITE_URL (aliased on import from @/lib/site).
 
 const HIVEPOS_CARD_POINTS = [
   "Outlet pertama gratis selamanya",
@@ -187,6 +188,29 @@ export function ComparisonPage({ data }: { data: Competitor }) {
                 </Link>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* Panduan terkait — blog cross-link (bidirectional authority with /blog) */}
+        <section className="mx-auto max-w-5xl px-5 py-12 sm:px-6">
+          <h2 className="font-display text-xl font-extrabold tracking-tight text-slate-900">
+            Panduan terkait
+          </h2>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            {[
+              { slug: "cara-hitung-harga-laundry-kiloan", title: "Cara Hitung Harga Laundry Kiloan" },
+              { slug: "aplikasi-kasir-laundry-gratis-tanpa-install", title: "Aplikasi Kasir Laundry Gratis Tanpa Install" },
+              { slug: "kirim-nota-laundry-via-whatsapp", title: "Kirim Nota Laundry via WhatsApp" },
+            ].map((p) => (
+              <Link
+                key={p.slug}
+                href={`/blog/${p.slug}`}
+                className="group rounded-xl border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-700 transition-all hover:border-brand/40 hover:text-brand"
+              >
+                {p.title}{" "}
+                <ArrowRight className="ml-1 inline h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            ))}
           </div>
         </section>
 

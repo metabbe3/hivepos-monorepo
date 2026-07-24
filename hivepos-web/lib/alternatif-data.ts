@@ -320,7 +320,129 @@ const qasir: Competitor = {
   keywords: ["alternatif qasir laundry", "qasir vs hivepos laundry", "aplikasi kasir laundry kiloan", "aplikasi kasir laundry pengganti qasir"],
 };
 
-export const COMPETITORS: Competitor[] = [moka, olsera, majoo, kasirpintar, pawoon, iseller, qasir];
+// ponytail: competitor pricing for BantuCatat/Dicatetin/Saku is free-tier / undisclosed;
+// rows stay honest ("Gratis / berbayar", "Berlangganan*") — no invented Rp numbers.
+const bantucatat: Competitor = {
+  slug: "alternatif-bantucatat-laundry",
+  name: "BantuCatat",
+  metaTitle: "Alternatif BantuCatat untuk Laundry — Lebih Lengkap | hivePOS Rp 49K/outlet",
+  metaDescription:
+    "Alternatif BantuCatat untuk laundry. hivePOS kasir laundry kiloan dengan WhatsApp order, pickup, multi-outlet, website laundry, dan garment breakdown. Outlet pertama gratis, mulai Rp 49K/outlet.",
+  heroH1: "Alternatif BantuCatat untuk Laundry —",
+  heroHighlight: "Lebih Lengkap & Fleksibel",
+  dek: "BantuCatat adalah kasir laundry gratis yang simpel untuk UMKM. hivePOS memberi lebih banyak untuk tumbuh: WhatsApp order otomatis, pickup/antar-jemput, multi-outlet, website laundry, dan garment breakdown — semua dari browser. Outlet pertama gratis selamanya, mulai Rp 49K/outlet.",
+  theirPriceFrom: "Gratis",
+  theirPriceUnit: " / berbayar",
+  theirCardPoints: ["Free tier fitur dasar", "WhatsApp & pickup terbatas", "Tanpa website laundry & multi-outlet"],
+  comparison: [
+    { feature: "Harga mulai", hivepos: "Rp 49K/outlet/bulan", them: "Gratis (dasar) / berbayar" },
+    { feature: "Outlet pertama", hivepos: "Gratis selamanya", them: "Gratis terbatas" },
+    { feature: "Platform", hivepos: "Browser (HP/tablet/PC)", them: "Browser/web" },
+    { feature: "Butuh hardware?", hivepos: "Tidak", them: "Tidak" },
+    { feature: "Khusus laundry (kiloan)", hivepos: "Ya — kiloan, satuan, garment", them: "Ya (kasir laundry)" },
+    { feature: "WhatsApp order", hivepos: "Built-in + template", them: "Terbatas", themNeg: true },
+    { feature: "Cetak struk thermal", hivepos: "BT/USB/WiFi/Browser", them: "Ya" },
+    { feature: "Multi-outlet", hivepos: "Unlimited (Growth+)", them: "Terbatas / tidak", themNeg: true },
+    { feature: "Pickup/antar-jemput", hivepos: "Built-in", them: "Tidak", themNeg: true },
+    { feature: "Website laundry", hivepos: "Pro (slug.hivepos.id)", them: "Tidak", themNeg: true },
+    { feature: "Bukti foto order", hivepos: "Pro (sebelum/sesudah)", them: "Tidak", themNeg: true },
+    { feature: "PWA (install di HP)", hivepos: "Ya, offline mode", them: "Tidak", themNeg: true },
+  ],
+  reasons: [
+    { icon: Shirt, title: "Lebih dalam untuk kiloan", body: "BantuCatat dan hivePOS sama-sama khusus laundry, tapi hivePOS lebih lengkap: harga kiloan & satuan otomatis, garment breakdown (baju, celana, kaos kaki), dan layanan khusus seperti sepatu, bed cover, dan karpet dalam satu struk." },
+    { icon: MessageCircle, title: "WhatsApp + pickup built-in", body: "BantuCatat terbatas di sini. hivePOS mengubah chat WhatsApp jadi order otomatis dengan template pesanan, plus pickup/antar-jemput terintegrasi langsung ke order." },
+    { icon: Layers, title: "Multi-outlet siap tumbuh", body: "BantuCatat cocok untuk 1 outlet sederhana. hivePOS mendukung multi-outlet dengan dashboard terpusat — pantau semua cabang dari satu login. Outlet pertama gratis selamanya." },
+    { icon: Globe2, title: "Website laundry (Pro)", body: "hivePOS Pro menyertakan website laundry di slug.hivepos.id dengan SEO lokal Google Maps, tombol WhatsApp order, dan tracking pesanan online. BantuCatat tidak menyediakan ini." },
+  ],
+  faqs: [
+    { q: "Apa bedanya hivePOS dan BantuCatat untuk laundry?", a: "BantuCatat adalah kasir laundry gratis yang simpel untuk satu outlet. hivePOS memberi lebih banyak untuk tumbuh: WhatsApp order otomatis, pickup, multi-outlet, website laundry, garment breakdown, dan PWA offline — dengan outlet pertama gratis dan Rp 49K/outlet untuk cabang berikutnya." },
+    { q: "Kalau saya sudah pakai BantuCatat, susah pindah?", a: "Tidak. Setup layanan + harga kiloan di hivePOS cuma butuh 2 menit. Pelanggan bisa diketik saat order pertama atau diimpor dari data Anda." },
+    { q: "Printer thermal saya bisa dipakai di hivePOS?", a: "Ya. hivePOS mendukung printer thermal 58mm dan 80mm via Bluetooth, USB, dan WiFi. Di Android/PC semua metode didukung; di iPhone/iPad gunakan WiFi atau Browser Print." },
+  ],
+  keywords: ["alternatif bantucatat laundry", "bantucatat vs hivepos", "aplikasi kasir laundry pengganti bantucatat", "aplikasi laundry gratis selain bantucatat"],
+};
+
+const dicatetin: Competitor = {
+  slug: "alternatif-dicatetin-laundry",
+  name: "Dicatetin",
+  metaTitle: "Alternatif Dicatetin untuk Laundry — Lebih Skalabel | hivePOS Rp 49K/outlet",
+  metaDescription:
+    "Alternatif Dicatetin untuk laundry. hivePOS kasir laundry kiloan berbasis browser dengan WhatsApp order, pickup, multi-outlet, website laundry, dan garment breakdown. Outlet pertama gratis, Rp 49K/outlet.",
+  heroH1: "Alternatif Dicatetin untuk Laundry —",
+  heroHighlight: "Lebih Lengkap & Skalabel",
+  dek: "Dicatetin adalah aplikasi kasir laundry berbasis web yang simpel. hivePOS memberi lebih banyak untuk tumbuh: WhatsApp order otomatis, pickup, multi-outlet, website laundry, dan garment breakdown — semua dari browser, outlet pertama gratis, mulai Rp 49K/outlet.",
+  theirPriceFrom: "Gratis",
+  theirPriceUnit: " / berbayar",
+  theirCardPoints: ["Kasir laundry web simpel", "Multi-outlet & pickup terbatas", "Tanpa website laundry"],
+  comparison: [
+    { feature: "Harga mulai", hivepos: "Rp 49K/outlet/bulan", them: "Gratis (dasar) / berbayar" },
+    { feature: "Outlet pertama", hivepos: "Gratis selamanya", them: "Gratis terbatas" },
+    { feature: "Platform", hivepos: "Browser (HP/tablet/PC)", them: "Browser/web" },
+    { feature: "Butuh hardware?", hivepos: "Tidak", them: "Tidak" },
+    { feature: "Khusus laundry (kiloan)", hivepos: "Ya — kiloan, satuan, garment", them: "Ya (kasir laundry)" },
+    { feature: "WhatsApp order", hivepos: "Built-in + template", them: "Terbatas", themNeg: true },
+    { feature: "Cetak struk thermal", hivepos: "BT/USB/WiFi/Browser", them: "Ya" },
+    { feature: "Multi-outlet", hivepos: "Unlimited (Growth+)", them: "Terbatas / tidak", themNeg: true },
+    { feature: "Pickup/antar-jemput", hivepos: "Built-in", them: "Tidak", themNeg: true },
+    { feature: "Website laundry", hivepos: "Pro (slug.hivepos.id)", them: "Tidak", themNeg: true },
+    { feature: "Bukti foto order", hivepos: "Pro (sebelum/sesudah)", them: "Tidak", themNeg: true },
+    { feature: "PWA (install di HP)", hivepos: "Ya, offline mode", them: "Tidak", themNeg: true },
+  ],
+  reasons: [
+    { icon: MessageCircle, title: "WhatsApp + pickup built-in", body: "Dicatetin fokus ke pencatatan kasir. hivePOS mengubah chat WhatsApp jadi order otomatis dengan template pesanan, plus pickup/antar-jemput terintegrasi langsung ke order." },
+    { icon: Layers, title: "Multi-outlet siap tumbuh", body: "Dicatetin cocok untuk 1 outlet. hivePOS mendukung multi-outlet dengan dashboard terpusat — pantau semua cabang dari satu login. Outlet pertama gratis selamanya." },
+    { icon: Shirt, title: "Lebih dalam untuk kiloan", body: "hivePOS menghitung harga kiloan & satuan otomatis, dengan garment breakdown (baju, celana, kaos kaki) dan layanan khusus seperti sepatu, bed cover, dan karpet dalam satu struk." },
+    { icon: Globe2, title: "Website laundry (Pro)", body: "hivePOS Pro menyertakan website laundry di slug.hivepos.id dengan SEO lokal Google Maps, tombol WhatsApp order, dan tracking pesanan online. Dicatetin tidak menyediakan ini." },
+  ],
+  faqs: [
+    { q: "Apa bedanya hivePOS dan Dicatetin untuk laundry?", a: "Dicatetin adalah kasir laundry web yang simpel untuk pencatatan dasar. hivePOS memberi lebih banyak: WhatsApp order otomatis, pickup, multi-outlet, website laundry, garment breakdown, dan PWA offline — outlet pertama gratis, Rp 49K/outlet untuk cabang berikutnya." },
+    { q: "Bisa pindah dari Dicatetin ke hivePOS?", a: "Bisa. Setup layanan + harga kiloan di hivePOS cuma butuh 2 menit. Pelanggan bisa diketik saat order pertama atau diimpor dari data Anda." },
+    { q: "Printer thermal saya bisa dipakai di hivePOS?", a: "Ya. hivePOS mendukung printer thermal 58mm dan 80mm via Bluetooth, USB, dan WiFi. Di Android/PC semua metode didukung; di iPhone/iPad gunakan WiFi atau Browser Print." },
+  ],
+  keywords: ["alternatif dicatetin laundry", "dicatetin vs hivepos", "aplikasi kasir laundry pengganti dicatetin", "aplikasi laundry berbasis web"],
+};
+
+const saku: Competitor = {
+  slug: "alternatif-saku-laundry",
+  name: "Saku Laundry",
+  metaTitle: "Alternatif Saku Laundry — Browser-Native & Multi-Outlet | hivePOS",
+  metaDescription:
+    "Alternatif Saku Laundry. hivePOS kasir laundry jalan di browser apa saja (HP/tablet/PC) dengan WhatsApp order, pickup, multi-outlet, website laundry, dan garment breakdown. Outlet pertama gratis, Rp 49K/outlet.",
+  heroH1: "Alternatif Saku Laundry —",
+  heroHighlight: "Bebas Perangkat & Lebih Lengkap",
+  dek: "Saku Laundry adalah kasir laundry Android dengan fokus anti-kecurangan. hivePOS jalan di browser apa saja — HP, tablet, atau PC — dengan WhatsApp order, pickup, multi-outlet, dan website laundry. Tidak terkunci satu perangkat. Outlet pertama gratis, mulai Rp 49K/outlet.",
+  theirPriceFrom: "Berlangganan",
+  theirPriceUnit: "* (Android)",
+  theirCardPoints: ["App Android, terkunci perangkat", "Tanpa website laundry", "Multi-outlet & pickup terbatas"],
+  comparison: [
+    { feature: "Harga mulai", hivepos: "Rp 49K/outlet/bulan", them: "Berlangganan*" },
+    { feature: "Outlet pertama", hivepos: "Gratis selamanya", them: "Trial / berbayar" },
+    { feature: "Platform", hivepos: "Browser (HP/tablet/PC)", them: "App Android" },
+    { feature: "Butuh hardware?", hivepos: "Tidak", them: "Terkunci 1 perangkat Android", themNeg: true },
+    { feature: "Khusus laundry (kiloan)", hivepos: "Ya — kiloan, satuan, garment", them: "Ya (kasir laundry)" },
+    { feature: "WhatsApp order", hivepos: "Built-in + template", them: "Terbatas", themNeg: true },
+    { feature: "Cetak struk thermal", hivepos: "BT/USB/WiFi/Browser", them: "Bluetooth (Android)" },
+    { feature: "Multi-outlet", hivepos: "Unlimited (Growth+)", them: "Terbatas", themNeg: true },
+    { feature: "Pickup/antar-jemput", hivepos: "Built-in", them: "Tidak", themNeg: true },
+    { feature: "Website laundry", hivepos: "Pro (slug.hivepos.id)", them: "Tidak", themNeg: true },
+    { feature: "Bukti foto order", hivepos: "Pro (sebelum/sesudah)", them: "Tidak", themNeg: true },
+    { feature: "PWA (install di HP)", hivepos: "Ya, offline mode", them: "App Android (offline)" },
+  ],
+  reasons: [
+    { icon: MonitorSmartphone, title: "Bebas pindah perangkat", body: "Saku Laundry adalah app Android yang terkunci ke satu perangkat. hivePOS jalan di browser apa saja — HP Android/iPhone, tablet, atau PC — dan bisa berpindah perangkat kapan saja tanpa kehilangan data." },
+    { icon: MessageCircle, title: "WhatsApp + pickup built-in", body: "hivePOS mengubah chat WhatsApp jadi order otomatis dengan template pesanan, plus pickup/antar-jemput terintegrasi langsung ke order." },
+    { icon: Layers, title: "Multi-outlet siap tumbuh", body: "hivePOS mendukung multi-outlet dengan dashboard terpusat — pantau semua cabang dari satu login. Outlet pertama gratis selamanya, Rp 49K/outlet untuk cabang berikutnya." },
+    { icon: Globe2, title: "Website laundry (Pro)", body: "hivePOS Pro menyertakan website laundry di slug.hivepos.id dengan SEO lokal Google Maps, tombol WhatsApp order, dan tracking pesanan online. Saku Laundry tidak menyediakan ini." },
+  ],
+  faqs: [
+    { q: "Apa bedanya hivePOS dan Saku Laundry?", a: "Saku Laundry adalah app kasir Android yang fokus anti-kecurangan dan terkunci ke satu perangkat. hivePOS jalan di browser apa saja (HP, tablet, PC) dan lebih lengkap: WhatsApp order, pickup, multi-outlet, website laundry, dan garment breakdown." },
+    { q: "Bisa pindah dari Saku Laundry ke hivePOS tanpa ganti perangkat?", a: "Bisa, dan justru lebih fleksibel. hivePOS dibuka di browser HP, tablet, atau PC apa pun — tidak terkunci ke satu perangkat. Setup layanan + harga kiloan cuma butuh 2 menit." },
+    { q: "Printer thermal saya bisa dipakai di hivePOS?", a: "Ya. hivePOS mendukung printer thermal 58mm dan 80mm via Bluetooth, USB, dan WiFi. Di Android/PC semua metode didukung; di iPhone/iPad gunakan WiFi atau Browser Print." },
+  ],
+  keywords: ["alternatif saku laundry", "saku laundry vs hivepos", "aplikasi kasir laundry pengganti saku laundry", "aplikasi laundry anti curang"],
+};
+
+export const COMPETITORS: Competitor[] = [moka, olsera, majoo, kasirpintar, pawoon, iseller, qasir, bantucatat, dicatetin, saku];
 
 export function getCompetitor(slug: string): Competitor | undefined {
   return COMPETITORS.find((c) => c.slug === slug);

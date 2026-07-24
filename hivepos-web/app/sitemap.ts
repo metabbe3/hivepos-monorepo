@@ -1,13 +1,14 @@
 import type { MetadataRoute } from "next";
 import { apiFetch } from "@/modules/shared";
 import { COMPETITORS } from "@/lib/alternatif-data";
+import { SITE_URL, SITE_DOMAIN } from "@/lib/site";
 
 // ponytail: platform URLs stay static; tenant website URLs appended from the API.
 // force-dynamic: API isn't reachable at build time, so skip prerender.
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = "https://hivepos.id";
+  const base = SITE_URL;
   const lastModified = new Date();
 
   // Public blog posts (served by the Go public_api module).
@@ -21,6 +22,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const platformUrls: MetadataRoute.Sitemap = [
     { url: base, lastModified, changeFrequency: "weekly", priority: 1.0 },
+    { url: `${base}/alternatif`, lastModified, changeFrequency: "weekly", priority: 0.8 },
     ...COMPETITORS.map((c) => ({
       url: `${base}/${c.slug}`,
       lastModified,
@@ -51,7 +53,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   const tenantUrls: MetadataRoute.Sitemap = tenants.map((t) => ({
-    url: `https://${t.slug}.hivepos.id/`,
+    url: `https://${t.slug}.${SITE_DOMAIN}/`,
     lastModified: t.websitePublishedAt ?? t.updatedAt ?? lastModified,
     changeFrequency: "weekly",
     priority: 0.7,

@@ -6,7 +6,7 @@ const PRODUCT_LINKS = [
   { href: "#modul", label: "Modul" },
   { href: "#harga", label: "Harga" },
   { href: "#faq", label: "FAQ" },
-  { href: "/alternatif-moka-pos-laundry", label: "Alternatif Kasir Laundry" },
+  { href: "/alternatif", label: "Bandingkan Alternatif" },
 ];
 
 const START_LINKS = [
