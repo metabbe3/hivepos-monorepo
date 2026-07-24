@@ -50,3 +50,41 @@ Objection / Counter-Objection (qualitative, Phase 1 — sourced from principles 
 
 ## Lead Capture
 *Phase 2 will author the scorecard/quiz funnel here. Current state: register form only — no lead magnet, no nurture.*
+
+## CRO Audit (2026-07-24)
+
+Scored against the cro-methodology Quick Diagnostic (7 rows, ~1.4 each). **Score: 6/10** — structurally sound, but objections are still guesses and proof is single-source.
+
+| # | Diagnostic row | Pass? | Note |
+|---|----------------|:----:|------|
+| 1 | ONE clear action | ✅ | every CTA → `/register`; no competing goal |
+| 2 | Researched why visitors don't convert | ❌ | **zero VOC** — every objection below is a hypothesis, not a finding |
+| 3 | O/CO table placed at friction | ⚠️ | table lives here in the doc; counters not yet placed on the page at the friction points |
+| 4 | Value prop clear <5s | ✅ | "Kasir laundry, tinggal buka browser" — instant |
+| 5 | Persuasion assets visible | ⚠️ | single self-source (dogfooding 443 pelanggan / 199 order); no 3rd-party testimonials, logos, reviews, awards |
+| 6 | Funnel mapped for blocked arteries | ✅ | `/alternatif-*` identified as blocked artery; GA4 live (`G-7W9B8ZH5L1`) collecting baseline |
+| 7 | Path free of UX blockers | ✅ | 4-field register form, no CC, no captcha, Google OAuth |
+
+**Failing rows: 2 (research), 5 (proof), 3 (O/CO placement).** Until row 2 closes, every copy change rests on opinion — the methodology forbids this.
+
+### Objection / Counter-Objection (Big 5) — evidence vs hypothesis
+
+Each counter tagged so we can see which rest on real data and which are unvalidated guesses:
+
+| Objection | Counter (current/planned) | Tag |
+|-----------|---------------------------|-----|
+| Trust — "is this real or a side project?" | dogfooding stats 443 pelanggan / 199 order on-page | `[EVIDENCE]` |
+| Fit — "will it work for MY laundry?" | "cuma untuk laundry 1–5 outlet" positioning + Honey Bee real orders | `[EVIDENCE]` |
+| Price — "worth it / hidden fees?" | "per outlet bukan per user" + 60-day Pro trial + no CC + free-forever 1 outlet | `[EVIDENCE]` |
+| Effort — "too hard to set up?" | "Live dalam 2 menit" 3-step How It Works section | `[HYPOTHESIS]` — 2-min claim unproven by visitors |
+| Timing — "why now?" | "Mulai hari ini, bukan bulan depan" final CTA | `[HYPOTHESIS]` — no cost-of-delay math, no genuine urgency |
+
+### Research instrument (closes row 2)
+
+Exit-intent survey shipped alongside this audit (`components/exit-intent-survey.tsx`, mounted in `app/layout.tsx`). One question, Big-5 buckets + free-text "lainnya" + optional email:
+
+- **Primary signal → GA4** event `exit_survey_submitted { objection_bucket, has_detail, has_email }`. After ≥1 week the bucket distribution names the #1 real objection → the next counter to build. This converts the `[HYPOTHESIS]` rows above into `[EVIDENCE]` or cuts them.
+- **Free-text + email → `/api/public/tickets`** (anonymous, existing endpoint, no backend change). CS-readable; becomes a testimonial source for EXP-001.
+- Cooldown 14d after dismiss; never re-show after submit; marketing routes only (`/`, `/alternatif*`, `/blog*`, `/demo`).
+
+ponytail: anonymous free-text with no email is not persisted (GA4 param only, ≤100 chars). If that loss proves costly, add a dedicated `/public/survey-responses` endpoint (`/feature` follow-up, gated on real volume).

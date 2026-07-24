@@ -28,6 +28,9 @@ const nextConfig: NextConfig = {
   experimental: {
     // Tree-shake barrel imports so only the icons/charts actually used ship.
     optimizePackageImports: ["lucide-react", "recharts"],
+    // Minify CSS via Lightning CSS (transpile + shorten). Shrinks the
+    // render-blocking global chunk further after route-scoping heavy plugins.
+    useLightningcss: true,
   },
   async rewrites() {
     // Dev safety net: route relative /api/* → Go so pages still using raw fetch("/api/...")

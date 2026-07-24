@@ -4,6 +4,7 @@ import { I18nProvider } from "@/lib/i18n-context";
 import { PwaRegister } from "@/components/shared/pwa-register";
 import { PwaForceUpdateWatcher } from "@/components/shared/pwa-force-update-watcher";
 import { ClientErrorReporter } from "@/components/shared/client-error-reporter";
+import { ExitIntentSurvey } from "@/components/exit-intent-survey";
 import { Toaster } from "@/components/ui/sonner";
 import { GA_ID } from "@/lib/analytics";
 import { SITE_URL } from "@/lib/site";
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <PwaRegister />
         <PwaForceUpdateWatcher />
         <ClientErrorReporter />
+        <ExitIntentSurvey />
         <Toaster richColors position="top-center" />
         {/* GA4 — env-gated. No script/network when NEXT_PUBLIC_GA_ID is unset. */}
         {GA_ID && (
