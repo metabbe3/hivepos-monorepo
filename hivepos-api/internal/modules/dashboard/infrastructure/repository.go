@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -729,68 +730,77 @@ func (r *PgDashboardRepository) GetHeatmap(ctx context.Context, tenantID, branch
 		where += fmt.Sprintf(` AND o."branchId" = $%d`, len(args)+1)
 		args = append(args, branchID)
 	}
-	// customerVisits: top customers with per-day-of-week visit distribution
+	// customerVisits: top customers with per-day-of-week visit distribution.
+	// ponytail: was N+1 — 1 top-10 query + 1 day-dist query per customer (up to 11 total).
+	// Collapsed to a single GROUP BY customer×dow query, folded into top-10 in Go.
+	// Ceiling: groups ALL customers, not just top-10 — same full-Order scan the original already
+	// paid, one pass instead of 11. Upgrade path: none needed unless Order grows past ~1M rows/tenant.
 	cvRows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
-		SELECT COALESCE(c.id,''), COALESCE(c.name,'Unknown'), COUNT(DISTINCT o.id) AS visits
+		SELECT COALESCE(c.id,''), COALESCE(c.name,'Unknown'),
+		       EXTRACT(DOW FROM COALESCE(o."receivedAt", o."createdAt"))::int AS dow,
+		       COUNT(DISTINCT o.id) AS cnt
 		FROM "Order" o JOIN "Branch" b ON b.id=o."branchId"
 		LEFT JOIN "Customer" c ON c.id=o."customerId"
-		%s GROUP BY c.id, c.name ORDER BY visits DESC LIMIT 10`, where), args...)
+		%s GROUP BY c.id, c.name, dow`, where), args...)
 	if err != nil {
 		return nil, fmt.Errorf("querying heatmap customer visits: %w", err)
+	}
+	type dowCnt struct {
+		dow int
+		cnt int64
 	}
 	type cvAgg struct {
 		cid, name string
 		visits    int64
-		dayDist   []int64
+		dows      []dowCnt
 	}
-	var cvAggs []cvAgg
+	cvMap := map[string]*cvAgg{}
 	for cvRows.Next() {
-		var a cvAgg
-		if cvRows.Scan(&a.cid, &a.name, &a.visits) == nil {
-			cvAggs = append(cvAggs, a)
+		var cid, name string
+		var dow, cnt int
+		if cvRows.Scan(&cid, &name, &dow, &cnt) != nil {
+			continue
 		}
+		key := cid + "\x00" + name
+		a, ok := cvMap[key]
+		if !ok {
+			a = &cvAgg{cid: cid, name: name}
+			cvMap[key] = a
+		}
+		a.visits += int64(cnt)
+		a.dows = append(a.dows, dowCnt{dow, int64(cnt)})
 	}
 	if err := cvRows.Err(); err != nil {
 		cvRows.Close()
 		return nil, fmt.Errorf("iterating heatmap customer visits: %w", err)
 	}
 	cvRows.Close()
-	// day distribution per customer
-	for i := range cvAggs {
-		ddArgs := []interface{}{cvAggs[i].cid, tenantID}
-		ddWhere := `WHERE o."customerId" = $1 AND b."tenantId" = $2`
-		if branchID != "" && branchID != "ALL" {
-			ddWhere += fmt.Sprintf(` AND o."branchId" = $%d`, len(ddArgs)+1)
-			ddArgs = append(ddArgs, branchID)
+	cvAggs := make([]*cvAgg, 0, len(cvMap))
+	for _, a := range cvMap {
+		cvAggs = append(cvAggs, a)
+	}
+	// top 10 by visits (mirrors original ORDER BY visits DESC LIMIT 10); cid breaks ties deterministically.
+	sort.Slice(cvAggs, func(i, j int) bool {
+		if cvAggs[i].visits != cvAggs[j].visits {
+			return cvAggs[i].visits > cvAggs[j].visits
 		}
-		ddRows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
-			SELECT EXTRACT(DOW FROM COALESCE(o."receivedAt", o."createdAt"))::int AS dow, COUNT(*) AS cnt
-			FROM "Order" o JOIN "Branch" b ON b.id=o."branchId"
-			%s GROUP BY 1 ORDER BY 1`, ddWhere), ddArgs...)
-		if err != nil {
-			return nil, fmt.Errorf("querying heatmap customer day distribution: %w", err)
-		}
-		dist := []int64{}
-		for ddRows.Next() {
-			var dow, cnt int
-			if ddRows.Scan(&dow, &cnt) == nil {
-				dist = append(dist, int64(cnt))
-			}
-		}
-		if err := ddRows.Err(); err != nil {
-			ddRows.Close()
-			return nil, fmt.Errorf("iterating heatmap customer day distribution: %w", err)
-		}
-		ddRows.Close()
-		cvAggs[i].dayDist = dist
+		return cvAggs[i].cid < cvAggs[j].cid
+	})
+	if len(cvAggs) > 10 {
+		cvAggs = cvAggs[:10]
 	}
 	customerVisits := make([]interface{}, 0, len(cvAggs))
 	for _, a := range cvAggs {
+		sort.Slice(a.dows, func(i, j int) bool { return a.dows[i].dow < a.dows[j].dow })
+		dayDist := make([]int64, 0, len(a.dows))
+		for _, d := range a.dows {
+			dayDist = append(dayDist, d.cnt)
+		}
 		customerVisits = append(customerVisits, map[string]interface{}{
 			"customerId":      a.cid,
 			"name":            a.name,
 			"totalOrders":     a.visits,
-			"dayDistribution": a.dayDist,
+			"dayDistribution": dayDist,
 		})
 	}
 	// hourlyByDay: 7×24 matrix of order counts
