@@ -10,8 +10,18 @@ import { legacyRoleToDefaultName } from "./permissions/defaults";
 import { getRequestIp, rateLimitByIp } from "./rate-limit";
 import { resolveAllFlagsSafe } from "./feature-flags";
 
-export const authSecret =
-  process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? "dev-secret-change-in-production";
+// JWT/AUTH secret. Never silently use the insecure default in production.
+function resolveAuthSecret(): string {
+  const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+  if (secret) return secret;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("AUTH_SECRET (or NEXTAUTH_SECRET) must be set in production");
+  }
+  // ponytail: dev-only fallback — never reaches production (throws above).
+  // Upgrade: remove once pos-saas retires; hivepos-api enforces its own JWT_SECRET.
+  return "dev-secret-change-in-production";
+}
+export const authSecret = resolveAuthSecret();
 
 // ─── Google account linking (profile-initiated) ───
 // ponytail: HMAC-signed cookie carries the authenticated userId from

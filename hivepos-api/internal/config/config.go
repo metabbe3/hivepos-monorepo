@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 
@@ -51,7 +52,7 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		Port:        getEnv("PORT", "8080"),
 		DatabaseURL: getEnv("DATABASE_URL", "postgresql://posadmin:poslocal@localhost:5437/pos_saas?sslmode=disable"),
-		JWTSecret:   getEnv("JWT_SECRET", "dev-secret-change-in-production"),
+		JWTSecret:   getEnv("JWT_SECRET", ""),
 		Environment: getEnv("APP_ENV", "development"),
 
 		MidtransServerKey:   getEnv("MIDTRANS_SERVER_KEY", ""),
@@ -74,8 +75,15 @@ func Load() (*Config, error) {
 		AlertWindowMinutes:   getEnvInt("ALERT_WINDOW_MINUTES", 10),
 	}
 
-	if cfg.Environment == "production" && cfg.JWTSecret == "dev-secret-change-in-production" {
-		return nil, fmt.Errorf("JWT_SECRET must be set in production")
+	// JWT_SECRET: never silently use the insecure default outside development.
+	// Development gets a known local default (logged loudly); any other env must set it.
+	if cfg.JWTSecret == "" {
+		if cfg.Environment == "development" {
+			cfg.JWTSecret = "dev-secret-change-in-production"
+			log.Println("config: JWT_SECRET unset — using insecure dev default (development only)")
+		} else {
+			return nil, fmt.Errorf("JWT_SECRET must be set when APP_ENV=%q", cfg.Environment)
+		}
 	}
 
 	return cfg, nil
