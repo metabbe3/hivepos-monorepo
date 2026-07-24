@@ -1,5 +1,29 @@
 @import "tailwindcss";
+@import "./theme.css";
 @import "tw-animate-css";
+
+/* ponytail: route-split. The authed app surface (dashboard + super-admin +
+   their feature components + modules/) is @source not-excluded from this
+   public/global chunk so the landing route stops shipping ~100 KB of utilities
+   it never uses. Authed routes load app/authed.css (a full Tailwind build) so
+   they stay fully styled.
+   photos/ is intentionally KEPT: the public /track page imports track-photos-section.
+   components/layout (app-sidebar, header) reach into dashboard/tickets — those only
+   render on authed routes where authed.css covers them. */
+@source not "./(dashboard)/**/*.tsx";
+@source not "./super-admin/**/*.tsx";
+@source not "../components/dashboard/**/*.tsx";
+@source not "../components/super-admin/**/*.tsx";
+@source not "../components/orders/**/*.tsx";
+@source not "../components/customers/**/*.tsx";
+@source not "../components/pos/**/*.tsx";
+@source not "../components/reports/**/*.tsx";
+@source not "../components/billing/**/*.tsx";
+@source not "../components/roles/**/*.tsx";
+@source not "../components/settings/**/*.tsx";
+@source not "../components/profile/**/*.tsx";
+@source not "../components/tickets/**/*.tsx";
+@source not "../modules/**/*.tsx";
 
 html {
   scroll-behavior: smooth;
@@ -9,124 +33,6 @@ html {
     scroll-behavior: auto;
   }
 }
-
-/* ═══════════════════════════════════════════════════════════════
-   hivePOS Theme System
-   Tailwind v4: @theme defines tokens → utilities auto-generated
-   Override values in :root (light) and .dark (dark mode)
-   ═══════════════════════════════════════════════════════════════ */
-
-@theme {
-  /* ─── Surfaces ─── */
-  --color-background: #fafafa;
-  --color-foreground: #0a0a0f;
-  --color-surface: #ffffff;
-  --color-surface-muted: #fafafa;
-
-  /* ─── SaaS primary (indigo) ─── */
-  --color-primary: #4f46e5;
-  --color-primary-foreground: #ffffff;
-
-  /* ─── SaaS secondary accent (emerald) ─── */
-  --color-secondary: #10b981;
-  --color-secondary-foreground: #ffffff;
-
-  /* ─── App brand (indigo) — unified with --color-primary so CTAs match the
-     logo/links. .pub-scope (landing/login) overrides this to sky blue. ─── */
-  --color-brand: #4f46e5;
-  --color-brand-foreground: #ffffff;
-  --color-brand-light: #eef2ff;
-  --color-brand-500: #6366f1;
-  --color-brand-600: #4f46e5;
-  --color-brand-700: #4338ca;
-  --color-brand-800: #3730a3;
-
-  /* ─── Heatmap intensity scale (6 levels: empty → peak) ─── */
-  --heat-0: oklch(0.96 0.006 75);
-  --heat-1: oklch(0.90 0.05 75);
-  --heat-2: oklch(0.80 0.11 75);
-  --heat-3: oklch(0.70 0.16 75);
-  --heat-4: oklch(0.62 0.19 65);
-  --heat-5: oklch(0.54 0.22 55);
-
-  /* ─── Neutrals ─── */
-  --color-muted: #f1f1f4;
-  --color-muted-foreground: #71717a;
-  --color-border: #e4e4e7;
-  --color-card: #ffffff;
-  --color-card-foreground: #0a0a0f;
-  --color-popover: #ffffff;
-  --color-popover-foreground: #0a0a0f;
-  --color-destructive: #ef4444;
-  --color-destructive-foreground: #ffffff;
-  --color-input: #e4e4e7;
-  --color-ring: #6366f1;
-  --color-accent: #f1f1f4;
-  --color-accent-foreground: #0a0a0f;
-
-  /* ─── Semantic ─── */
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-
-  /* ─── Sidebar (dashboard) ─── */
-  --color-sidebar: #f8f8fb;
-  --color-sidebar-foreground: #0a0a0f;
-  --color-sidebar-accent: #e8e8ee;
-  --color-sidebar-border: #e4e4e7;
-
-  /* ─── Typography ─── */
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-manrope), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-jakarta), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-
-  /* ─── Radius ─── */
-  --radius: 0.75rem;
-}
-
-/* ─── Dark Mode — override ALL theme tokens ─── */
-.dark {
-  --color-background: #0a0a0f;
-  --color-foreground: #fafafa;
-  --color-surface: #111118;
-  --color-surface-muted: #0d0d14;
-  --color-primary: #6366f1;
-  --color-primary-foreground: #ffffff;
-  --color-secondary: #10b981;
-  --color-secondary-foreground: #ffffff;
-  --color-brand: #6366f1;
-  --color-brand-foreground: #ffffff;
-  --color-brand-light: #1e1b4b;
-
-  /* ─── Heatmap intensity scale (dark: inverted lightness) ─── */
-  --heat-0: oklch(0.20 0.01 75);
-  --heat-1: oklch(0.30 0.06 75);
-  --heat-2: oklch(0.42 0.12 75);
-  --heat-3: oklch(0.56 0.17 75);
-  --heat-4: oklch(0.68 0.19 65);
-  --heat-5: oklch(0.78 0.20 55);
-
-  --color-muted: #1a1a2e;
-  --color-muted-foreground: #a1a1aa;
-  --color-border: #27272a;
-  --color-card: #111118;
-  --color-card-foreground: #fafafa;
-  --color-popover: #111118;
-  --color-popover-foreground: #fafafa;
-  --color-destructive: #ef4444;
-  --color-destructive-foreground: #ffffff;
-  --color-input: #27272a;
-  --color-ring: #6366f1;
-  --color-accent: #1a1a2e;
-  --color-accent-foreground: #fafafa;
-  --color-sidebar: #0d0d14;
-  --color-sidebar-foreground: #fafafa;
-  --color-sidebar-accent: #1a1a2e;
-  --color-sidebar-border: #27272a;
-}
-
-/* ─── Enable class-based dark mode ─── */
-@custom-variant dark (&:where(.dark, .dark *));
 
 /* ─── Base styles ─── */
 * {

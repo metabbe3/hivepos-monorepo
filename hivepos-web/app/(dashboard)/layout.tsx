@@ -1,5 +1,6 @@
 "use client";
 
+import "../authed.css";
 import { SessionProvider } from "@/lib/auth-client";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";

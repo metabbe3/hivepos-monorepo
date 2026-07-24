@@ -1,0 +1,11 @@
+/* ponytail: authed-route CSS chunk (dashboard + super-admin).
+   globals.css @source not-excludes these routes/components from the public
+   chunk, so this entry carries the authed utility surface. It's a full
+   Tailwind build (scans the whole project) → self-contained → authed routes
+   can't go missing utilities. Trade-off: it re-emits public utilities too, so
+   an authed page loads two chunks (lean public global + this). Acceptable:
+   authed users are logged-in, not the perf-critical anonymous landing visit.
+   No @source not here — authed must see everything it renders.
+   Upgrade path: split authed.css itself by route group if its size bites. */
+@import "tailwindcss";
+@import "./theme.css";

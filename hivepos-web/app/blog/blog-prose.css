@@ -8,6 +8,7 @@
    Trade-off: blog route re-loads Tailwind base already in the global chunk —
    acceptable, blog isn't the perf-critical landing. Upgrade path: none. */
 @import "tailwindcss";
+@import "../theme.css";
 @plugin "@tailwindcss/typography";
 
 /* Blog article editorial drop cap — moved here from globals.css so this
