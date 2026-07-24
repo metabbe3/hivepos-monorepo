@@ -20,7 +20,7 @@ function IndonesianFlag() {
   return (
     <span
       className="inline-flex h-3.5 w-5 overflow-hidden rounded-sm border border-slate-600 align-middle"
-      aria-label="Indonesia"
+      aria-hidden="true"
     >
       <span className="block h-1/2 w-full bg-red-600" />
       <span className="block h-1/2 w-full bg-white" />
