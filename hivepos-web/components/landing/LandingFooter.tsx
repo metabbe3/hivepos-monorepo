@@ -56,7 +56,7 @@ export function LandingFooter() {
 
           {/* Produk */}
           <div>
-            <h4 className="text-xs font-bold text-slate-500">Produk</h4>
+            <h2 className="text-xs font-bold text-slate-500">Produk</h2>
             <ul className="mt-4 space-y-2.5 text-sm">
               {PRODUCT_LINKS.map((link) => (
                 <li key={link.href}>
@@ -73,7 +73,7 @@ export function LandingFooter() {
 
           {/* Mulai */}
           <div>
-            <h4 className="text-xs font-bold text-slate-500">Mulai</h4>
+            <h2 className="text-xs font-bold text-slate-500">Mulai</h2>
             <ul className="mt-4 space-y-2.5 text-sm">
               {START_LINKS.map((link) => (
                 <li key={link.href}>

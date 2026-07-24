@@ -83,7 +83,7 @@ export default function LandingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
       <LandingNav />
-      <div>
+      <main>
         <LandingHero />
         <PaymentMarquee />
         <IndustriesSection />
@@ -94,7 +94,7 @@ export default function LandingPage() {
         <BetaPartnerCTA />
         <LandingFAQ />
         <FinalCTA />
-      </div>
+      </main>
       <LandingFooter />
     </div>
   );
