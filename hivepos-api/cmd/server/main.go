@@ -65,7 +65,7 @@ func main() {
 	// Build router — ALL middleware must be registered BEFORE any routes (chi requirement).
 	// CORS first (outermost) so preflight OPTIONS is answered before JWT rejects it.
 	jwtMgr := appauth.NewJWTManager(cfg.JWTSecret)
-	r := router.New(db, middleware.CORS, middleware.RequestTimeout, jwtMgr.Middleware, middleware.RequestIDHeader, middleware.ErrorLogger(db))
+	r := router.New(db, middleware.CORS, middleware.RequestTimeout, jwtMgr.Middleware, middleware.RequestIDHeader, middleware.ErrorLogger(db), middleware.Metrics)
 
 	// Register ALL domain modules
 	// Core CRUD (require auth + feature flag)

@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/hivepos/api/internal/shared/health"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // New creates the main API router with global middleware. The DB handle backs
@@ -28,6 +29,12 @@ func New(db *sql.DB, extra ...func(http.Handler) http.Handler) chi.Router {
 
 	// Health check (no auth) — DB-aware.
 	r.Get("/api/health", health.Handler(db))
+
+	// Prometheus metrics scrape. Public on the container port, but Caddy only proxies
+	// /api/* → api, so externally /metrics never reaches here — it's network-internal
+	// (scrape from a Prometheus sidecar / docker network). Gate behind auth + a Caddy
+	// route if you ever expose it.
+	r.Handle("/metrics", promhttp.Handler())
 
 	return r
 }
