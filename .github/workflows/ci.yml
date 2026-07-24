@@ -1,0 +1,73 @@
+# Root monorepo CI. GitHub Actions only reads .github/workflows at the REPO ROOT — the
+# legacy hivepos-web/.github/workflows/ci.yml lived in a subdir (a merge leftover) and never ran.
+# This file replaces it and adds the missing Go (hivepos-api) gate. Both jobs run on push to main
+# and on PRs; path filters can be added later if CI minutes matter.
+# No untrusted input (github.event.*) is interpolated into any run: step.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  api:
+    name: hivepos-api (go)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hivepos-api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: hivepos-api/go.sum
+
+      - run: go vet ./...
+      - run: go test ./...
+      - run: go build ./...
+
+      - name: Vulnerability scan (govulncheck)
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+  web:
+    name: hivepos-web (next)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hivepos-web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: hivepos-web/package-lock.json
+
+      - run: npm ci
+
+      - name: Contract drift guard
+        run: npm run gen:contract:check
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build (standalone)
+        run: npm run build
+
+      - name: Docker build
+        run: docker build -t hivepos-web:ci .
+
+      # ponytail: GHCR push + host deploy not wired — fill docker/login-action +
+      # SSH/watchtower once the target is known. The build step proves the image builds.
+      - name: Image push + deploy (TODO)
+        run: echo "push/deploy not wired yet"
