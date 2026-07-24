@@ -63,10 +63,8 @@ type Repository interface {
 	GetPaymentByOrderID(ctx context.Context, orderID string) (*domain.SaaSPayment, error)
 	GetOutlets(ctx context.Context, tenantID string) ([]*domain.BillingOutlet, error)
 	GetTenantInfo(ctx context.Context, tenantID string) (*domain.BillingTenant, error)
-	UpdatePaymentStatus(ctx context.Context, id string, status domain.SaaSPaymentStatus) error
-	ActivateSubscription(ctx context.Context, tenantID string, periodEnd time.Time) error
 	GetPromoByCode(ctx context.Context, code string) (*domain.PromoCode, error)
-	RedeemPromo(ctx context.Context, promoCodeID, tenantID string) error
+	SettlePayment(ctx context.Context, orderID string) error
 }
 
 // Service implements the billing use cases.
@@ -247,26 +245,13 @@ func (s *Service) HandleWebhook(ctx context.Context, input WebhookInput) error {
 		return nil
 	}
 
-	if err := s.Repo.UpdatePaymentStatus(ctx, payment.ID, domain.PaymentPaid); err != nil {
-		return fmt.Errorf("updating payment status: %w", err)
+	// Settle atomically in one tx: a conditional UPDATE (status <> 'PAID') claims the payment
+	// and gates activation + promo redemption. A retried or concurrent webhook claims nothing
+	// and returns nil — the subscription is extended exactly once. Defeats the prior
+	// check-then-act double-activation + partial-failure window. See PgBillingRepository.SettlePayment.
+	if err := s.Repo.SettlePayment(ctx, input.OrderID); err != nil {
+		return fmt.Errorf("settling payment: %w", err)
 	}
-
-	// Extend the subscription by the purchased number of months (legacy Go hardcoded 1,
-	// so a multi-month payment only granted 1 month of access).
-	months := payment.MonthsPurchased
-	if months < 1 {
-		months = 1
-	}
-	periodEnd := time.Now().AddDate(0, months, 0)
-	if err := s.Repo.ActivateSubscription(ctx, payment.TenantID, periodEnd); err != nil {
-		return fmt.Errorf("activating subscription: %w", err)
-	}
-
-	// Redeem the promo (increment count + audit) — runs once per PAID transition.
-	if payment.PromoCodeID != nil {
-		_ = s.Repo.RedeemPromo(ctx, *payment.PromoCodeID, payment.TenantID)
-	}
-
 	return nil
 }
 

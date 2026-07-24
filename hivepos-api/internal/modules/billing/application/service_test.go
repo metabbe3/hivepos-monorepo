@@ -16,9 +16,8 @@ type fakeRepo struct {
 	payment   *domain.SaaSPayment
 	promo     *domain.PromoCode
 	promoErr  error
-	created   *domain.SaaSPayment
-	updStatus domain.SaaSPaymentStatus
-	activated bool
+	created     *domain.SaaSPayment
+	settledOrder string
 }
 
 func (f *fakeRepo) GetSubscriptionByTenant(_ context.Context, _ string) (*domain.Subscription, error) {
@@ -40,18 +39,13 @@ func (f *fakeRepo) CreatePayment(_ context.Context, p *domain.SaaSPayment) error
 func (f *fakeRepo) GetPaymentByOrderID(_ context.Context, _ string) (*domain.SaaSPayment, error) {
 	return f.payment, nil
 }
-func (f *fakeRepo) UpdatePaymentStatus(_ context.Context, _ string, st domain.SaaSPaymentStatus) error {
-	f.updStatus = st
-	return nil
-}
-func (f *fakeRepo) ActivateSubscription(_ context.Context, _ string, _ time.Time) error {
-	f.activated = true
-	return nil
-}
 func (f *fakeRepo) GetPromoByCode(_ context.Context, _ string) (*domain.PromoCode, error) {
 	return f.promo, f.promoErr
 }
-func (f *fakeRepo) RedeemPromo(_ context.Context, _, _ string) error { return nil }
+func (f *fakeRepo) SettlePayment(_ context.Context, orderID string) error {
+	f.settledOrder = orderID
+	return nil
+}
 
 func TestGetStatus_NoSubscription(t *testing.T) {
 	r := &fakeRepo{}
@@ -102,8 +96,8 @@ func TestWebhook_NonSuccessIsNoop(t *testing.T) {
 	if err := application.NewService(r, "", "").HandleWebhook(context.Background(), application.WebhookInput{SignatureKey: "x", OrderID: "o1", TransactionStatus: "deny"}); err != nil {
 		t.Fatal(err)
 	}
-	if r.activated || r.updStatus != "" {
-		t.Fatal("non-success webhook must not activate or update")
+	if r.settledOrder != "" {
+		t.Fatal("non-success webhook must not settle")
 	}
 }
 
@@ -112,8 +106,8 @@ func TestWebhook_SuccessActivates(t *testing.T) {
 	if err := application.NewService(r, "", "").HandleWebhook(context.Background(), application.WebhookInput{SignatureKey: "x", OrderID: "o1", TransactionStatus: "settlement"}); err != nil {
 		t.Fatal(err)
 	}
-	if !r.activated || r.updStatus != domain.PaymentPaid {
-		t.Fatalf("success must set PAID + activate: activated=%v status=%v", r.activated, r.updStatus)
+	if r.settledOrder != "o1" {
+		t.Fatalf("success must settle payment 'o1': settledOrder=%q", r.settledOrder)
 	}
 }
 

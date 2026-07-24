@@ -160,33 +160,70 @@ func (r *PgBillingRepository) GetPaymentByOrderID(ctx context.Context, orderID s
 	return p, nil
 }
 
-// UpdatePaymentStatus flips the status of a payment.
-func (r *PgBillingRepository) UpdatePaymentStatus(ctx context.Context, id string, status domain.SaaSPaymentStatus) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE "SaaSPayment" SET status = $1 WHERE id = $2`, status, id)
+// SettlePayment marks a payment PAID and extends the tenant's subscription + redeems the promo,
+// all in ONE transaction. The conditional UPDATE (status <> 'PAID') is the idempotency primitive:
+// a retried or concurrent Midtrans webhook for an already-paid order claims zero rows and returns
+// nil, so the subscription is extended exactly once and the promo redeemed once.
+//
+// This replaces the prior check-then-act sequence (read payment → if PAID return → update status →
+// activate → redeem as separate statements) which could double-activate on concurrent delivery and
+// leave a PAID payment un-activated on partial failure (retry would then see PAID and no-op forever).
+func (r *PgBillingRepository) SettlePayment(ctx context.Context, orderID string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("updating payment status: %w", err)
+		return fmt.Errorf("beginning tx: %w", err)
 	}
-	return nil
-}
+	defer tx.Rollback() // no-op after Commit
 
-// ActivateSubscription marks the tenant's subscription ACTIVE and extends the billing period.
-func (r *PgBillingRepository) ActivateSubscription(ctx context.Context, tenantID string, periodEnd time.Time) error {
-	res, err := r.db.ExecContext(ctx, `
+	// Claim the payment. status <> 'PAID' makes this the single source of truth: RowsAffected==0
+	// ⇒ already settled (or unknown order) ⇒ idempotent no-op.
+	var (
+		tenantID    string
+		months      int
+		promoCodeID sql.NullString
+	)
+	err = tx.QueryRowContext(ctx, `
+		UPDATE "SaaSPayment"
+		SET status = $1
+		WHERE "midtransOrderId" = $2 AND status <> $1
+		RETURNING "tenantId", "monthsPurchased", "promoCodeId"`,
+		domain.PaymentPaid, orderID,
+	).Scan(&tenantID, &months, &promoCodeID)
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("claiming payment: %w", err)
+	}
+
+	if months < 1 {
+		months = 1
+	}
+	periodEnd := time.Now().AddDate(0, months, 0)
+	// Activate/extend the subscription. A missing row is tolerated (ponytail: no-op) so a webhook
+	// for an unprovisioned tenant doesn't 500 — callers provision the Subscription at checkout.
+	if _, err := tx.ExecContext(ctx, `
 		UPDATE "Subscription"
 		SET status = $1, "currentPeriodStart" = NOW(), "currentPeriodEnd" = $2
 		WHERE "tenantId" = $3`,
-		domain.StatusActive, periodEnd, tenantID)
-	if err != nil {
+		domain.StatusActive, periodEnd, tenantID); err != nil {
 		return fmt.Errorf("activating subscription: %w", err)
 	}
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		// No subscription row exists yet — ponytail: low — callers should create one
-		// during checkout when subscriptions are first provisioned. For now we no-op
-		// so a webhook for an unprovisioned tenant doesn't 500.
-		return nil
+
+	// Redeem the promo (increment + audit) inside the same tx so a partial failure rolls back.
+	if promoCodeID.Valid {
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE "PromoCode" SET "redemptionCount" = "redemptionCount" + 1 WHERE id = $1`, promoCodeID.String); err != nil {
+			return fmt.Errorf("incrementing promo redemption: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO "PromoRedemption" (id, "promoCodeId", "tenantId", "appliedAt") VALUES (gen_random_uuid()::text, $1, $2, NOW())`,
+			promoCodeID.String, tenantID); err != nil {
+			return fmt.Errorf("recording promo redemption: %w", err)
+		}
 	}
-	return nil
+
+	return tx.Commit()
 }
 
 // GetPromoByCode returns an active, non-expired promo by code.
@@ -226,18 +263,6 @@ func (r *PgBillingRepository) GetPromoByCode(ctx context.Context, code string) (
 		pc.ValidUntil = &validUntil.Time
 	}
 	return pc, nil
-}
-
-// RedeemPromo increments a promo's redemption count + records the redemption (enforces maxRedemptions
-// over time). Best-effort — called once per payment→PAID transition (idempotency guard in the webhook).
-func (r *PgBillingRepository) RedeemPromo(ctx context.Context, promoCodeID, tenantID string) error {
-	if _, err := r.db.ExecContext(ctx, `UPDATE "PromoCode" SET "redemptionCount" = "redemptionCount" + 1 WHERE id = $1`, promoCodeID); err != nil {
-		return fmt.Errorf("incrementing promo redemption: %w", err)
-	}
-	if _, err := r.db.ExecContext(ctx, `INSERT INTO "PromoRedemption" (id, "promoCodeId", "tenantId", "appliedAt") VALUES (gen_random_uuid()::text, $1, $2, NOW())`, promoCodeID, tenantID); err != nil {
-		return fmt.Errorf("recording promo redemption: %w", err)
-	}
-	return nil
 }
 
 // GetOutlets fetches branches for the billing status response.
