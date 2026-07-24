@@ -6,10 +6,10 @@ import type { NextConfig } from "next";
 // nonces (middleware generateNonce) when tightening XSS mitigation. 'unsafe-eval' is dev-only (HMR).
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV !== "production" ? " 'unsafe-eval'" : ""} https://*.midtrans.com https://www.googletagmanager.com`,
+  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV !== "production" ? " 'unsafe-eval'" : ""} https://*.midtrans.com https://www.googletagmanager.com https://static.cloudflareinsights.com`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self' https://*.midtrans.com https://*.google-analytics.com https://*.googletagmanager.com",
+  "connect-src 'self' https://*.midtrans.com https://*.google-analytics.com https://*.googletagmanager.com https://cloudflareinsights.com",
   "frame-src 'self' https://*.midtrans.com",
   "object-src 'none'",
   "base-uri 'self'",
