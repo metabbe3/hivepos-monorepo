@@ -104,7 +104,11 @@ export default function BranchesPage() {
           })),
         ),
       )
-      .catch(() => setBranches([]))
+      .catch((err) => {
+        console.warn("branches load failed", err);
+        setBranches([]);
+        toast.error(t("common.networkError"));
+      })
       .finally(() => setLoading(false));
   }
 

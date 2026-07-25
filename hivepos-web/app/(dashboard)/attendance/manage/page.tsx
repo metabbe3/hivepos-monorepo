@@ -81,13 +81,18 @@ export default function AttendanceManagePage() {
     try {
       const r = await apiFetch<Event[]>(`/api/attendance/events?from=${from}&to=${to}`);
       setEvents(r.data ?? []);
-    } catch { setEvents([]); } finally { setLoading(false); }
+    } catch (err) {
+      setEvents([]);
+      console.warn("attendance events load failed", err);
+    } finally { setLoading(false); }
   }, [from, to]);
 
   useEffect(() => {
     if (shouldRender && enabled) {
       void refresh();
-      apiFetch<Staff[]>("/api/attendance/staff").then((r) => setStaff(r.data ?? [])).catch(() => {});
+      apiFetch<Staff[]>("/api/attendance/staff")
+        .then((r) => setStaff(r.data ?? []))
+        .catch((err) => console.warn("attendance staff load failed", err));
     } else { setLoading(false); }
   }, [shouldRender, enabled, refresh]);
 
@@ -101,9 +106,19 @@ export default function AttendanceManagePage() {
   const deleteSession = async (s: Session) => {
     const ok = await confirm({ title: t("attendance.confirmDeleteEvent"), destructive: true, confirmLabel: t("common.delete") });
     if (!ok) return;
-    if (s.inEvent) await apiFetch(`/api/attendance/events/${s.inEvent.id}`, { method: "DELETE" }).catch(() => {});
-    if (s.outEvent) await apiFetch(`/api/attendance/events/${s.outEvent.id}`, { method: "DELETE" }).catch(() => {});
-    toast.success(t("attendance.eventDeleted"));
+    // Surface a real failure — previously both DELETEs swallowed errors and the
+    // success toast fired regardless, so a partial/failed delete looked complete.
+    let failed = false;
+    if (s.inEvent) {
+      try { await apiFetch(`/api/attendance/events/${s.inEvent.id}`, { method: "DELETE" }); }
+      catch (err) { failed = true; console.warn("delete in-event failed", err); }
+    }
+    if (s.outEvent) {
+      try { await apiFetch(`/api/attendance/events/${s.outEvent.id}`, { method: "DELETE" }); }
+      catch (err) { failed = true; console.warn("delete out-event failed", err); }
+    }
+    if (failed) toast.error(t("common.networkError"));
+    else toast.success(t("attendance.eventDeleted"));
     void refresh();
   };
 

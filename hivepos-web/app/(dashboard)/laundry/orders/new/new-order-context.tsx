@@ -378,17 +378,24 @@ export function NewOrderProvider({ children }: { children: ReactNode }) {
     e.preventDefault();
     if (!selectedCustomer) { toast.error(t("orders.selectCustomer")); return; }
     if (items.length === 0) { toast.error(t("orders.addItem")); return; }
-    // P0: reject zero-weight/qty items — prevents Rp 0 orders (real money lost).
+    // P0: reject zero/negative/non-numeric weight+qty — prevents Rp 0 / NaN orders.
+    // Number.isFinite is load-bearing: parseFloat("abc")=NaN, and NaN <= 0 is false,
+    // so a bare <= 0 check lets non-numeric strings through to the submit payload.
     for (const item of items) {
       const svc = servicesById.get(item.serviceId);
       if (!svc) continue;
-      if (svc.pricingType === "PER_KG" && (!item.weightKg || parseFloat(item.weightKg) <= 0)) {
-        toast.error("Berat harus lebih dari 0 untuk layanan kiloan.");
-        return;
-      }
-      if (svc.pricingType !== "PER_KG" && (!item.quantity || parseInt(item.quantity) <= 0)) {
-        toast.error("Jumlah harus lebih dari 0.");
-        return;
+      if (svc.pricingType === "PER_KG") {
+        const w = parseFloat(item.weightKg);
+        if (!Number.isFinite(w) || w <= 0) {
+          toast.error("Berat harus lebih dari 0 untuk layanan kiloan.");
+          return;
+        }
+      } else {
+        const q = parseInt(item.quantity, 10);
+        if (!Number.isFinite(q) || q <= 0) {
+          toast.error("Jumlah harus lebih dari 0.");
+          return;
+        }
       }
     }
     if (paymentMethod === "DEPOSIT" && (selectedCustomer.balance || 0) < total) {

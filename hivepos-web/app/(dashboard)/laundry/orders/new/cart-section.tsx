@@ -152,7 +152,11 @@ export function CartSection() {
                         type="number"
                         placeholder="Rp"
                         value={cashReceived && !fastCashOptions.some((o) => o.amount === cashReceived) ? cashReceived : ""}
-                        onChange={(e) => setCashReceived(e.target.value ? parseFloat(e.target.value) : null)}
+                        onChange={(e) => {
+                          if (!e.target.value) { setCashReceived(null); return; }
+                          const n = parseFloat(e.target.value);
+                          setCashReceived(Number.isFinite(n) ? n : null);
+                        }}
                         className="h-9 text-sm bg-muted/30 border-border/30 rounded-lg"
                       />
                     </div>

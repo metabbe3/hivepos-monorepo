@@ -37,8 +37,11 @@ export function useSessionSync() {
         // Trigger JWT callback to reload permissions from DB
         await update({ refreshPermissions: true });
       }
-    } catch {
-      // Silently ignore — we'll retry on next interval / focus
+    } catch (err) {
+      // Non-fatal: retry on next interval / focus. Log so a stale-permission
+      // condition (e.g. a persistently failing session-version endpoint) is
+      // observable instead of silently leaving the user on outdated permissions.
+      console.warn("session-version sync failed", err);
     } finally {
       polling.current = false;
     }

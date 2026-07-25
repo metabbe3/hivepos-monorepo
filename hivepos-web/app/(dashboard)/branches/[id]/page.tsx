@@ -172,9 +172,11 @@ export default function BranchDetailPage({
 
   useEffect(() => {
     if (roleLoading || !allowed) return;
-    params.then(({ id }) => {
-      fetchBranch(id);
-    });
+    params
+      .then(({ id }) => {
+        fetchBranch(id);
+      })
+      .catch((err) => console.warn("failed to resolve branch id from params", err));
   }, [params, roleLoading, allowed, fetchBranch]);
 
   const enterEditMode = () => {

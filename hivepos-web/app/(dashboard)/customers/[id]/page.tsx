@@ -65,7 +65,9 @@ export default function CustomerDetailPage({
 
   // Resolve customer ID from params
   useEffect(() => {
-    params.then(({ id }) => setCustomerId(id));
+    params
+      .then(({ id }) => setCustomerId(id))
+      .catch((err) => console.warn("failed to resolve customer id from params", err));
   }, [params]);
 
   const buildDateParams = () => {
