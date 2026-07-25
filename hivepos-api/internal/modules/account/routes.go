@@ -178,7 +178,12 @@ func (m *Module) UpdateProfile(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		var hash sql.NullString
-		_ = m.db.QueryRowContext(req.Context(), `SELECT "passwordHash" FROM "User" WHERE id=$1`, userID).Scan(&hash)
+		// Distinguish a real DB failure (→ 500) from a missing/invalid hash
+		// (→ wrong-password). Previously any error was masked as "wrong password".
+		if err := m.db.QueryRowContext(req.Context(), `SELECT "passwordHash" FROM "User" WHERE id=$1`, userID).Scan(&hash); err != nil && err != sql.ErrNoRows {
+			apphttp.Error(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 		if !hash.Valid || bcrypt.CompareHashAndPassword([]byte(hash.String), []byte(*body.CurrentPassword)) != nil {
 			apphttp.ValidationError(w, "Kata sandi lama salah.")
 			return

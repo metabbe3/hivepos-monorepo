@@ -387,11 +387,21 @@ func (r *PgAuthRepository) CreateTenantWithOwner(ctx context.Context, input doma
 	}
 
 	// Seed default services BEFORE commit (synchronous — atomic with the tenant
-	// provisioning; no orphan tenant without services on crash).
-	seedServices(ctx, tx, branchID, input.Module)
-	seedRoles(ctx, tx, tenantID)
-	seedExpenseCategories(ctx, tx, branchID)
-	seedBranchDefaults(ctx, tx, branchID, tenantID, input.TenantSlug)
+	// provisioning; no orphan tenant without services on crash). Any seed error
+	// returns → the named-return defer above rolls the whole tx back (previously
+	// seed funcs swallowed errors, so a half-seeded tenant could commit).
+	if err = seedServices(ctx, tx, branchID, input.Module); err != nil {
+		return "", "", "", fmt.Errorf("seeding services: %w", err)
+	}
+	if err = seedRoles(ctx, tx, tenantID); err != nil {
+		return "", "", "", fmt.Errorf("seeding roles: %w", err)
+	}
+	if err = seedExpenseCategories(ctx, tx, branchID); err != nil {
+		return "", "", "", fmt.Errorf("seeding expense categories: %w", err)
+	}
+	if err = seedBranchDefaults(ctx, tx, branchID, tenantID, input.TenantSlug); err != nil {
+		return "", "", "", fmt.Errorf("seeding branch defaults: %w", err)
+	}
 
 	if err = tx.Commit(); err != nil {
 		return "", "", "", fmt.Errorf("committing tenant creation: %w", err)
@@ -409,21 +419,25 @@ type executor interface {
 // tenant can take orders immediately without manual setup.
 // ponytail: prices are sensible Indonesian-laundry defaults; make configurable via admin settings
 // when per-region pricing is needed.
-func seedServices(ctx context.Context, ex executor, branchID, module string) {
+func seedServices(ctx context.Context, ex executor, branchID, module string) error {
 	if module != "LAUNDRY" {
-		return // ponytail: only LAUNDRY seeded; add FNB/SALON catalogs when those modules ship.
+		return nil // ponytail: only LAUNDRY seeded; add FNB/SALON catalogs when those modules ship.
 	}
 
 	// 1. Service groups (Kiloan + Satuan).
 	var kiloanID, satuanID string
-	ex.QueryRowContext(ctx, `
+	if err := ex.QueryRowContext(ctx, `
 		INSERT INTO "ServiceGroup" (id, name, "sortOrder", module, "branchId", "createdAt", "updatedAt")
 		VALUES (gen_random_uuid()::text, 'Kiloan', 0, 'LAUNDRY', $1, NOW(), NOW()) RETURNING id`, branchID,
-	).Scan(&kiloanID)
-	ex.QueryRowContext(ctx, `
+	).Scan(&kiloanID); err != nil {
+		return fmt.Errorf("inserting Kiloan group: %w", err)
+	}
+	if err := ex.QueryRowContext(ctx, `
 		INSERT INTO "ServiceGroup" (id, name, "sortOrder", module, "branchId", "createdAt", "updatedAt")
 		VALUES (gen_random_uuid()::text, 'Satuan', 1, 'LAUNDRY', $1, NOW(), NOW()) RETURNING id`, branchID,
-	).Scan(&satuanID)
+	).Scan(&satuanID); err != nil {
+		return fmt.Errorf("inserting Satuan group: %w", err)
+	}
 
 	// 2. Default services (correct schema: basePrice, branchId, pricingType, etc.).
 	type svc struct {
@@ -448,24 +462,29 @@ func seedServices(ctx context.Context, ex executor, branchID, module string) {
 		if s.groupID != "" {
 			gid = s.groupID
 		}
-		_, _ = ex.ExecContext(ctx, `
+		if _, err := ex.ExecContext(ctx, `
 			INSERT INTO "Service" (id, name, "pricingType", "basePrice", "commissionType", "commissionValue",
 				module, "isActive", "isDefaultSpeed", "branchId", "groupId", "createdAt", "updatedAt")
 			VALUES (gen_random_uuid()::text, $1, $2, $3, 'NONE', 0, 'LAUNDRY', true, $4, $5, $6, NOW(), NOW())`,
 			s.name, s.pricingType, s.price, s.isDefault, branchID, gid,
-		)
+		); err != nil {
+			return fmt.Errorf("inserting service %q: %w", s.name, err)
+		}
 	}
 
 	// 3. Walk-in customer — so the tenant can create an order immediately.
-	_, _ = ex.ExecContext(ctx, `
+	if _, err := ex.ExecContext(ctx, `
 		INSERT INTO "Customer" (id, name, phone, "branchId", balance, "createdAt", "updatedAt")
 		VALUES (gen_random_uuid()::text, 'Pelanggan Umum', NULL, $1, 0, NOW(), NOW())`, branchID,
-	)
+	); err != nil {
+		return fmt.Errorf("inserting walk-in customer: %w", err)
+	}
+	return nil
 }
 
 // seedRoles inserts the 4 system role templates (Owner/Manager/Kasir/Staff) for a new tenant.
 // Matches the Demo tenant's role definitions exactly — permissions, colors, descriptions.
-func seedRoles(ctx context.Context, ex executor, tenantID string) {
+func seedRoles(ctx context.Context, ex executor, tenantID string) error {
 	type role struct {
 		name, desc, color string
 		perms             []string
@@ -498,23 +517,29 @@ func seedRoles(ctx context.Context, ex executor, tenantID string) {
 		}},
 	}
 	for _, r := range defaults {
-		_, _ = ex.ExecContext(ctx, `
+		if _, err := ex.ExecContext(ctx, `
 			INSERT INTO "Role" (id, name, description, "isSystem", permissions, color, "tenantId", "createdAt", "updatedAt")
 			VALUES (gen_random_uuid()::text, $1, $2, true, $3, $4, $5, NOW(), NOW())`,
 			r.name, r.desc, fmt.Sprintf("{%s}", strings.Join(r.perms, ",")), r.color, tenantID,
-		)
+		); err != nil {
+			return fmt.Errorf("inserting role %q: %w", r.name, err)
+		}
 	}
+	return nil
 }
 
 // seedExpenseCategories creates default expense categories so the Expenses page works on day 1.
-func seedExpenseCategories(ctx context.Context, ex executor, branchID string) {
+func seedExpenseCategories(ctx context.Context, ex executor, branchID string) error {
 	categories := []string{"Operasional", "Gaji", "Listrik & Air", "Perlengkapan", "Lainnya"}
 	for _, name := range categories {
-		_, _ = ex.ExecContext(ctx, `
+		if _, err := ex.ExecContext(ctx, `
 			INSERT INTO "ExpenseCategory" (id, name, "branchId", "createdAt")
 			VALUES (gen_random_uuid()::text, $1, $2, NOW())`, name, branchID,
-		)
+		); err != nil {
+			return fmt.Errorf("inserting expense category %q: %w", name, err)
+		}
 	}
+	return nil
 }
 
 // seedBranchDefaults sets operating hours, slug, and work days on the branch + enables the
@@ -522,15 +547,20 @@ func seedExpenseCategories(ctx context.Context, ex executor, branchID string) {
 // The branch slug = tenantSlug (globally unique — Branch.slug @unique — so the public pickup
 // URL /pickup/[slug] is unique per tenant). Previously derived from the generic branchName
 // "Outlet Pusat" → every tenant collided on Branch_slug_key → register 500.
-func seedBranchDefaults(ctx context.Context, ex executor, branchID, tenantID, tenantSlug string) {
+func seedBranchDefaults(ctx context.Context, ex executor, branchID, tenantID, tenantSlug string) error {
 	hours := `{"min":"08:00-21:00","mon":"08:00-21:00","tue":"08:00-21:00","wed":"08:00-21:00","thu":"08:00-21:00","fri":"08:00-21:00","sat":"08:00-21:00"}`
-	_, _ = ex.ExecContext(ctx, `
+	if _, err := ex.ExecContext(ctx, `
 		UPDATE "Branch" SET "operatingHours" = $1::jsonb, "workDays" = '{0,1,2,3,4,5,6}', slug = $2
 		WHERE id = $3`,
 		hours, tenantSlug, branchID,
-	)
-	_, _ = ex.ExecContext(ctx, `
+	); err != nil {
+		return fmt.Errorf("setting branch defaults: %w", err)
+	}
+	if _, err := ex.ExecContext(ctx, `
 		UPDATE "Tenant" SET "websiteEnabled" = true WHERE id = $1`,
 		tenantID,
-	)
+	); err != nil {
+		return fmt.Errorf("enabling website: %w", err)
+	}
+	return nil
 }

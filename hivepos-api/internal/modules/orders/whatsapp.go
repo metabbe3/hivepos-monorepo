@@ -5,9 +5,44 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
+	"time"
 )
+
+// Shared client for best-effort WhatsApp gateway calls. A timeout is mandatory:
+// http.Post / DefaultClient has none, so a hung gateway would block the
+// fire-and-forget goroutine forever and leak it. whatsappSem caps concurrent
+// in-flight sends so a burst of order creations can't spawn unbounded requests.
+// ponytail: bounded semaphore, not a full worker pool — add a queue if backpressure matters.
+var (
+	whatsappClient = &http.Client{Timeout: 10 * time.Second}
+	whatsappSem    = make(chan struct{}, 32)
+)
+
+// postWhatsApp sends one best-effort message to the gateway. Logs (never returns)
+// errors — this path must never block or fail the caller's order flow. Uses
+// context.Background() deliberately: the caller's request context is canceled once
+// the HTTP response returns, but this fire-and-forget send outlives the request.
+func (r *Module) postWhatsApp(tenantID, phone, msg string) {
+	body, _ := json.Marshal(map[string]string{"phone": phone, "message": msg})
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:3001/"+tenantID+"/send", strings.NewReader(string(body)))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	whatsappSem <- struct{}{}
+	defer func() { <-whatsappSem }()
+
+	resp, err := whatsappClient.Do(req)
+	if err != nil {
+		log.Printf("whatsapp send error (tenant %s): %v", tenantID, err)
+		return
+	}
+	resp.Body.Close()
+}
 
 // maybeSendWhatsAppReceipt checks if the tenant has WhatsApp auto-send enabled
 // for "order received", then fires a best-effort message to the customer's phone.
@@ -30,9 +65,7 @@ func (r *Module) maybeSendWhatsAppReceipt(_ context.Context, order interface{}, 
 	}
 
 	// 3. Fire-and-forget POST to the WhatsApp gateway.
-	gwURL := "http://localhost:3001"
-	body, _ := json.Marshal(map[string]string{"phone": phone, "message": msg})
-	_, _ = http.Post(gwURL+"/"+tenantID+"/send", "application/json", strings.NewReader(string(body)))
+	r.postWhatsApp(tenantID, phone, msg)
 }
 
 // maybeSendWhatsAppReady checks if the tenant has WhatsApp auto-send enabled
@@ -54,9 +87,7 @@ func (r *Module) maybeSendWhatsAppReady(orderID, tenantID string) {
 	}
 
 	msg := fmt.Sprintf("Pesanan #%s sudah siap diambil! 🎉\nTerima kasih telah menggunakan layanan kami.", orderNumber)
-	gwURL := "http://localhost:3001"
-	body, _ := json.Marshal(map[string]string{"phone": phone, "message": msg})
-	_, _ = http.Post(gwURL+"/"+tenantID+"/send", "application/json", strings.NewReader(string(body)))
+	r.postWhatsApp(tenantID, phone, msg)
 }
 
 type tenantWhatsAppSettings struct {

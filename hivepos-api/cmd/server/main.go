@@ -256,20 +256,23 @@ func main() {
 
 	// Photo cleanup cron — runs every 24h, deletes OrderPhoto rows older than 7 days.
 	// Replaces pos-saas's /api/photo-cleanup daily cron. Best-effort, non-blocking.
+	// reaperCancel stops it at shutdown so it can't fire a DELETE after db.Close().
+	// (Graceful HTTP shutdown already exists below: signal → srv.Shutdown(30s) → db.Close.)
+	reaperCtx, reaperCancel := context.WithCancel(context.Background())
 	go func() {
 		ticker := time.NewTicker(24 * time.Hour)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
-				res, err := db.ExecContext(context.Background(),
+				res, err := db.ExecContext(reaperCtx,
 					`DELETE FROM "OrderPhoto" WHERE "createdAt" < NOW() - INTERVAL '7 days'`)
 				if err != nil {
 					log.Printf("photo cleanup error: %v", err)
 				} else if n, _ := res.RowsAffected(); n > 0 {
 					log.Printf("photo cleanup: deleted %d expired photos", n)
 				}
-			case <-context.Background().Done():
+			case <-reaperCtx.Done():
 				return
 			}
 		}
@@ -316,7 +319,8 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down...")
-	healCancel() // stop the self-heal ticker before draining
+	healCancel()   // stop the self-heal ticker before draining
+	reaperCancel() // stop the photo-reaper before closing the DB pool
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -25,14 +26,23 @@ type cachedStats struct {
 
 var statsCache sync.Map // "tenantID:from:to:module:branchId" → cachedStats
 
-// InvalidateStats clears cached dashboard data for a tenant (call after order/payment writes).
+// statsCacheN bounds growth. InvalidateStats is currently never wired, so without a cap
+// every distinct (tenant, date range, module, branch) query leaks a permanent entry.
+// Drop new entries past maxStatsEntries — data is regenerable (worst case: a recompute).
+const maxStatsEntries = 2048
+
+var statsCacheN atomic.Int64
+
+// InvalidateStats clears ALL cached dashboard data and resets the cap counter.
+// NOTE: the tenantID arg is currently ignored (clears every tenant); and this func is
+// not yet called on order/payment writes — wiring it on writes would also bound staleness.
 func InvalidateStats(tenantID string) {
-	statsCache.Range(func(k, _ interface{}) bool {
-		if s, ok := k.(string); ok && len(s) > 0 {
-			statsCache.Delete(k)
-		}
+	_ = tenantID
+	statsCache.Range(func(k, _ any) bool {
+		statsCache.Delete(k)
 		return true
 	})
+	statsCacheN.Store(0)
 }
 
 // Module wires the dashboard domain: repository -> service -> HTTP handlers.
@@ -86,7 +96,14 @@ func (m *Module) stats(w http.ResponseWriter, req *http.Request) {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	statsCache.Store(cacheKey, cachedStats{data: s, at: time.Now()})
+	// Cache the fresh result, but cap total entries so unbounded date-range keys can't
+	// leak memory. Refresh of an existing key doesn't grow the count.
+	if _, loaded := statsCache.LoadOrStore(cacheKey, cachedStats{data: s, at: time.Now()}); loaded {
+		statsCache.Store(cacheKey, cachedStats{data: s, at: time.Now()}) // refresh TTL
+	} else if statsCacheN.Add(1) > maxStatsEntries {
+		statsCache.Delete(cacheKey)
+		statsCacheN.Add(-1) // over cap — serve fresh but don't cache
+	}
 	apphttp.Success(w, s)
 }
 

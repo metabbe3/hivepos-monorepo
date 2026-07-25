@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"math"
 	"sort"
 	"strings"
@@ -1756,6 +1757,9 @@ func (r *PgReportsRepository) getDailyBreakdown(ctx context.Context, tenantID st
 				revMap[d.UTC().Format("2006-01-02")] += amt
 			}
 		}
+		if err := revRows.Err(); err != nil {
+			log.Printf("daily breakdown revenue scan: %v", err)
+		}
 		revRows.Close()
 	}
 	expMap := map[string]float64{}
@@ -1769,6 +1773,9 @@ func (r *PgReportsRepository) getDailyBreakdown(ctx context.Context, tenantID st
 			if expRows.Scan(&d, &amt) == nil {
 				expMap[d.UTC().Format("2006-01-02")] += amt
 			}
+		}
+		if err := expRows.Err(); err != nil {
+			log.Printf("daily breakdown expense scan: %v", err)
 		}
 		expRows.Close()
 	}

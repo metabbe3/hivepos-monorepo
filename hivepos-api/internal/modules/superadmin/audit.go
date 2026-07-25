@@ -2,6 +2,8 @@ package superadmin
 
 import (
 	"context"
+	"database/sql"
+	"log"
 	"net/http"
 	"strings"
 
@@ -29,17 +31,22 @@ func (m *Module) audit(r *http.Request, action, targetType, targetID, reason str
 	}
 	email := m.actorEmail(ctx, actorID)
 	ip := clientIP(r)
-	_, _ = m.db.ExecContext(ctx, `
+	// best-effort: never fail the request — but log so a broken audit trail is observable.
+	if _, err := m.db.ExecContext(ctx, `
 INSERT INTO "AuditLog" (id, action, "targetType", "targetId", "actorId", "actorEmail", reason, "ipAddress", "createdAt")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, NULLIF($6, ''), NULLIF($7, ''), NOW())`,
-		action, targetType, targetID, actorID, email, reason, ip)
+		action, targetType, targetID, actorID, email, reason, ip); err != nil {
+		log.Printf("audit write failed (action=%s target=%s/%s): %v", action, targetType, targetID, err)
+	}
 }
 
 // actorEmail resolves the super-admin's email by id. Empty string if missing —
 // AuditLog.actorEmail is NOT NULL, so callers must have a real actorID (audit() guards on that).
 func (m *Module) actorEmail(ctx context.Context, id string) string {
 	var email string
-	_ = m.db.QueryRowContext(ctx, `SELECT email FROM "SuperAdmin" WHERE id = $1`, id).Scan(&email)
+	if err := m.db.QueryRowContext(ctx, `SELECT email FROM "SuperAdmin" WHERE id = $1`, id).Scan(&email); err != nil && err != sql.ErrNoRows {
+		log.Printf("audit actor email lookup failed (id=%s): %v", id, err)
+	}
 	return email
 }
 

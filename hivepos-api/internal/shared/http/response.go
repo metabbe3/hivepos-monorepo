@@ -86,8 +86,13 @@ func UnauthorizedError(w http.ResponseWriter, message string) {
 }
 
 func writeSuccess(w http.ResponseWriter, status int, v APIResponse) {
-	v.Data = emptySliceIfNil(v.Data)            // top-level nil slice → []
-	nilSlicesToEmpty(reflect.ValueOf(v.Data))   // nested nil slice fields → [] (TS emits [], not null)
+	v.Data = emptySliceIfNil(v.Data) // top-level nil slice → []
+	// ponytail: nilSlicesToEmpty reflect-walks every 2xx response so nil slices serialize as
+	// `[]` (TS contract emits [], not null). Cost: a reflect pass over the response tree on every
+	// success — cheap per call, a universal per-request tax. Optimize only if a pprof shows it:
+	// cache reflect field metadata per response type, or restrict the walk to known list-bearing
+	// structs. Known finding F13 — left as-is until profiled (premature micro-opt wastes more than it saves).
+	nilSlicesToEmpty(reflect.ValueOf(v.Data))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)

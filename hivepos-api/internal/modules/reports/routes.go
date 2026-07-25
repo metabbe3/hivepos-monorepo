@@ -321,19 +321,36 @@ func (m *Module) exportReport(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Round-trip the report through JSON to normalize its shape (rep is `any`,
+	// varies by report type). Surface marshal errors instead of an empty CSV.
+	raw, err := json.Marshal(rep)
+	if err != nil {
+		apphttp.Error(w, http.StatusInternalServerError, "marshaling report: "+err.Error())
+		return
+	}
+	var obj any
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		apphttp.Error(w, http.StatusInternalServerError, "decoding report: "+err.Error())
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/csv")
 	w.Header().Set("Content-Disposition", `attachment; filename="report-`+typ+`.csv"`)
-	raw, _ := json.Marshal(rep)
-	var obj any
-	_ = json.Unmarshal(raw, &obj)
 	cw := csv.NewWriter(w)
 	_ = cw.Write([]string{"field", "value"})
-	flattenCSV(cw, "", obj)
+	flattenCSV(cw, "", obj, 0)
 	cw.Flush()
 }
 
 // flattenCSV walks a decoded JSON value, emitting one field,value row per leaf.
-func flattenCSV(cw *csv.Writer, prefix string, v any) {
+// ponytail: depth cap (maxCSVDepth) — bounds recursion so a pathological / deeply-nested
+// payload can't overflow the goroutine stack.
+const maxCSVDepth = 20
+
+func flattenCSV(cw *csv.Writer, prefix string, v any, depth int) {
+	if depth > maxCSVDepth {
+		return
+	}
 	switch t := v.(type) {
 	case map[string]any:
 		for k, val := range t {
@@ -341,12 +358,12 @@ func flattenCSV(cw *csv.Writer, prefix string, v any) {
 			if prefix != "" {
 				p = prefix + "." + k
 			}
-			flattenCSV(cw, p, val)
+			flattenCSV(cw, p, val, depth+1)
 		}
 	case []any:
 		for i, val := range t {
 			p := prefix + "[" + strconv.Itoa(i) + "]"
-			flattenCSV(cw, p, val)
+			flattenCSV(cw, p, val, depth+1)
 		}
 	default:
 		_ = cw.Write([]string{prefix, fmt.Sprintf("%v", v)})

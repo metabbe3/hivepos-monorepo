@@ -6,10 +6,13 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/hivepos/api/internal/shared/resilience"
 )
 
 // snapBaseURL returns the Midtrans Snap API base for the given env.
@@ -44,6 +47,14 @@ type TransactionResult struct {
 	Token       string `json:"token"`
 	RedirectURL string `json:"redirect_url"`
 }
+
+// Shared Snap client + circuit breaker. One client reuses connections (no per-call TLS
+// handshake); the breaker fast-fails when Midtrans is down so checkout doesn't hang.
+// ponytail: no retry yet — money-path retry needs idempotency keys + backoff; add separately.
+var (
+	snapClient  = &http.Client{Timeout: 15 * time.Second}
+	snapBreaker = resilience.NewCircuitBreaker(5, 30*time.Second)
+)
 
 // CreateTransaction calls the Midtrans Snap API to mint a real Snap token.
 // No SDK dependency — a plain authenticated POST (Basic serverKey:).
@@ -82,25 +93,38 @@ func CreateTransaction(ctx context.Context, serverKey, env string, req Transacti
 	// Midtrans Snap uses Basic auth with the Server Key as the username and an empty password.
 	httpReq.SetBasicAuth(serverKey, "")
 
-	// TODO(self-heal): wrap this Do in a resilience.CircuitBreaker to fast-fail
-	// when Midtrans is down (protects checkout from hanging). Requires status-aware
-	// failure classification first — count transport errors + 5xx as failures, NOT
-	// 4xx (a 4xx is a request/auth problem, not a dependency-health signal, and
-	// would wrongly trip the breaker). See internal/shared/resilience. Money path —
-	// wrap in a dedicated, separately-tested change.
-	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("midtrans request: %w", err)
+	// Call Midtrans through the circuit breaker with status-aware classification:
+	// transport errors + 5xx trip the breaker; 4xx is a request/auth problem and is
+	// NOT a dependency-health signal (counting it would wrongly open the breaker).
+	var (
+		respBody []byte
+		status   int
+	)
+	callErr := snapBreaker.Do(func() error {
+		resp, derr := snapClient.Do(httpReq)
+		if derr != nil {
+			return fmt.Errorf("midtrans request: %w", derr)
+		}
+		defer resp.Body.Close()
+		body, rerr := io.ReadAll(resp.Body)
+		if rerr != nil {
+			return fmt.Errorf("midtrans read response: %w", rerr)
+		}
+		status, respBody = resp.StatusCode, body
+		if status >= 500 {
+			return fmt.Errorf("midtrans %d: %s", status, string(body)) // 5xx → failure (trips breaker)
+		}
+		return nil // 2xx or 4xx → not a dependency-health failure
+	})
+	if callErr != nil {
+		if errors.Is(callErr, resilience.ErrCircuitOpen) {
+			return nil, fmt.Errorf("midtrans unavailable (circuit open): %w", callErr)
+		}
+		return nil, callErr // transport error or 5xx
 	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("midtrans read response: %w", err)
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("midtrans %d: %s", resp.StatusCode, string(respBody))
+	// 4xx reaches here without tripping the breaker — surface as a non-retryable failure.
+	if status < 200 || status >= 300 {
+		return nil, fmt.Errorf("midtrans %d: %s", status, string(respBody))
 	}
 
 	var out TransactionResult

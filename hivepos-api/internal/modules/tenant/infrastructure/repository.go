@@ -53,15 +53,21 @@ func (r *PgTenantRepository) CompleteOnboarding(ctx context.Context, tenantID st
 	if modules == nil {
 		modules = []string{"laundry"}
 	}
-	modulesJSON, _ := json.Marshal(modules)
+	modulesJSON, err := json.Marshal(modules)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling active modules: %w", err)
+	}
 
 	var settingsJSON interface{}
 	if len(input.Settings) > 0 {
-		b, _ := json.Marshal(input.Settings)
+		b, mErr := json.Marshal(input.Settings)
+		if mErr != nil {
+			return nil, fmt.Errorf("marshaling onboarding settings: %w", mErr)
+		}
 		settingsJSON = string(b)
 	}
 
-	_, err := r.db.ExecContext(ctx, `
+	_, err = r.db.ExecContext(ctx, `
 		UPDATE "Tenant"
 		SET "activeModules" = $1, settings = COALESCE($2, settings),
 		    "onboardingCompletedAt" = COALESCE("onboardingCompletedAt", NOW()),
@@ -152,8 +158,11 @@ func (r *PgTenantRepository) UpdateWebsite(ctx context.Context, tenantID string,
 	if input.Testimonials != nil {
 		settingsFields["testimonials"] = input.Testimonials
 	}
-	websiteJSON, _ := json.Marshal(settingsFields)
-	_, err := r.db.ExecContext(ctx,
+	websiteJSON, err := json.Marshal(settingsFields)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling website settings: %w", err)
+	}
+	_, err = r.db.ExecContext(ctx,
 		`UPDATE "Tenant" SET settings = jsonb_set(COALESCE(settings, '{}'), '{website}', COALESCE(settings->'website', '{}') || $1::jsonb), "updatedAt" = NOW() WHERE id = $2`,
 		string(websiteJSON), tenantID)
 	if err != nil {
@@ -235,8 +244,11 @@ func (r *PgTenantRepository) UpdateWhatsAppTemplates(ctx context.Context, tenant
 	}
 	raw["whatsappTemplates"] = templates
 
-	settingsJSON, _ := json.Marshal(raw)
-	_, err := r.db.ExecContext(ctx, `UPDATE "Tenant" SET settings = $1, "updatedAt" = NOW() WHERE id = $2`,
+	settingsJSON, err := json.Marshal(raw)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling whatsapp settings: %w", err)
+	}
+	_, err = r.db.ExecContext(ctx, `UPDATE "Tenant" SET settings = $1, "updatedAt" = NOW() WHERE id = $2`,
 		string(settingsJSON), tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("updating whatsapp templates: %w", err)

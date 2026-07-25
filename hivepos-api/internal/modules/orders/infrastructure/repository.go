@@ -457,6 +457,11 @@ func (r *PgOrderRepository) Create(ctx context.Context, order *domain.Order, ite
 		}
 		items[i].PricePerUnit = sp.base
 		items[i].Subtotal = sp.base * effectiveQty(sp.pt, items[i].Quantity, items[i].WeightKg)
+		// Guard: a negative base price (corrupt/misconfigured Service row) yields a negative
+		// line total → reducible gross, discount gaming, or a negative order total.
+		if items[i].Subtotal < 0 {
+			return fmt.Errorf("service %s has negative line total", items[i].ServiceID)
+		}
 		gross += items[i].Subtotal
 	}
 	order.DiscountAmount = cappedDiscount(gross, order.DiscountType, order.DiscountAmount)
@@ -624,10 +629,14 @@ func (r *PgOrderRepository) Delete(ctx context.Context, id, tenantID string) err
 	defer tx.Rollback()
 
 	// Guard: confirm the order belongs to the tenant before cascading deletes.
+	// FOR UPDATE locks the order row so Delete serializes with VoidPayment /
+	// RecordPayment (which both lock the order FOR UPDATE) — otherwise a Delete
+	// running alongside a DEPOSIT void could read stale payments under READ
+	// COMMITTED and refund a deposit the void already refunded (double refund).
 	var belongs int
 	if err := tx.QueryRowContext(ctx, `
 		SELECT 1 FROM "Order" o JOIN "Branch" b ON b.id = o."branchId"
-		WHERE o.id = $1 AND b."tenantId" = $2`, id, tenantID).Scan(&belongs); err == sql.ErrNoRows {
+		WHERE o.id = $1 AND b."tenantId" = $2 FOR UPDATE`, id, tenantID).Scan(&belongs); err == sql.ErrNoRows {
 		return tx.Commit() // not found / not in tenant — nothing to delete
 	} else if err != nil {
 		return fmt.Errorf("checking order ownership: %w", err)
