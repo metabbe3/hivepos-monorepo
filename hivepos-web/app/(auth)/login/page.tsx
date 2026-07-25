@@ -1,9 +1,8 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { signIn, reloadSession } from "@/lib/auth-client";
+import { signIn, useSession } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
-import { setAuthToken } from "@/lib/api/token";
 import Link from "next/link";
 import { toast } from "sonner";
 import { AlertCircle } from "lucide-react";
@@ -23,6 +22,7 @@ export default function LoginPage() {
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { status } = useSession();
   const [loading, setLoading] = useState(false);
   const [initialEmail, setInitialEmail] = useState("");
 
@@ -35,13 +35,12 @@ function LoginContent() {
     if (saved) setInitialEmail(saved);
   }, []);
 
-  // Land the Google OAuth round-trip: backend redirects here with ?googleToken=<jwt>.
+  // Google OAuth round-trip: the backend now hands the session over via an httpOnly
+  // hp_session cookie (no token in the URL). SessionProvider reloads on mount; once
+  // authenticated, bounce to /dashboard.
   useEffect(() => {
-    const t = searchParams.get("googleToken");
-    if (!t) return;
-    setAuthToken(t);
-    reloadSession().then(() => router.replace("/dashboard"));
-  }, [searchParams, router]);
+    if (status === "authenticated") router.replace("/dashboard");
+  }, [status, router]);
 
   async function handleLogin(values: Record<string, unknown>) {
     setLoading(true);

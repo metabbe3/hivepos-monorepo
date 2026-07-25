@@ -100,12 +100,16 @@ func GetClaims(r *http.Request) *Claims {
 }
 
 func extractToken(r *http.Request) string {
-	// Bearer token from Authorization header
+	// Bearer token from Authorization header (legacy localStorage transport during migration)
 	auth := r.Header.Get("Authorization")
 	if strings.HasPrefix(auth, "Bearer ") {
 		return strings.TrimPrefix(auth, "Bearer ")
 	}
-	// NextAuth session cookie
+	// httpOnly hp_session cookie (new cookie-based transport — JS can't read it)
+	if cookie, err := r.Cookie("hp_session"); err == nil && cookie.Value != "" {
+		return cookie.Value
+	}
+	// NextAuth session cookie (legacy pos-saas)
 	if cookie, err := r.Cookie("next-auth.session-token"); err == nil {
 		return cookie.Value
 	}

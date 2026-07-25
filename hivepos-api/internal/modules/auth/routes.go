@@ -141,6 +141,11 @@ func (m *Module) login(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Also set the httpOnly session cookie so credential login is cookie-based (forward-
+	// compat with dropping localStorage). The FE still reads data.token for now; extractToken
+	// dual-reads Bearer + cookie, so this is additive + non-breaking.
+	m.setSessionCookie(w, req, token)
+
 	apphttp.Success(w, domain.LoginResponse{
 		Token: token,
 		User:  toUserInfo(uc.User),
@@ -152,6 +157,7 @@ func (m *Module) login(w http.ResponseWriter, req *http.Request) {
 // fallback) is dropped alongside the localStorage JWT. Without this, a tenant logout
 // leaves the super-admin session alive via the surviving cookie.
 func (m *Module) logout(w http.ResponseWriter, _ *http.Request) {
+	clearCookie(w, "hp_session")
 	clearCookie(w, "next-auth.session-token")
 	// __Secure- prefixed cookies require the Secure attribute on EVERY Set-Cookie
 	// (deletion included) or the browser rejects it — so the plain clearCookie helper
@@ -343,7 +349,7 @@ func (m *Module) googleStart(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name: "oauth_origin", Value: host, MaxAge: 600,
+		Name: "oauth_origin", Value: m.sign(host), MaxAge: 600,
 		Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, Domain: cookieDomain,
 	})
 
@@ -415,10 +421,11 @@ func (m *Module) googleCallback(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Reconstruct the same redirect_uri used in googleStart — Google validates it matches
-	// between the auth request and the token exchange.
+	// between the auth request and the token exchange. oauth_origin is HMAC-signed (set in
+	// googleStart) so a subdomain can't toss a forged origin and redirect the session elsewhere.
 	originHost := req.Host
-	if originCookie, cerr := req.Cookie("oauth_origin"); cerr == nil && originCookie.Value != "" {
-		originHost = originCookie.Value
+	if origin, ok := m.cookiePayload(req, "oauth_origin"); ok && origin != "" {
+		originHost = origin
 	}
 	var exchangeRedirect string
 	if strings.HasPrefix(originHost, "localhost") || strings.HasPrefix(originHost, "127.0.0.1") {
@@ -473,6 +480,9 @@ func (m *Module) googleCallback(w http.ResponseWriter, req *http.Request) {
 	uc, err := m.svc.GoogleLogin(req.Context(), info.Email, info.Id, info.Picture)
 	if err != nil {
 		if errors.Is(err, application.ErrGoogleUserNotFound) {
+			// ponytail: register prefill still travels via URL params (email/name/googleId) —
+			// lower-severity PII, NOT a credential. Moving it to a cookie needs SSR-safe FE
+			// wiring (mounted guard + DynamicForm initialData timing) — defer to a focused change.
 			u := originBase + "/register?googleEmail=" + info.Email + "&googleName=" + info.Name + "&googleId=" + info.Id
 			http.Redirect(w, req, u, http.StatusFound)
 			return
@@ -486,7 +496,9 @@ func (m *Module) googleCallback(w http.ResponseWriter, req *http.Request) {
 		apphttp.Error(w, http.StatusInternalServerError, "failed to issue token")
 		return
 	}
-	http.Redirect(w, req, originBase+"/login?googleToken="+jwt, http.StatusFound)
+	// Hand the session to the browser via an httpOnly cookie — never in the URL.
+	m.setSessionCookie(w, req, jwt)
+	http.Redirect(w, req, originBase+"/login", http.StatusFound)
 }
 
 // GET /google/e2e-test?email=X — Dev-only: simulates the post-Exchange path of the Google
@@ -509,14 +521,15 @@ func (m *Module) googleE2ETest(w http.ResponseWriter, req *http.Request) {
 	}
 	// Same redirect the real callback produces.
 	originHost := req.Host
-	if originCookie, cerr := req.Cookie("oauth_origin"); cerr == nil && originCookie.Value != "" {
-		originHost = originCookie.Value
+	if origin, ok := m.cookiePayload(req, "oauth_origin"); ok && origin != "" {
+		originHost = origin
 	}
 	scheme := "https"
-	if strings.HasPrefix(originHost, "localhost") || strings.HasPrefix(originHost, "127.0.0.1") {
+	if isLocalHost(originHost) {
 		scheme = "http"
 	}
-	http.Redirect(w, req, fmt.Sprintf("%s://%s/login?googleToken=%s", scheme, originHost, jwt), http.StatusFound)
+	m.setSessionCookie(w, req, jwt)
+	http.Redirect(w, req, fmt.Sprintf("%s://%s/login", scheme, originHost), http.StatusFound)
 }
 
 // sign returns payload + "." + hmac(payload) (hex).
@@ -558,6 +571,29 @@ func (m *Module) cookiePayload(req *http.Request, name string) (string, bool) {
 
 func clearCookie(w http.ResponseWriter, name string) {
 	http.SetCookie(w, &http.Cookie{Name: name, Value: "", MaxAge: -1, Path: "/"})
+}
+
+// isLocalHost reports whether the request host is a local dev origin (http, no Secure).
+func isLocalHost(host string) bool {
+	return strings.HasPrefix(host, "localhost") || strings.HasPrefix(host, "127.0.0.1")
+}
+
+// setSessionCookie writes the app JWT into a host-only, httpOnly, SameSite=Lax cookie so
+// the browser holds the session but JS can never read it — replacing the previous
+// /login?googleToken=<jwt> redirect (which leaked the 60-day bearer via history/Referer/
+// access logs). Host-only (no Domain): scopes the cookie to the platform host, denying
+// subdomain tossing. SameSite=Lax suffices: the OAuth callback is a top-level GET
+// navigation (Lax-permitted) and same-site XHR (apiFetch) sends the cookie.
+func (m *Module) setSessionCookie(w http.ResponseWriter, req *http.Request, token string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "hp_session",
+		Value:    token,
+		Path:     "/",
+		MaxAge:   60 * 24 * 60 * 60, // 60 days — matches the JWT TTL
+		HttpOnly: true,
+		Secure:   !isLocalHost(req.Host),
+		SameSite: http.SameSiteLaxMode,
+	})
 }
 
 func randHex(n int) string {
