@@ -1257,6 +1257,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/tenants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public tenant directory (active tenants with a published website)
+         * @description Returns active tenants with a published public website — slug, name, primary
+         *     branch address (free-text), and websitePublishedAt. Drives the /laundry city
+         *     directory and the sitemap tenant URLs. The FE groups by city via a curated
+         *     major-city list matched against the free-text address (there is no structured
+         *     city column). No auth.
+         */
+        get: operations["listPublicTenants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/public/tenants/{slug}": {
         parameters: {
             query?: never;
@@ -4642,6 +4666,14 @@ export interface components {
         PublicServiceGroup: {
             id: string;
             name: string;
+        };
+        /** @description Directory-listing view of an active tenant with a published public website. */
+        PublicTenantSummary: {
+            slug: string;
+            name: string;
+            /** @description Primary branch address (free-text) — the FE groups by city. */
+            address?: string | null;
+            websitePublishedAt?: string | null;
         };
         PublicTenant: {
             id: string;
@@ -8806,6 +8838,26 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+        };
+    };
+    listPublicTenants: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tenant summaries (bare array). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicTenantSummary"][];
+                };
+            };
         };
     };
     getPublicTenant: {

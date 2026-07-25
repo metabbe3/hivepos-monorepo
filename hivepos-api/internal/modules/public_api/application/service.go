@@ -13,6 +13,7 @@ type Repository interface {
 	FindBranchesByTenantSlug(ctx context.Context, slug string) ([]*domain.PublicBranch, error)
 	FindServicesByTenantSlug(ctx context.Context, slug, branchID string) ([]*domain.PublicService, error)
 	FindPublicTenantBySlug(ctx context.Context, slug string) (*domain.PublicTenant, error)
+	FindPublicTenantSummaries(ctx context.Context) ([]*domain.PublicTenantSummary, error)
 	CreateSupportTicket(ctx context.Context, input domain.TicketInput) (string, error)
 	FindOrderByNumber(ctx context.Context, orderNumber, phoneLast4 string) (*domain.PublicOrder, error)
 	CreatePickupRequest(ctx context.Context, input domain.PickupInput) (string, error)
@@ -27,6 +28,16 @@ type Service struct {
 
 func NewService(repo Repository) *Service {
 	return &Service{Repo: repo}
+}
+
+// ListPublicTenantSummaries returns active tenants with a published public website — for the
+// /laundry city directory + the sitemap. Cross-tenant public list (no slug resolution).
+func (s *Service) ListPublicTenantSummaries(ctx context.Context) ([]*domain.PublicTenantSummary, error) {
+	summaries, err := s.Repo.FindPublicTenantSummaries(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("finding public tenant summaries: %w", err)
+	}
+	return summaries, nil
 }
 
 // ListBranches returns the public branch directory for a tenant (resolved by slug).

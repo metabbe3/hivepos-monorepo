@@ -32,6 +32,17 @@ type PublicTenantBranch struct {
 	OperatingHours  json.RawMessage `json:"operatingHours"`
 }
 
+// PublicTenantSummary is the directory-listing view of an active tenant with a published
+// public website — drives the /laundry city directory + the sitemap tenant URLs. Carries
+// the primary branch address (free-text) so the FE can group by city; there is no
+// structured city column (schema changes are Prisma-only, out of Go scope).
+type PublicTenantSummary struct {
+	Slug               string  `json:"slug"`
+	Name               string  `json:"name"`
+	Address            *string `json:"address"`
+	WebsitePublishedAt *string `json:"websitePublishedAt"`
+}
+
 // TicketStatus mirrors the Prisma enum.
 type TicketStatus string
 

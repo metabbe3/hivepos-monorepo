@@ -2343,6 +2343,28 @@ paths:
                 $ref: "#/components/schemas/PublicServiceCatalogEnvelope"
         "400":
           $ref: "#/components/responses/BadRequest"
+  /public/tenants:
+    get:
+      tags:
+        - public
+      summary: Public tenant directory (active tenants with a published website)
+      description: |
+        Returns active tenants with a published public website — slug, name, primary
+        branch address (free-text), and websitePublishedAt. Drives the /laundry city
+        directory and the sitemap tenant URLs. The FE groups by city via a curated
+        major-city list matched against the free-text address (there is no structured
+        city column). No auth.
+      operationId: listPublicTenants
+      security: []
+      responses:
+        "200":
+          description: Tenant summaries (bare array).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PublicTenantSummary"
   /public/tenants/{slug}:
     get:
       tags:
@@ -9425,6 +9447,24 @@ components:
           type: string
       required:
         - id
+        - name
+    PublicTenantSummary:
+      type: object
+      description: Directory-listing view of an active tenant with a published public website.
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+          nullable: true
+          description: Primary branch address (free-text) — the FE groups by city.
+        websitePublishedAt:
+          type: string
+          nullable: true
+      required:
+        - slug
         - name
     PublicTenant:
       type: object

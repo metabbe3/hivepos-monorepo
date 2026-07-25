@@ -20,7 +20,7 @@ These docs are the build instructions for both hivepos-web (TS) and hivepos-api 
 | [orders](./orders.md) | 10 |
 | [pickup](./pickup.md) | 9 |
 | [printers](./printers.md) | 2 |
-| [public](./public.md) | 8 |
+| [public](./public.md) | 9 |
 | [pwa](./pwa.md) | 1 |
 | [reports](./reports.md) | 15 |
 | [roles](./roles.md) | 5 |

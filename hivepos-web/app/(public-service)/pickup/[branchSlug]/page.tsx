@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { apiFetch } from "@/modules/shared";
 import { PickupRequestForm } from "@/components/public/pickup-request-form";
 import type { TemplateOverrides } from "@/lib/whatsapp-templates";
@@ -86,6 +87,18 @@ export default async function PickupRequestPage({ params }: Props) {
           slotDays={slotDays}
           whatsappTemplates={whatsappTemplates}
         />
+
+        {/* Awareness: customers requesting pickup see a branded credit + trial CTA. */}
+        <footer className="mt-10 text-center text-xs text-slate-400 space-y-1">
+          <p>
+            Dibuat dengan{" "}
+            <Link href="/" className="font-semibold text-brand-700 hover:underline">hivePOS</Link>
+            {" "}— kasir laundry di browser
+          </p>
+          <Link href="/register" className="font-semibold text-brand-700 hover:underline">
+            Punya usaha laundry? Coba gratis →
+          </Link>
+        </footer>
       </div>
     </main>
   );

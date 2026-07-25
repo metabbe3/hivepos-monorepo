@@ -22,6 +22,9 @@ func (f *fakeRepo) FindBranchesByTenantSlug(_ context.Context, _ string) ([]*dom
 func (f *fakeRepo) FindPublicTenantBySlug(_ context.Context, _ string) (*domain.PublicTenant, error) {
 	return nil, nil
 }
+func (f *fakeRepo) FindPublicTenantSummaries(_ context.Context) ([]*domain.PublicTenantSummary, error) {
+	return nil, nil
+}
 func (f *fakeRepo) FindServicesByTenantSlug(_ context.Context, _, _ string) ([]*domain.PublicService, error) {
 	return f.services, nil
 }

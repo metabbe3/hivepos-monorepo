@@ -10,6 +10,7 @@
 | `GET` | `/public/orders/track` | — | — | OrderTrackingEnvelope | Track a public order by order number |
 | `POST` | `/public/pickup-requests` | — | PublicPickupInput | PublicPickupResultEnvelope | Submit a public pickup request |
 | `GET` | `/public/services` | — | — | PublicServiceCatalogEnvelope | Public service catalog for a tenant |
+| `GET` | `/public/tenants` | — | — | — | Public tenant directory (active tenants with a published website) |
 | `GET` | `/public/tenants/{slug}` | — | — | PublicTenantEnvelope | Public tenant website payload by slug |
 | `POST` | `/public/tickets` | — | PublicTicketInput | PublicTicketResultEnvelope | Submit a public support ticket |
 

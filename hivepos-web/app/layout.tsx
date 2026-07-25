@@ -23,16 +23,32 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
   },
+  alternates: {
+    // RSS autodiscovery — feed readers pick up the blog feed automatically.
+    types: { "application/rss+xml": "/rss.xml" },
+  },
   // GSC ownership verification — meta rendered only when the token is set in env.
   ...(process.env.NEXT_PUBLIC_GSC_VERIFICATION
     ? { verification: { google: process.env.NEXT_PUBLIC_GSC_VERIFICATION } }
     : {}),
 };
 
+// Organization structured data — sits on every page for knowledge-panel eligibility.
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "hivePOS",
+  url: SITE_URL,
+  description: "Kasir laundry ringan di browser untuk UMKM Indonesia — kiloan, satuan, WhatsApp order, multi-outlet.",
+  areaServed: "ID",
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="id" suppressHydrationWarning>
       <body>
+        {/* Organization structured data — static literal (no untrusted input), safe JSON-LD. */}
+        <script type="application/ld+json">{JSON.stringify(organizationJsonLd)}</script>
         <I18nProvider>{children}</I18nProvider>
         <PwaRegister />
         <PwaForceUpdateWatcher />

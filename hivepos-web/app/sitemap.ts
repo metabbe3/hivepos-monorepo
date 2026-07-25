@@ -1,24 +1,20 @@
 import type { MetadataRoute } from "next";
 import { apiFetch } from "@/modules/shared";
 import { COMPETITORS } from "@/lib/alternatif-data";
+import { BLOG_POSTS } from "@/lib/blog-posts";
+import { LAUNDRY_CITIES } from "@/lib/laundry-cities";
 import { SITE_URL, SITE_DOMAIN } from "@/lib/site";
 
 // ponytail: platform URLs stay static; tenant website URLs appended from the API.
-// force-dynamic: API isn't reachable at build time, so skip prerender.
+// force-dynamic: tenant API isn't reachable at build time, so skip prerender.
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = SITE_URL;
   const lastModified = new Date();
 
-  // Public blog posts (served by the Go public_api module).
-  let blogPosts: { slug: string; updatedAt?: string }[] = [];
-  try {
-    const { data } = await apiFetch<{ slug: string; updatedAt?: string }[]>("/api/public/blog-posts");
-    blogPosts = Array.isArray(data) ? data : [];
-  } catch {
-    blogPosts = [];
-  }
+  // Blog posts live in-code (lib/blog-posts.ts) — no API.
+  const blogPosts = BLOG_POSTS.map((p) => ({ slug: p.slug, updatedAt: p.publishedAt }));
 
   const platformUrls: MetadataRoute.Sitemap = [
     { url: base, lastModified, changeFrequency: "weekly", priority: 1.0 },
@@ -32,6 +28,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // /register intentionally omitted — it's noindex (app/(auth)/layout.tsx), so
     // listing it in the sitemap contradicts the page's own robots directive.
     { url: `${base}/terms`, lastModified, changeFrequency: "yearly", priority: 0.3 },
+    // /laundry city directory — programmatic per-city SEO (tenants grouped by address match).
+    { url: `${base}/laundry`, lastModified, changeFrequency: "weekly", priority: 0.7 },
+    ...LAUNDRY_CITIES.map((c) => ({
+      url: `${base}/laundry/${c.slug}`,
+      lastModified,
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    })),
     { url: `${base}/blog`, lastModified, changeFrequency: "weekly", priority: 0.8 },
     ...blogPosts.map((p) => ({
       url: `${base}/blog/${p.slug}`,

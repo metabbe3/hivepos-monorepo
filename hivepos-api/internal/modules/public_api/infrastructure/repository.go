@@ -384,3 +384,42 @@ func (r *PgPublicRepository) FindPublishedBlogPostBySlug(ctx context.Context, sl
 	}
 	return p, nil
 }
+
+// FindPublicTenantSummaries returns active tenants with a published public website, plus the
+// primary branch address (free-text — the FE groups by city via a curated city list; there's
+// no structured city column). Drives the /laundry directory + the sitemap tenant URLs.
+func (r *PgPublicRepository) FindPublicTenantSummaries(ctx context.Context) ([]*domain.PublicTenantSummary, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT t.slug, t.name, b.address, t."websitePublishedAt"::text
+		FROM "Tenant" t
+		LEFT JOIN LATERAL (
+			SELECT address FROM "Branch"
+			WHERE "tenantId" = t.id AND "isActive" = true AND address IS NOT NULL AND address <> ''
+			ORDER BY name LIMIT 1
+		) b ON true
+		WHERE t."isActive" = true AND t."websiteEnabled" = true
+		ORDER BY t.name`)
+	if err != nil {
+		return nil, fmt.Errorf("querying public tenant summaries: %w", err)
+	}
+	defer rows.Close()
+
+	var list []*domain.PublicTenantSummary
+	for rows.Next() {
+		s := &domain.PublicTenantSummary{}
+		var addr, pub sql.NullString
+		if err := rows.Scan(&s.Slug, &s.Name, &addr, &pub); err != nil {
+			return nil, fmt.Errorf("scanning public tenant summary: %w", err)
+		}
+		if addr.Valid && addr.String != "" {
+			a := addr.String
+			s.Address = &a
+		}
+		if pub.Valid && pub.String != "" {
+			p := pub.String
+			s.WebsitePublishedAt = &p
+		}
+		list = append(list, s)
+	}
+	return list, rows.Err()
+}

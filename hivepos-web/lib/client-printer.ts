@@ -359,6 +359,10 @@ export function buildClientReceipt(order: {
   p.text(singleLine);
   p.align(1);
   p.text("Terima kasih atas kepercayaan Anda");
+  // Awareness: the printed receipt is the meatspace touchpoint — it rides in the
+  // customer's pocket/bag to other prospective laundry owners. Brand every receipt.
+  p.feed(1);
+  p.text("Powered by hivePOS - hivepos.id");
   p.feed(3).cut();
 
   return p.build();

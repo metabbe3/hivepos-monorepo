@@ -28,6 +28,7 @@ func NewModule(db interface{}) *Module {
 // Register mounts the public-API sub-router.
 // ponytail: medium — public endpoints resolved by slug; add API-key rate limiting when abuse occurs.
 func (m *Module) Register(r chi.Router) {
+	r.Get("/tenants", m.listTenants)
 	r.Get("/tenants/{slug}", m.publicTenant)
 	r.Get("/branches", m.listBranches)
 	r.Get("/services", m.listServices)
@@ -66,6 +67,20 @@ func resolveSlug(req *http.Request) string {
 		return strings.TrimSpace(s)
 	}
 	return strings.TrimSpace(req.URL.Query().Get("slug"))
+}
+
+// listTenants returns active tenants with a published public website — cross-tenant public
+// list for the /laundry city directory + the sitemap (no slug, no auth).
+func (m *Module) listTenants(w http.ResponseWriter, req *http.Request) {
+	summaries, err := m.svc.ListPublicTenantSummaries(req.Context())
+	if err != nil {
+		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if summaries == nil {
+		summaries = []*domain.PublicTenantSummary{}
+	}
+	apphttp.Success(w, summaries)
 }
 
 func (m *Module) listBranches(w http.ResponseWriter, req *http.Request) {

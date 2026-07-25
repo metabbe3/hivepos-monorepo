@@ -610,6 +610,18 @@ export default function TrackOrderPage() {
               <ArrowLeft className="h-3 w-3" />
               Kembali ke Beranda
             </Link>
+            {/* Awareness: this page is opened daily by customers (often other small-business
+                owners). Brand the touchpoint + a free-trial CTA — automatic, per-transaction. */}
+            <div className="pt-2 mt-2 border-t border-slate-100 space-y-1">
+              <p className="text-xs text-slate-400">
+                Dibuat dengan{" "}
+                <Link href="/" className="font-semibold text-brand-700 hover:underline">hivePOS</Link>
+                {" "}— kasir laundry di browser
+              </p>
+              <Link href="/register" className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:underline">
+                Punya usaha laundry? Coba gratis →
+              </Link>
+            </div>
           </div>
         </div>
       </div>

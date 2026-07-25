@@ -1,14 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Star } from "lucide-react";
-import { apiFetch } from "@/modules/shared";
-import { estimateReadTime } from "@/lib/blog/render";
+import { BLOG_POSTS, type BlogPost } from "@/lib/blog-posts";
 import { BlogFooter, BlogHeader } from "@/components/blog/blog-shell";
 import { SITE_URL } from "@/lib/site";
-
-// force-dynamic: always read from the API at request time — new/edited posts appear
-// immediately with no rebuild.
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Blog hivePOS — Tips & Panduan Bisnis Laundry | hivePOS",
@@ -24,16 +19,6 @@ export const metadata: Metadata = {
   },
 };
 
-interface BlogPost {
-  slug: string;
-  title: string;
-  description: string;
-  content: string;
-  keywords?: string | null;
-  coverImage?: string | null;
-  publishedAt?: string | null;
-}
-
 function topic(post: BlogPost): string {
   return post.keywords?.split(",")[0]?.trim() || "Bisnis Laundry";
 }
@@ -43,14 +28,10 @@ function fmtDate(d?: string | null): string {
 }
 
 export default async function BlogPage() {
-  // Public blog posts from the Go backend (served by the public_api module).
-  let posts: BlogPost[] = [];
-  try {
-    const { data } = await apiFetch<BlogPost[]>("/api/public/blog-posts");
-    posts = Array.isArray(data) ? data : [];
-  } catch {
-    posts = [];
-  }
+  // Blog posts live in-code (lib/blog-posts.ts). The Go /api/public/blog-posts endpoint
+  // returns empty (posts aren't stored in the DB), so reading from the lib keeps the blog
+  // live + statically generated (better for SEO than a dead empty-state).
+  const posts: BlogPost[] = BLOG_POSTS;
 
   const featured = posts[0];
   const rest = posts.slice(1);
@@ -112,7 +93,7 @@ export default async function BlogPage() {
                     <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
                       <span className="rounded-full bg-sky-50 px-2.5 py-0.5 font-semibold text-brand">{topic(featured)}</span>
                       <span>·</span>
-                      <span>{estimateReadTime(featured.content)} baca</span>
+                      <span>{featured.readTime} baca</span>
                       {featured.publishedAt && (
                         <>
                           <span>·</span>
@@ -149,7 +130,7 @@ export default async function BlogPage() {
                       </h3>
                       <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600 line-clamp-3">{post.description}</p>
                       <div className="mt-5 flex items-center justify-between text-xs text-slate-400">
-                        <span>{estimateReadTime(post.content)} baca</span>
+                        <span>{post.readTime} baca</span>
                         {post.publishedAt && <time>{fmtDate(post.publishedAt)}</time>}
                       </div>
                     </Link>

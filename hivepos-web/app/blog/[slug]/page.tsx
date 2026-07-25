@@ -1,46 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import parse from "html-react-parser";
 import { ArrowLeft, Clock, CalendarDays, MessageCircle } from "lucide-react";
-import { apiFetch } from "@/modules/shared";
-import { renderMarkdown, estimateReadTime } from "@/lib/blog/render";
+import { BLOG_POSTS, type BlogPost } from "@/lib/blog-posts";
+import { slugifyHeading } from "@/lib/blog/render";
 import { BlogFooter, BlogHeader } from "@/components/blog/blog-shell";
 import { SITE_URL as SITE } from "@/lib/site";
 import { ReadingProgress } from "@/components/blog/reading-progress";
 import { TableOfContents } from "@/components/blog/table-of-contents";
-import Image from "next/image";
 import "../blog-prose.css";
-
-// force-dynamic: always read from the API at request time.
-export const dynamic = "force-dynamic";
-
-interface BlogPost {
-  slug: string;
-  title: string;
-  description: string;
-  content: string;
-  keywords?: string | null;
-  coverImage?: string | null;
-  publishedAt?: string | null;
-}
-interface BlogPostRef {
-  slug: string;
-  title: string;
-  description: string;
-  content: string;
-  keywords?: string | null;
-}
 
 // SITE → env-backed SITE_URL (aliased on import from @/lib/site).
 
-async function fetchPost(slug: string): Promise<BlogPost | null> {
-  try {
-    const { data } = await apiFetch<BlogPost>(`/api/public/blog-posts/${slug}`);
-    return data ?? null;
-  } catch {
-    return null;
-  }
+// Blog posts live in-code (lib/blog-posts.ts) — no DB/API. Sync lookup keeps the page
+// statically generated (better SEO than the dead empty-state the empty API produced).
+function fetchPost(slug: string): BlogPost | null {
+  return BLOG_POSTS.find((p) => p.slug === slug) ?? null;
 }
 
 export async function generateMetadata({
@@ -60,7 +35,6 @@ export async function generateMetadata({
       description: post.description,
       type: "article",
       url: `${SITE}/blog/${post.slug}`,
-      ...(post.coverImage ? { images: [post.coverImage] } : {}),
     },
     keywords: post.keywords
       ? post.keywords.split(",").map((k) => k.trim()).filter(Boolean)
@@ -84,8 +58,7 @@ export default async function BlogPostPage({
   const post = await fetchPost(slug);
   if (!post) notFound();
 
-  const html = renderMarkdown(post.content);
-  const readTime = estimateReadTime(post.content);
+  const readTime = post.readTime;
   const url = `${SITE}/blog/${post.slug}`;
   const tags = post.keywords?.split(",").map((t) => t.trim()).filter(Boolean) ?? [];
   const waShare = `https://wa.me/?text=${encodeURIComponent(`${post.title} — ${url}`)}`;
@@ -100,7 +73,6 @@ export default async function BlogPostPage({
     author: { "@type": "Organization", name: "hivePOS" },
     publisher: { "@type": "Organization", name: "hivePOS", url: SITE },
     mainEntityOfPage: url,
-    ...(post.coverImage ? { image: [post.coverImage] } : {}),
   };
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
@@ -112,13 +84,7 @@ export default async function BlogPostPage({
     ],
   };
 
-  let related: BlogPostRef[] = [];
-  try {
-    const { data } = await apiFetch<BlogPostRef[]>("/api/public/blog-posts");
-    related = (Array.isArray(data) ? data : []).filter((r) => r.slug !== slug).slice(0, 3);
-  } catch {
-    related = [];
-  }
+  const related: BlogPost[] = BLOG_POSTS.filter((r) => r.slug !== slug).slice(0, 3);
 
   return (
     <div className="pub-scope flex min-h-screen flex-col bg-white">
@@ -168,20 +134,6 @@ export default async function BlogPostPage({
             </div>
           </header>
 
-          {/* Cover */}
-          {post.coverImage && (
-            <div className="mx-auto max-w-4xl px-5 sm:px-6">
-              <Image
-                src={post.coverImage}
-                alt={post.title}
-                width={1600}
-                height={900}
-                sizes="(min-width: 768px) 1024px, 100vw"
-                className="-mt-8 mb-4 aspect-[16/9] w-full rounded-2xl border border-slate-200 object-cover shadow-sm"
-              />
-            </div>
-          )}
-
           {/* Body + TOC */}
           <div className="mx-auto max-w-6xl px-5 sm:px-6">
             <div className="flex justify-center gap-12 py-12 md:py-16">
@@ -189,7 +141,14 @@ export default async function BlogPostPage({
                 {/* renderMarkdown returns sanitized HTML with h2 anchor ids; html-react-parser
                     turns it into React elements (scripts can't execute) — safe HTML rendering. */}
                 <div className="prose prose-lg prose-slate prose-dropcap max-w-none prose-headings:scroll-mt-24 prose-headings:font-display prose-h2:mt-12 prose-h2:mb-4 prose-h2:border-l-4 prose-h2:border-brand/40 prose-h2:pl-3 prose-h2:text-2xl prose-h2:font-extrabold prose-h2:tracking-tight prose-h2:text-slate-900 prose-p:text-slate-700 prose-p:leading-[1.8] prose-a:font-semibold prose-a:text-brand prose-a:no-underline hover:prose-a:underline prose-strong:font-semibold prose-strong:text-slate-900 prose-li:my-1 prose-ul:my-4 prose-ol:my-4">
-                  {parse(html)}
+                  {post.sections.map((s) => (
+                    <section key={s.heading}>
+                      <h2 id={slugifyHeading(s.heading)}>{s.heading}</h2>
+                      {s.body.map((para, i) => (
+                        <p key={i}>{para}</p>
+                      ))}
+                    </section>
+                  ))}
                 </div>
 
                 {/* Tags + share */}
@@ -262,7 +221,7 @@ export default async function BlogPostPage({
                         {r.title}
                       </h3>
                       <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600 line-clamp-2">{r.description}</p>
-                      <span className="mt-4 text-xs text-slate-400">{estimateReadTime(r.content)} baca</span>
+                      <span className="mt-4 text-xs text-slate-400">{r.readTime} baca</span>
                     </Link>
                   ))}
                 </div>

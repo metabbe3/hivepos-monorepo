@@ -90,15 +90,25 @@ Estimasi total: {{total}}
 
 Terima kasih!`;
 
-const UNPAID_REMINDER_DEFAULT = `Halo, ini pengingat bahwa pesanan {{orderNumber}} belum lunas. Mohon untuk melakukan pembayaran. Terima kasih! - hivePOS`;
+const UNPAID_REMINDER_DEFAULT = `Halo, ini pengingat bahwa pesanan {{orderNumber}} belum lunas. Mohon untuk melakukan pembayaran. Terima kasih! - hivePOS
 
-const STATUS_READY_DEFAULT = `Halo, pakaian Anda untuk pesanan {{orderNumber}} sudah siap diambil. Terima kasih! - hivePOS`;
+{{trackingUrl}}`;
 
-const STATUS_RECEIVED_DEFAULT = `Halo, pesanan Anda {{orderNumber}} sedang kami proses. Terima kasih! - hivePOS`;
+const STATUS_READY_DEFAULT = `Halo, pakaian Anda untuk pesanan {{orderNumber}} sudah siap diambil. Terima kasih! - hivePOS
 
-const STATUS_IN_PROGRESS_DEFAULT = `Halo, pesanan Anda {{orderNumber}} sedang dikerjakan. Terima kasih! - hivePOS`;
+{{trackingUrl}}`;
 
-const STATUS_DELIVERED_DEFAULT = `Halo, terima kasih sudah menggunakan hivePOS! Pesanan {{orderNumber}} telah selesai.`;
+const STATUS_RECEIVED_DEFAULT = `Halo, pesanan Anda {{orderNumber}} sedang kami proses. Terima kasih! - hivePOS
+
+{{trackingUrl}}`;
+
+const STATUS_IN_PROGRESS_DEFAULT = `Halo, pesanan Anda {{orderNumber}} sedang dikerjakan. Terima kasih! - hivePOS
+
+{{trackingUrl}}`;
+
+const STATUS_DELIVERED_DEFAULT = `Halo, terima kasih sudah menggunakan hivePOS! Pesanan {{orderNumber}} telah selesai.
+
+{{trackingUrl}}`;
 
 // ─── Manifest ─────────────────────────────────────────────────────────────
 
@@ -206,6 +216,7 @@ export const WHATSAPP_TEMPLATES: TemplateManifestEntry[] = [
     defaultBody: UNPAID_REMINDER_DEFAULT,
     variables: [
       { name: "orderNumber", description: "Nomor pesanan", required: true },
+      { name: "trackingUrl", description: "URL lacak pesanan publik (opsional)", required: false },
     ],
   },
   {
@@ -217,6 +228,7 @@ export const WHATSAPP_TEMPLATES: TemplateManifestEntry[] = [
     defaultBody: STATUS_READY_DEFAULT,
     variables: [
       { name: "orderNumber", description: "Nomor pesanan", required: true },
+      { name: "trackingUrl", description: "URL lacak pesanan publik (opsional)", required: false },
     ],
   },
   {
@@ -228,6 +240,7 @@ export const WHATSAPP_TEMPLATES: TemplateManifestEntry[] = [
     defaultBody: STATUS_RECEIVED_DEFAULT,
     variables: [
       { name: "orderNumber", description: "Nomor pesanan", required: true },
+      { name: "trackingUrl", description: "URL lacak pesanan publik (opsional)", required: false },
     ],
   },
   {
@@ -239,6 +252,7 @@ export const WHATSAPP_TEMPLATES: TemplateManifestEntry[] = [
     defaultBody: STATUS_IN_PROGRESS_DEFAULT,
     variables: [
       { name: "orderNumber", description: "Nomor pesanan", required: true },
+      { name: "trackingUrl", description: "URL lacak pesanan publik (opsional)", required: false },
     ],
   },
   {
@@ -250,6 +264,7 @@ export const WHATSAPP_TEMPLATES: TemplateManifestEntry[] = [
     defaultBody: STATUS_DELIVERED_DEFAULT,
     variables: [
       { name: "orderNumber", description: "Nomor pesanan", required: true },
+      { name: "trackingUrl", description: "URL lacak pesanan publik (opsional)", required: false },
     ],
   },
 ];
