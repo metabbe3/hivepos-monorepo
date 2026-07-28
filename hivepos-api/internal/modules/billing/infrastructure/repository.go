@@ -5,10 +5,34 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/hivepos/api/internal/modules/billing/domain"
 )
+
+// expiringWindowDays: an outlet whose coverage ends within this many days shows
+// EXPIRING (amber) instead of ACTIVE. ponytail: single global window — per-plan
+// windows if plans ever differentiate grace periods.
+const expiringWindowDays = 14
+
+// outletStatus derives the billing status + days-to-expiry from coverage + tier.
+// Pure (no DB) so it's unit-testable. FREE = free-tier or no coverage; LOCKED =
+// coverage lapsed; EXPIRING = within expiringWindowDays; else ACTIVE.
+func outletStatus(coverageEnd sql.NullTime, isFreeTier bool, now time.Time) (status string, expiresInDays *int) {
+	if isFreeTier || !coverageEnd.Valid {
+		return "FREE", nil
+	}
+	days := int(math.Round(coverageEnd.Time.Sub(now).Hours() / 24))
+	switch {
+	case days < 0:
+		return "LOCKED", &days
+	case days <= expiringWindowDays:
+		return "EXPIRING", &days
+	default:
+		return "ACTIVE", &days
+	}
+}
 
 type PgBillingRepository struct {
 	db *sql.DB
@@ -275,9 +299,10 @@ func (r *PgBillingRepository) GetOutlets(ctx context.Context, tenantID string) (
 	}
 	defer rows.Close()
 
+	now := time.Now()
 	var out []*domain.BillingOutlet
 	for rows.Next() {
-		o := &domain.BillingOutlet{Status: "FREE"}
+		o := &domain.BillingOutlet{}
 		var coverageEnd sql.NullTime
 		if err := rows.Scan(&o.ID, &o.Name, &coverageEnd, &o.IsFreeTier); err != nil {
 			return nil, err
@@ -286,6 +311,7 @@ func (r *PgBillingRepository) GetOutlets(ctx context.Context, tenantID string) (
 			s := coverageEnd.Time.UTC().Format("2006-01-02T15:04:05.000Z")
 			o.CoverageEnd = &s
 		}
+		o.Status, o.ExpiresInDays = outletStatus(coverageEnd, o.IsFreeTier, now)
 		out = append(out, o)
 	}
 	return out, nil

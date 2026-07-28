@@ -108,6 +108,15 @@ func (m *Module) status(w http.ResponseWriter, req *http.Request) {
 	outlets, _ := m.svc.Repo.GetOutlets(req.Context(), tenantID)
 	if outlets != nil {
 		status.Outlets = outlets
+		// Active = covered/renewable (ACTIVE or EXPIRING); Locked = coverage lapsed.
+		for _, o := range outlets {
+			switch o.Status {
+			case "ACTIVE", "EXPIRING":
+				status.ActiveCount++
+			case "LOCKED":
+				status.LockedCount++
+			}
+		}
 	}
 	tenantInfo, _ := m.svc.Repo.GetTenantInfo(req.Context(), tenantID)
 	if tenantInfo != nil {
