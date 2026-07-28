@@ -5,10 +5,35 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/hivepos/api/internal/modules/billing/domain"
+	"github.com/hivepos/api/internal/planlimits"
 )
+
+// expiringWindowDays: an outlet whose coverage ends within this many days shows
+// EXPIRING (amber) instead of ACTIVE. ponytail: single global window — per-plan
+// windows if plans ever differentiate grace periods.
+const expiringWindowDays = 14
+
+// outletStatus derives the billing status + days-to-expiry from coverage + tier.
+// Pure (no DB) so it's unit-testable. FREE = free-tier or no coverage; LOCKED =
+// coverage lapsed; EXPIRING = within expiringWindowDays; else ACTIVE.
+func outletStatus(coverageEnd sql.NullTime, isFreeTier bool, now time.Time) (status string, expiresInDays *int) {
+	if isFreeTier || !coverageEnd.Valid {
+		return "FREE", nil
+	}
+	days := int(math.Round(coverageEnd.Time.Sub(now).Hours() / 24))
+	switch {
+	case days < 0:
+		return "LOCKED", &days
+	case days <= expiringWindowDays:
+		return "EXPIRING", &days
+	default:
+		return "ACTIVE", &days
+	}
+}
 
 type PgBillingRepository struct {
 	db *sql.DB
@@ -210,6 +235,18 @@ func (r *PgBillingRepository) SettlePayment(ctx context.Context, orderID string)
 		return fmt.Errorf("activating subscription: %w", err)
 	}
 
+	// Advance per-outlet coverage in lockstep with the subscription period. outletStatus
+	// (GetOutlets) derives ACTIVE/LOCKED from Branch.coverageEnd — without this write a real
+	// payment leaves every outlet LOCKED even though the subscription is ACTIVE. Mirrors the
+	// super-admin ExtendTrial write (superadmin/infrastructure/repository.go). Same tx ⇒ atomic.
+	// ponytail: extends ALL tenant branches (matches ExtendTrial); per-outlet selection if a
+	// tenant ever holds branches beyond the paid outlet count.
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE "Branch" SET "coverageEnd" = $1, "updatedAt" = NOW() WHERE "tenantId" = $2`,
+		periodEnd, tenantID); err != nil {
+		return fmt.Errorf("extending outlet coverage: %w", err)
+	}
+
 	// Redeem the promo (increment + audit) inside the same tx so a partial failure rolls back.
 	if promoCodeID.Valid {
 		if _, err := tx.ExecContext(ctx,
@@ -223,7 +260,13 @@ func (r *PgBillingRepository) SettlePayment(ctx context.Context, orderID string)
 		}
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	// Bust the planlimits cache so the next /billing/status reflects the new tier/isPaid
+	// at once instead of up to limitsTTL (5m) late. planlimits had no invalidators before.
+	planlimits.Invalidate(tenantID)
+	return nil
 }
 
 // GetPromoByCode returns an active, non-expired promo by code.
@@ -275,9 +318,10 @@ func (r *PgBillingRepository) GetOutlets(ctx context.Context, tenantID string) (
 	}
 	defer rows.Close()
 
+	now := time.Now()
 	var out []*domain.BillingOutlet
 	for rows.Next() {
-		o := &domain.BillingOutlet{Status: "FREE"}
+		o := &domain.BillingOutlet{}
 		var coverageEnd sql.NullTime
 		if err := rows.Scan(&o.ID, &o.Name, &coverageEnd, &o.IsFreeTier); err != nil {
 			return nil, err
@@ -286,6 +330,7 @@ func (r *PgBillingRepository) GetOutlets(ctx context.Context, tenantID string) (
 			s := coverageEnd.Time.UTC().Format("2006-01-02T15:04:05.000Z")
 			o.CoverageEnd = &s
 		}
+		o.Status, o.ExpiresInDays = outletStatus(coverageEnd, o.IsFreeTier, now)
 		out = append(out, o)
 	}
 	return out, nil

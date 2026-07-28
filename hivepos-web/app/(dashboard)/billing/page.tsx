@@ -167,6 +167,8 @@ export default function BillingPage() {
           expiringSoon: d.expiringSoon ?? [],
           trialEndsAt: d.trialEndsAt ?? null,
           pricing: d.pricing ?? { unitPrice: (d.amount as number) ?? 49000, originalUnitPrice: 99000 },
+          growthPrice: d.growthPrice,
+          proPrice: d.proPrice,
           limits: d.limits ?? {
             maxOutlets: isPaid ? 999 : 1,
             maxUsers: isPaid ? 999 : 2,

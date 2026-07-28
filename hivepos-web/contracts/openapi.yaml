@@ -7101,7 +7101,11 @@ components:
       properties:
         status:
           type: string
-          description: Payment status. Always `PENDING` immediately after checkout.
+          enum: [PENDING, PAID]
+          description: >
+            `PENDING` for a paid checkout (FE opens Midtrans Snap via snapToken).
+            `PAID` for a free/zero-amount checkout (full FREE_MONTH or 100% discount) —
+            settled immediately, no Snap token; the FE treats it as confirmed.
           example: PENDING
         snapToken:
           type: string

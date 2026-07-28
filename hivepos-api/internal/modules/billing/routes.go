@@ -21,10 +21,10 @@ type Module struct {
 }
 
 // NewModule constructs the billing module from a *sql.DB + Midtrans config.
-func NewModule(db interface{}, midtransServerKey, midtransEnv string) *Module {
+func NewModule(db interface{}, midtransServerKey, midtransEnv string, allowUnsignedWebhook bool) *Module {
 	pg := db.(*sql.DB)
 	repo := infrastructure.NewPgBillingRepository(pg)
-	return &Module{svc: application.NewService(repo, midtransServerKey, midtransEnv), db: pg}
+	return &Module{svc: application.NewService(repo, midtransServerKey, midtransEnv, allowUnsignedWebhook), db: pg}
 }
 
 // Register mounts the billing sub-router.
@@ -108,6 +108,15 @@ func (m *Module) status(w http.ResponseWriter, req *http.Request) {
 	outlets, _ := m.svc.Repo.GetOutlets(req.Context(), tenantID)
 	if outlets != nil {
 		status.Outlets = outlets
+		// Active = covered/renewable (ACTIVE or EXPIRING); Locked = coverage lapsed.
+		for _, o := range outlets {
+			switch o.Status {
+			case "ACTIVE", "EXPIRING":
+				status.ActiveCount++
+			case "LOCKED":
+				status.LockedCount++
+			}
+		}
 	}
 	tenantInfo, _ := m.svc.Repo.GetTenantInfo(req.Context(), tenantID)
 	if tenantInfo != nil {

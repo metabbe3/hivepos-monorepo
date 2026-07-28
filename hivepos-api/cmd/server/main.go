@@ -117,7 +117,7 @@ func main() {
 	r.Route("/api/dashboard", func(r chi.Router) { r.Use(middleware.RequireResource("dashboard"), middleware.RequireFeatureFlag("dashboard")); dashboardModule.Register(r) })
 
 	// Billing
-	billingModule := billing.NewModule(db, cfg.MidtransServerKey, cfg.MidtransEnv)
+	billingModule := billing.NewModule(db, cfg.MidtransServerKey, cfg.MidtransEnv, cfg.BillingAllowUnsignedWebhook)
 	r.Route("/api/billing", billingModule.Register)
 
 	// Auth (login, register)

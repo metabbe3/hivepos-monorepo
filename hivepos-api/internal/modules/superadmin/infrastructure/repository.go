@@ -14,6 +14,7 @@ import (
 	"github.com/hivepos/api/internal/auth"
 	"github.com/hivepos/api/internal/modules/superadmin/application"
 	"github.com/hivepos/api/internal/modules/superadmin/domain"
+	"github.com/hivepos/api/internal/planlimits"
 )
 
 type PgSuperAdminRepository struct {
@@ -353,6 +354,7 @@ func (r *PgSuperAdminRepository) ExtendTrial(ctx context.Context, tenantID strin
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
+	planlimits.Invalidate(tenantID)
 
 	id := tenantID
 	s := &domain.Subscription{}
@@ -481,10 +483,38 @@ func (r *PgSuperAdminRepository) ListPayments(ctx context.Context, filter applic
 }
 
 func (r *PgSuperAdminRepository) RefundPayment(ctx context.Context, id string) (*domain.SaaSPayment, error) {
-	_, err := r.db.ExecContext(ctx, `UPDATE "SaaSPayment" SET status = 'REFUNDED' WHERE id = $1 AND status = 'PAID'`, id)
+	// Refund = revoke the entitlement the payment granted. Flip the payment to REFUNDED and
+	// expire the coverage it purchased (outlet coverageEnd + subscription periodEnd) so outlets
+	// re-lock and the ledger reflects the reversal — same tx ⇒ atomic. The REFUNDED SaaSPayment
+	// row is the credit memo. ponytail: full-refund semantics (expire all coverage); a partial
+	// refund would re-derive a pro-rated coverageEnd — add when partial refunds ship.
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
+	defer tx.Rollback()
+
+	var tenantID string
+	switch err := tx.QueryRowContext(ctx,
+		`UPDATE "SaaSPayment" SET status = 'REFUNDED' WHERE id = $1 AND status = 'PAID' RETURNING "tenantId"`, id,
+	).Scan(&tenantID); {
+	case err == nil:
+		if _, err := tx.ExecContext(ctx, `UPDATE "Branch" SET "coverageEnd" = NOW(), "updatedAt" = NOW() WHERE "tenantId" = $1`, tenantID); err != nil {
+			return nil, fmt.Errorf("expiring outlet coverage on refund: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE "Subscription" SET "currentPeriodEnd" = NOW(), "updatedAt" = NOW() WHERE "tenantId" = $1`, tenantID); err != nil {
+			return nil, fmt.Errorf("expiring subscription on refund: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		planlimits.Invalidate(tenantID)
+	case err == sql.ErrNoRows:
+		// Already refunded / not PAID — idempotent no-op.
+	default:
+		return nil, fmt.Errorf("refunding payment: %w", err)
+	}
+
 	p := &domain.SaaSPayment{}
 	if err := r.db.QueryRowContext(ctx, `SELECT id, "tenantId", amount::float, "outletCount", "unitPrice"::float, "monthsPurchased", kind, status, "createdAt", "paidAt" FROM "SaaSPayment" WHERE id = $1`, id).
 		Scan(&p.ID, &p.TenantID, &p.Amount, &p.OutletCount, &p.UnitPrice, &p.MonthsPurchased, &p.Kind, &p.Status, &p.CreatedAt, &p.PaidAt); err != nil {
