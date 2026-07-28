@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useReducer } from "react";
 import { apiFetch, ApiClientError } from "@/lib/api/client";
-import { getAuthToken, setAuthToken, clearAuthToken } from "@/lib/api/token";
+import { setAuthToken, clearAuthToken } from "@/lib/api/token";
 import { DEFAULT_ROLES } from "@/lib/permissions/defaults";
 
 const BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api").replace(/\/$/, "");
@@ -33,12 +33,9 @@ const subscribers = new Set<() => void>();
 const emit = () => subscribers.forEach((fn) => fn());
 
 export async function reloadSession(): Promise<void> {
-  if (!getAuthToken()) {
-    currentSession = null;
-    currentStatus = "unauthenticated";
-    emit();
-    return;
-  }
+  // Always probe /auth/me — extractToken dual-reads Bearer (localStorage) + httpOnly
+  // hp_session cookie (Google OAuth). Gating on getAuthToken() skipped cookie-only
+  // sessions, so Google login set the cookie but the FE never noticed → bounced to /login.
   try {
     const { data } = await apiFetch<{ user: Record<string, unknown>; claims?: Record<string, unknown> }>(
       "/auth/me",
@@ -100,7 +97,8 @@ export async function signIn(
   opts?: any,
 ): Promise<{ ok: boolean; error?: string }> {
   if (provider === "google") {
-    // ponytail: Google OAuth — Go /api/auth/google is a stub. Redirect to the backend flow when wired.
+    // Top-level redirect to the backend OAuth start; Google → callback → httpOnly hp_session
+    // cookie → 302 /login. reloadSession() probes /auth/me on mount to pick up that cookie.
     if (typeof window !== "undefined") window.location.href = `${BASE}/auth/google`;
     return { ok: false };
   }

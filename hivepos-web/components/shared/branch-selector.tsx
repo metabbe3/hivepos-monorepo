@@ -30,18 +30,20 @@ function isAllOutletsRoute(pathname: string): boolean {
 export function BranchSelector() {
   const pathname = usePathname();
   const { isOwner, branchId, branchName } = useRole();
-  const { update } = useSession();
+  const { update, data: session } = useSession();
+  const tenantId = session?.user?.tenantId;
   const [branches, setBranches] = useState<Branch[]>([]);
 
   const showAllOption = isAllOutletsRoute(pathname);
   const isAllSelected = branchId === "ALL";
 
+  // /api/branches is tenant-scoped; super-admin (no tenant) would 403 on mount.
   useEffect(() => {
-    if (!isOwner) return;
+    if (!isOwner || !tenantId) return;
     apiFetch<Branch[]>("/api/branches")
       .then((res) => setBranches(res.data))
       .catch(() => {});
-  }, [isOwner]);
+  }, [isOwner, tenantId]);
 
   // Route guard: if not on a route that supports "ALL" and "ALL" is selected,
   // switch back to the first branch. Await update() so the session is persisted
@@ -59,7 +61,7 @@ export function BranchSelector() {
     }
   }, [isOwner, isAllSelected, showAllOption, branches, update]);
 
-  if (!isOwner) return null;
+  if (!isOwner || !tenantId) return null;
 
   async function selectBranch(id: string, name: string) {
     await update({ selectedBranchId: id, selectedBranchName: name });

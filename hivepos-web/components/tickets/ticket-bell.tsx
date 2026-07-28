@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiClientError } from "@/modules/shared";
+import { useSession } from "@/lib/auth-client";
 
 interface TicketEvent {
   id: string;
@@ -34,6 +35,9 @@ export function TicketBell() {
   const router = useRouter();
   const [events, setEvents] = useState<TicketEvent[]>([]);
   const [open, setOpen] = useState(false);
+  // /api/tickets/unread is tenant-scoped. Super-admin (and any session without a
+  // tenant) would 403 on every 90s poll — skip it; super-admin uses /super-admin/tickets.
+  const tenantId = useSession().data?.user?.tenantId;
 
   const poll = useCallback(async () => {
     try {
@@ -48,10 +52,11 @@ export function TicketBell() {
   }, []);
 
   useEffect(() => {
+    if (!tenantId) return;
     poll();
     const t = setInterval(poll, POLL_MS);
     return () => clearInterval(t);
-  }, [poll]);
+  }, [poll, tenantId]);
 
   async function onOpenChange(next: boolean) {
     setOpen(next);
