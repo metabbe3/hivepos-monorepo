@@ -403,6 +403,15 @@ func main() {
 				} else if n, _ := res.RowsAffected(); n > 0 {
 					log.Printf("photo cleanup: deleted %d expired photos", n)
 				}
+				// ErrorLog retention — cap table growth so a client-error flood or 5xx
+				// storm can't fill the shared DB disk and wedge every tenant at once.
+				// 90d keeps a generous support/debug window; selfheal only scans recent.
+				if res, err := db.ExecContext(reaperCtx,
+					`DELETE FROM "ErrorLog" WHERE "createdAt" < NOW() - INTERVAL '90 days'`); err != nil {
+					log.Printf("errorlog retention error: %v", err)
+				} else if n, _ := res.RowsAffected(); n > 0 {
+					log.Printf("errorlog retention: purged %d rows older than 90 days", n)
+				}
 			case <-reaperCtx.Done():
 				return
 			}

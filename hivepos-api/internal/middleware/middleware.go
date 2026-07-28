@@ -295,9 +295,20 @@ func (sc *statusCapture) Write(b []byte) (int, error) {
 // logErrorToDB inserts an ErrorLog row with full request context (best-effort).
 func logErrorToDB(db *sql.DB, r *http.Request, sc *statusCapture) {
 	code := sc.Header().Get("X-Error-Code")
+	if len(code) > 100 {
+		code = code[:100] // cap — disk-fill guard on a header that shouldn't be huge anyway
+	}
 	msg := sc.Header().Get("X-Error-Message")
 	if len(msg) > 500 {
 		msg = msg[:500]
+	}
+	urlPath := r.URL.Path
+	if len(urlPath) > 1000 {
+		urlPath = urlPath[:1000] // cap — a client can send an arbitrarily long request path
+	}
+	ua := r.UserAgent()
+	if len(ua) > 512 {
+		ua = ua[:512] // cap client-supplied User-Agent
 	}
 	var tenantID, userID interface{}
 	if tid := GetTenantID(r); tid != "" {
@@ -310,8 +321,8 @@ func logErrorToDB(db *sql.DB, r *http.Request, sc *statusCapture) {
 		INSERT INTO "ErrorLog" (id, "requestId", method, url, "httpStatus", code, message,
 			"tenantId", "userId", "ipAddress", "userAgent", resolved, "createdAt")
 		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, NULLIF($5, ''), NULLIF($6, ''), $7, $8, $9, $10, false, NOW())`,
-		chimw.GetReqID(r.Context()), r.Method, r.URL.Path, sc.status, code, msg,
-		tenantID, userID, r.RemoteAddr, r.UserAgent(),
+		chimw.GetReqID(r.Context()), r.Method, urlPath, sc.status, code, msg,
+		tenantID, userID, r.RemoteAddr, ua,
 	)
 	if err != nil {
 		log.Printf("ErrorLogger: failed to write ErrorLog row: %v", err)

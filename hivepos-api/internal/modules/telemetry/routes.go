@@ -44,12 +44,11 @@ func (m *Module) Register(w http.ResponseWriter, req *http.Request) {
 // so FE-only JS crashes surface in the super-admin error-logs viewer; everything
 // else is accepted + discarded (analytics placeholder). Rate-limited 100/min/user.
 func (m *Module) PostTelemetry(w http.ResponseWriter, req *http.Request) {
-	// RequireAuth populates the user id in context; fall back to the X-User-Id
-	// header for any caller that bypasses it.
+	// userID comes ONLY from the JWT claims (RequireAuth sets it in context).
+	// Never trust a client-supplied X-User-Id header — it let an authed caller spoof
+	// attribution AND rotate a fresh rate-limit bucket per request, bypassing the
+	// 100/min cap → unbounded ErrorLog inserts. RequireAuth guarantees claims are set.
 	userID := middleware.GetUserID(req)
-	if userID == "" {
-		userID = req.Header.Get("X-User-Id")
-	}
 	if userID == "" {
 		apphttp.UnauthorizedError(w, "Authentication required")
 		return
@@ -112,10 +111,16 @@ func insertClientError(req *http.Request, db *sql.DB, userID, tenantID string, e
 		msg = msg[:500]
 	}
 	url := strField(ev, "url")
+	if len(url) > 1000 {
+		url = url[:1000] // cap client-supplied url — disk-fill guard
+	}
 	if url == "" {
 		url = "(client)"
 	}
 	code := strField(ev, "type")
+	if len(code) > 100 {
+		code = code[:100] // cap client-supplied type/code
+	}
 	if code == "" {
 		code = "CLIENT_JS"
 	}
