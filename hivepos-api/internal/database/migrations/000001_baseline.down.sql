@@ -1,0 +1,4 @@
+-- Baseline snapshot of the pos_saas schema (taken from the live DB; pos-saas used
+-- `prisma db push`, so there was no migration journal to import). This is the floor:
+-- rolling "down" past it would DROP the entire schema, which we never want in prod.
+-- Intentionally empty — golang-migrate refuses version 0 by default.

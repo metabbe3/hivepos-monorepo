@@ -62,6 +62,17 @@ func main() {
 	defer db.Close()
 	log.Println("✓ Connected to PostgreSQL")
 
+	// Schema ownership check (READ-ONLY — never applies DDL at boot). Refuses to serve
+	// if the journal is dirty or behind code (forward-only; data untouched), and warns if
+	// migration ownership hasn't been adopted yet (no journal). See cmd/migrate.
+	if st, err := database.CheckSchema(cfg.DatabaseURL); err != nil {
+		log.Fatalf("schema check: %v", err)
+	} else if !st.OK {
+		log.Fatalf("schema: refusing to boot — %s", st.Action)
+	} else if st.Action != "" {
+		log.Printf("⚠ schema: %s", st.Action)
+	}
+
 	// Build router — ALL middleware must be registered BEFORE any routes (chi requirement).
 	// CORS first (outermost) so preflight OPTIONS is answered before JWT rejects it.
 	jwtMgr := appauth.NewJWTManager(cfg.JWTSecret)
