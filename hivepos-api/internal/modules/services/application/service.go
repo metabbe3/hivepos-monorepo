@@ -80,12 +80,14 @@ type Repository interface {
 	Update(ctx context.Context, s *domain.Service) error
 	Delete(ctx context.Context, id, tenantID string) error
 	CountUsage(ctx context.Context, id, tenantID string) (int, error)
+	ExistsByName(ctx context.Context, tenantID, branchID, name, excludeID string) (bool, error)
 
 	CreateGroup(ctx context.Context, g *domain.ServiceGroup) error
 	FindGroupByID(ctx context.Context, id, tenantID string) (*domain.ServiceGroup, error)
 	ListGroups(ctx context.Context, tenantID string, filter ListFilter) ([]*domain.ServiceGroup, int64, error)
 	UpdateGroup(ctx context.Context, g *domain.ServiceGroup) error
 	DeleteGroup(ctx context.Context, id, tenantID string) error
+	ExistsGroupByName(ctx context.Context, tenantID, branchID, name, excludeID string) (bool, error)
 }
 
 // Service implements the service + service-group use cases.
@@ -107,6 +109,11 @@ func (s *Service) Create(ctx context.Context, input CreateServiceInput, tenantID
 	}
 	if input.Module == "" {
 		input.Module = "LAUNDRY"
+	}
+	if dup, err := s.Repo.ExistsByName(ctx, tenantID, branchID, input.Name, ""); err != nil {
+		return nil, apperror.NewDatabase("checking service name", err)
+	} else if dup {
+		return nil, apperror.NewConflict("A service with this name already exists in this branch")
 	}
 	isActive := true
 	if input.IsActive != nil {
@@ -160,7 +167,12 @@ func (s *Service) ListItems(ctx context.Context, tenantID string, filter ListFil
 	return s.Repo.ListItems(ctx, tenantID, filter)
 }
 
-func (s *Service) Update(ctx context.Context, svc *domain.Service) error {
+func (s *Service) Update(ctx context.Context, svc *domain.Service, tenantID string) error {
+	if dup, err := s.Repo.ExistsByName(ctx, tenantID, svc.BranchID, svc.Name, svc.ID); err != nil {
+		return apperror.NewDatabase("checking service name", err)
+	} else if dup {
+		return apperror.NewConflict("A service with this name already exists in this branch")
+	}
 	return s.Repo.Update(ctx, svc)
 }
 
@@ -180,6 +192,11 @@ func (s *Service) Delete(ctx context.Context, id, tenantID string) error {
 func (s *Service) CreateGroup(ctx context.Context, input CreateGroupInput, tenantID, branchID string) (*domain.ServiceGroup, error) {
 	if input.Module == "" {
 		input.Module = "LAUNDRY"
+	}
+	if dup, err := s.Repo.ExistsGroupByName(ctx, tenantID, branchID, input.Name, ""); err != nil {
+		return nil, apperror.NewDatabase("checking service group name", err)
+	} else if dup {
+		return nil, apperror.NewConflict("A service group with this name already exists in this branch")
 	}
 	sortOrder := 0
 	if input.SortOrder != nil {
@@ -216,7 +233,12 @@ func (s *Service) ListGroups(ctx context.Context, tenantID string, filter ListFi
 	return s.Repo.ListGroups(ctx, tenantID, filter)
 }
 
-func (s *Service) UpdateGroup(ctx context.Context, g *domain.ServiceGroup) error {
+func (s *Service) UpdateGroup(ctx context.Context, g *domain.ServiceGroup, tenantID string) error {
+	if dup, err := s.Repo.ExistsGroupByName(ctx, tenantID, g.BranchID, g.Name, g.ID); err != nil {
+		return apperror.NewDatabase("checking service group name", err)
+	} else if dup {
+		return apperror.NewConflict("A service group with this name already exists in this branch")
+	}
 	return s.Repo.UpdateGroup(ctx, g)
 }
 

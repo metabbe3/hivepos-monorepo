@@ -91,7 +91,7 @@ func (m *Module) create(w http.ResponseWriter, req *http.Request) {
 	}
 	s, err := m.svc.Create(req.Context(), input, tenantID, branchID)
 	if err != nil {
-		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+		apperror.Write(w, err)
 		return
 	}
 	apphttp.Created(w, s)
@@ -157,8 +157,8 @@ func (m *Module) update(w http.ResponseWriter, req *http.Request) {
 	}
 	s.ID = id
 	// BranchID preserved from the original Get (tenant-scoped) — never from the body.
-	if err := m.svc.Update(req.Context(), s); err != nil {
-		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+	if err := m.svc.Update(req.Context(), s, middleware.GetTenantID(req)); err != nil {
+		apperror.Write(w, err)
 		return
 	}
 	apphttp.Success(w, s)
@@ -217,7 +217,7 @@ func (m *Module) createGroup(w http.ResponseWriter, req *http.Request) {
 	}
 	g, err := m.svc.CreateGroup(req.Context(), input, tenantID, branchID)
 	if err != nil {
-		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+		apperror.Write(w, err)
 		return
 	}
 	apphttp.Created(w, g)
@@ -243,8 +243,8 @@ func (m *Module) updateGroup(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	g.ID = id
-	if err := m.svc.UpdateGroup(req.Context(), g); err != nil {
-		apphttp.Error(w, http.StatusInternalServerError, err.Error())
+	if err := m.svc.UpdateGroup(req.Context(), g, middleware.GetTenantID(req)); err != nil {
+		apperror.Write(w, err)
 		return
 	}
 	apphttp.Success(w, g)

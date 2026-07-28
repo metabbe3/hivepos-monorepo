@@ -7,18 +7,21 @@ import (
 
 	"github.com/hivepos/api/internal/modules/services/application"
 	"github.com/hivepos/api/internal/modules/services/domain"
+	"github.com/hivepos/api/internal/shared/apperror"
 )
 
 type fakeRepo struct {
-	services     map[string]*domain.Service
-	groups       map[string]*domain.ServiceGroup
-	createErr    error
-	findErr      error
-	listTotal    int64
-	listErr      error
-	lastFilter   application.ListFilter
-	lastCreate   *domain.Service
-	lastGroupCrt *domain.ServiceGroup
+	services      map[string]*domain.Service
+	groups        map[string]*domain.ServiceGroup
+	createErr     error
+	findErr       error
+	listTotal     int64
+	listErr       error
+	lastFilter    application.ListFilter
+	lastCreate    *domain.Service
+	lastGroupCrt  *domain.ServiceGroup
+	dupName       bool
+	dupGroupName  bool
 }
 
 func newFakeRepo() *fakeRepo {
@@ -66,6 +69,12 @@ func (f *fakeRepo) ListGroups(_ context.Context, _ string, fl application.ListFi
 }
 func (f *fakeRepo) UpdateGroup(_ context.Context, _ *domain.ServiceGroup) error { return nil }
 func (f *fakeRepo) DeleteGroup(_ context.Context, _, _ string) error            { return nil }
+func (f *fakeRepo) ExistsByName(_ context.Context, _, _, _, _ string) (bool, error) {
+	return f.dupName, nil
+}
+func (f *fakeRepo) ExistsGroupByName(_ context.Context, _, _, _, _ string) (bool, error) {
+	return f.dupGroupName, nil
+}
 
 func TestCreate_AppliesDefaults(t *testing.T) {
 	s := application.NewService(newFakeRepo())
@@ -136,5 +145,26 @@ func TestCreateGroup_Defaults(t *testing.T) {
 func TestGetGroup_NotFound(t *testing.T) {
 	if _, err := application.NewService(newFakeRepo()).GetGroup(context.Background(), "g1", "t1"); err == nil {
 		t.Fatal("missing group must error")
+	}
+}
+
+func TestCreate_DuplicateName_Conflict(t *testing.T) {
+	r := newFakeRepo()
+	r.dupName = true
+	_, err := application.NewService(r).Create(context.Background(), application.CreateServiceInput{Name: "Dup"}, "t1", "b1")
+	ae := apperror.As(err)
+	if ae == nil || ae.Code != apperror.Conflict {
+		t.Fatalf("want CONFLICT, got %v", err)
+	}
+}
+
+func TestUpdate_DuplicateName_Conflict(t *testing.T) {
+	r := newFakeRepo()
+	r.services["s1"] = &domain.Service{ID: "s1", Name: "Old", BranchID: "b1"}
+	r.dupName = true
+	err := application.NewService(r).Update(context.Background(), &domain.Service{ID: "s1", Name: "Dup", BranchID: "b1"}, "t1")
+	ae := apperror.As(err)
+	if ae == nil || ae.Code != apperror.Conflict {
+		t.Fatalf("want CONFLICT, got %v", err)
 	}
 }

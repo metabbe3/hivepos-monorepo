@@ -244,6 +244,26 @@ func (r *PgServiceRepository) Delete(ctx context.Context, id, tenantID string) e
 	return err
 }
 
+// ExistsByName reports whether another Service in the same branch already holds
+// `name` (tenant-scoped via the Branch join). excludeID lets Update ignore the
+// row being renamed. Pre-check for the unique ("branchId", name) constraint so a
+// collision surfaces as a 409, not a swallowed 23505 500.
+// ponytail: pre-check, not a tx — admin catalog op, low concurrency; a racing
+// dup insert still surfaces as the original 23505 500 (same tradeoff as CountUsage).
+func (r *PgServiceRepository) ExistsByName(ctx context.Context, tenantID, branchID, name, excludeID string) (bool, error) {
+	var exists bool
+	q := `SELECT EXISTS(SELECT 1 FROM "Service" s JOIN "Branch" b ON b.id=s."branchId"
+	      WHERE b."tenantId"=$1 AND s."branchId"=$2 AND s.name=$3`
+	args := []interface{}{tenantID, branchID, name}
+	if excludeID != "" {
+		q += ` AND s.id <> $4`
+		args = append(args, excludeID)
+	}
+	q += `)`
+	err := r.db.QueryRowContext(ctx, q, args...).Scan(&exists)
+	return exists, err
+}
+
 // CountUsage reports how many OrderItems reference the service (tenant-scoped). Used by the
 // service layer to block delete with a clear 409 instead of a raw FK-violation 500.
 // ponytail: pre-check only — admin op, low concurrency; a racing insert would still surface as
@@ -354,4 +374,20 @@ func (r *PgServiceRepository) UpdateGroup(ctx context.Context, g *domain.Service
 func (r *PgServiceRepository) DeleteGroup(ctx context.Context, id, tenantID string) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM "ServiceGroup" g USING "Branch" b WHERE g.id=$1 AND b.id=g."branchId" AND b."tenantId"=$2`, id, tenantID)
 	return err
+}
+
+// ExistsGroupByName is the ServiceGroup counterpart to ExistsByName — pre-checks
+// the unique ("branchId", name) constraint so a collision is a 409, not a 500.
+func (r *PgServiceRepository) ExistsGroupByName(ctx context.Context, tenantID, branchID, name, excludeID string) (bool, error) {
+	var exists bool
+	q := `SELECT EXISTS(SELECT 1 FROM "ServiceGroup" g JOIN "Branch" b ON b.id=g."branchId"
+	      WHERE b."tenantId"=$1 AND g."branchId"=$2 AND g.name=$3`
+	args := []interface{}{tenantID, branchID, name}
+	if excludeID != "" {
+		q += ` AND g.id <> $4`
+		args = append(args, excludeID)
+	}
+	q += `)`
+	err := r.db.QueryRowContext(ctx, q, args...).Scan(&exists)
+	return exists, err
 }
