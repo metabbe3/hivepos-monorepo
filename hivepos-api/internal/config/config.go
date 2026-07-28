@@ -20,6 +20,11 @@ type Config struct {
 	MidtransServerKey string
 	MidtransClientKey string
 	MidtransEnv       string // sandbox | production
+	// BillingAllowUnsignedWebhook: dev-only escape hatch. When MIDTRANS_SERVER_KEY is
+	// unset, the webhook would otherwise accept ANY non-empty signature_key (forged
+	// settlement). Default false ⇒ unsigned webhooks are rejected even with no key.
+	// Set BILLING_ALLOW_UNSIGNED_WEBHOOK=true for local checkout/settle testing.
+	BillingAllowUnsignedWebhook bool
 
 	// WhatsApp gateway (Baileys microservice).
 	WhatsAppGatewayURL string
@@ -32,8 +37,8 @@ type Config struct {
 	WebOrigin string
 
 	// AI assistant (super-admin) — OpenAI-compatible. Empty key → assistant stays disabled.
-	AIKey    string
-	AIModel  string
+	AIKey     string
+	AIModel   string
 	AIBaseURL string
 
 	// Self-healing (Phase 1): ErrorLog spike alerting. Empty webhook → alerts skip
@@ -55,10 +60,11 @@ func Load() (*Config, error) {
 		JWTSecret:   getEnv("JWT_SECRET", ""),
 		Environment: getEnv("APP_ENV", "development"),
 
-		MidtransServerKey:   getEnv("MIDTRANS_SERVER_KEY", ""),
-		MidtransClientKey:   getEnv("MIDTRANS_CLIENT_KEY", ""),
-		MidtransEnv:         getEnv("MIDTRANS_ENV", "sandbox"),
-		WhatsAppGatewayURL:  getEnv("WHATSAPP_GATEWAY_URL", "http://localhost:3001"),
+		MidtransServerKey:           getEnv("MIDTRANS_SERVER_KEY", ""),
+		MidtransClientKey:           getEnv("MIDTRANS_CLIENT_KEY", ""),
+		MidtransEnv:                 getEnv("MIDTRANS_ENV", "sandbox"),
+		BillingAllowUnsignedWebhook: getEnv("BILLING_ALLOW_UNSIGNED_WEBHOOK", "false") == "true",
+		WhatsAppGatewayURL:          getEnv("WHATSAPP_GATEWAY_URL", "http://localhost:3001"),
 
 		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),

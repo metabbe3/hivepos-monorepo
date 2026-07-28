@@ -3584,10 +3584,11 @@ export interface components {
         /** @description Result of POST /billing/checkout. The FE opens Midtrans Snap using `snapToken` (NOT `token`). Shape mirrors the FE handleCheckout contract. */
         CheckoutResult: {
             /**
-             * @description Payment status. Always `PENDING` immediately after checkout.
+             * @description `PENDING` for a paid checkout (FE opens Midtrans Snap via snapToken). `PAID` for a free/zero-amount checkout (full FREE_MONTH or 100% discount) — settled immediately, no Snap token; the FE treats it as confirmed.
              * @example PENDING
+             * @enum {string}
              */
-            status?: string;
+            status?: "PENDING" | "PAID";
             /** @description Midtrans Snap token (or `mock-snap-token-…` in dev without keys). */
             snapToken?: string;
             /**

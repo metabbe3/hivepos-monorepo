@@ -21,10 +21,10 @@ type Module struct {
 }
 
 // NewModule constructs the billing module from a *sql.DB + Midtrans config.
-func NewModule(db interface{}, midtransServerKey, midtransEnv string) *Module {
+func NewModule(db interface{}, midtransServerKey, midtransEnv string, allowUnsignedWebhook bool) *Module {
 	pg := db.(*sql.DB)
 	repo := infrastructure.NewPgBillingRepository(pg)
-	return &Module{svc: application.NewService(repo, midtransServerKey, midtransEnv), db: pg}
+	return &Module{svc: application.NewService(repo, midtransServerKey, midtransEnv, allowUnsignedWebhook), db: pg}
 }
 
 // Register mounts the billing sub-router.

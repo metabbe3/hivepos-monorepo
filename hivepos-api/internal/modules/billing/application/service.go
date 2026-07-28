@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math"
+	"strconv"
 	"time"
 
 	"github.com/hivepos/api/internal/midtrans"
@@ -49,7 +50,7 @@ type CheckoutResult struct {
 type PromoValidateResult struct {
 	Valid       bool    `json:"valid"`
 	Reason      string  `json:"reason,omitempty"`
-	Type        string  `json:"type,omitempty"`  // FREE_MONTH | DISCOUNT_PERCENT | DISCOUNT_FIXED
+	Type        string  `json:"type,omitempty"` // FREE_MONTH | DISCOUNT_PERCENT | DISCOUNT_FIXED
 	Value       float64 `json:"value,omitempty"`
 	PromoCodeID string  `json:"promoCodeId,omitempty"`
 }
@@ -69,13 +70,16 @@ type Repository interface {
 
 // Service implements the billing use cases.
 type Service struct {
-	Repo          Repository
-	MidtransKey   string // server key; empty → checkout falls back to a mock token
-	MidtransEnv   string // sandbox | production
+	Repo        Repository
+	MidtransKey string // server key; empty → checkout falls back to a mock token
+	MidtransEnv string // sandbox | production
+	// AllowUnsignedWebhook: dev-only. When MidtransKey is empty, reject unsigned
+	// webhooks unless this is true (prevents forged settlements in misconfigured deploys).
+	AllowUnsignedWebhook bool
 }
 
-func NewService(repo Repository, midtransServerKey, midtransEnv string) *Service {
-	return &Service{Repo: repo, MidtransKey: midtransServerKey, MidtransEnv: midtransEnv}
+func NewService(repo Repository, midtransServerKey, midtransEnv string, allowUnsignedWebhook bool) *Service {
+	return &Service{Repo: repo, MidtransKey: midtransServerKey, MidtransEnv: midtransEnv, AllowUnsignedWebhook: allowUnsignedWebhook}
 }
 
 // GetStatus returns the tenant's current subscription (or a none-status shell).
@@ -105,6 +109,17 @@ func (s *Service) Checkout(ctx context.Context, input CheckoutInput, tenantID st
 	}
 	if plan == nil {
 		return nil, fmt.Errorf("plan not found")
+	}
+
+	// Trust boundary: block downgrades via direct API. The FE locks the tier selector for
+	// paid tenants (isProTenant), but a raw checkout call could request a cheaper tier and
+	// lock in a discount. Rank by price (FREE < GROWTH < PRO by priceMonthly): a requested
+	// plan cheaper than the current paid plan is a downgrade — require change-plan instead.
+	// ponytail: price-as-rank proxy avoids adding a Tier field to domain.Plan.
+	if cur, _ := s.Repo.GetSubscriptionByTenant(ctx, tenantID); cur != nil && cur.PlanID != "" {
+		if curPlan, _ := s.Repo.GetPlanByID(ctx, cur.PlanID); curPlan != nil && plan.Price < curPlan.Price {
+			return nil, fmt.Errorf("use change-plan to downgrade your subscription")
+		}
 	}
 
 	// ponytail: low — stub Midtrans Snap API; integrate github.com/midtrans/midtrans-go when keys available.
@@ -175,6 +190,20 @@ func (s *Service) Checkout(ctx context.Context, input CheckoutInput, tenantID st
 		ProviderOrderID: providerOrderID,
 		PromoCodeID:     promoCodeID,
 	}
+	// Free checkout (full FREE_MONTH or 100% discount ⇒ amount 0): Midtrans rejects a
+	// zero-gross Snap txn, so settle immediately. Runs the same SettlePayment path as a paid
+	// webhook (activates subscription, writes outlet coverage, invalidates the limits cache)
+	// and returns Status:"PAID" — the FE's handleCheckout already treats that as confirmed
+	// (no Snap redirect), so no FE change is needed.
+	if amount == 0 {
+		if err := s.Repo.CreatePayment(ctx, payment); err != nil {
+			return nil, fmt.Errorf("creating payment: %w", err)
+		}
+		if err := s.Repo.SettlePayment(ctx, providerOrderID); err != nil {
+			return nil, fmt.Errorf("settling free checkout: %w", err)
+		}
+		return &CheckoutResult{Status: "PAID"}, nil
+	}
 	if err := s.Repo.CreatePayment(ctx, payment); err != nil {
 		return nil, fmt.Errorf("creating payment: %w", err)
 	}
@@ -222,8 +251,10 @@ func (s *Service) HandleWebhook(ctx context.Context, input WebhookInput) error {
 		if !midtrans.VerifySignature(s.MidtransKey, input.OrderID, input.StatusCode, input.GrossAmount, input.SignatureKey) {
 			return fmt.Errorf("invalid signature")
 		}
-	} else if input.SignatureKey == "" {
-		return fmt.Errorf("missing signature_key")
+	} else if !s.AllowUnsignedWebhook {
+		// No server key ⇒ cannot verify HMAC. Default-deny: a missing MIDTRANS_SERVER_KEY
+		// must not silently accept forged settlements. Dev opts in via BILLING_ALLOW_UNSIGNED_WEBHOOK.
+		return fmt.Errorf("webhook signature verification unavailable (MIDTRANS_SERVER_KEY unset)")
 	}
 
 	payment, err := s.Repo.GetPaymentByOrderID(ctx, input.OrderID)
@@ -232,6 +263,15 @@ func (s *Service) HandleWebhook(ctx context.Context, input WebhookInput) error {
 	}
 	if payment == nil {
 		return fmt.Errorf("payment not found for order_id %s", input.OrderID)
+	}
+
+	// Defense-in-depth: the signature binds Midtrans's gross_amount, but reconcile it
+	// against the amount we stored at checkout so a replayed/signed payload for a smaller
+	// amount can't settle a larger order. Skipped for dev (GrossAmount=="0"/"").
+	if ga, perr := strconv.ParseFloat(input.GrossAmount, 64); perr == nil && ga != 0 {
+		if math.Abs(ga-payment.Amount) > 0.01 {
+			return fmt.Errorf("gross_amount mismatch")
+		}
 	}
 
 	// Idempotency: Midtrans retries webhooks. If this payment is already PAID,
