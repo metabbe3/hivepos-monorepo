@@ -142,43 +142,174 @@ func main() {
 	})
 
 	// Public order tracking — /api/track/{orderNumber} + /api/track/{orderNumber}/photos.
-	// Customer-facing (no auth); read-only from the Order + OrderItem + OrderPhoto tables.
+	// Customer-facing (no auth); read-only. Mirrors the legacy pos-saas tracking payload
+	// (pos-saas/app/api/track/[orderNumber]/route.ts): the FE track page renders branch /
+	// payments / timestamps / QRIS, so the minimal stub it replaced crashed the render on
+	// data.branch / data.payments being undefined. ponytail: 3 queries per hit, no cache —
+	// order detail changes often; consolidate into public_api.TrackOrder if a 2nd caller appears.
 	r.Get("/api/track/{orderNumber}", func(w http.ResponseWriter, req *http.Request) {
 		orderNumber := chi.URLParam(req, "orderNumber")
-		var id, status, payStatus string
-		var total float64
-		var createdAt time.Time
-		var received, inProg, ready, delivered sql.NullTime
+		var (
+			id                                                       string
+			status, payStatus, notes                                 sql.NullString
+			custName                                                 sql.NullString
+			custPhone, brName, brPhone, brWA, brAddr, brFoot         sql.NullString
+			lat, lon                                                 sql.NullFloat64
+			total, discount, paid                                    float64
+			createdAt                                                time.Time
+			received, inProg, ready, delivered                       sql.NullTime
+			settingsRaw                                              []byte
+		)
 		err := db.QueryRowContext(req.Context(), `
-			SELECT o.id, o.status, o."paymentStatus"::text, o."totalAmount"::float, o."createdAt",
-			       o."receivedAt", o."inProgressAt", o."readyAt", o."deliveredAt"
-			FROM "Order" o WHERE o."orderNumber" = $1`, orderNumber,
-		).Scan(&id, &status, &payStatus, &total, &createdAt, &received, &inProg, &ready, &delivered)
+			SELECT o.id, o.status, o."paymentStatus"::text,
+			       o."totalAmount"::float, o."discountAmount"::float, o."paidAmount"::float,
+			       o.notes, o."createdAt",
+			       o."receivedAt", o."inProgressAt", o."readyAt", o."deliveredAt",
+			       c.name, c.phone,
+			       b.name, b.phone, b."whatsappLink", b.address, b.latitude, b.longitude, b."invoiceFooter",
+			       t.settings
+			FROM "Order" o
+			JOIN "Customer" c ON c.id = o."customerId"
+			JOIN "Branch"   b ON b.id = o."branchId"
+			JOIN "Tenant"   t ON t.id = b."tenantId"
+			WHERE o."orderNumber" = $1`, orderNumber,
+		).Scan(&id, &status, &payStatus, &total, &discount, &paid, &notes, &createdAt,
+			&received, &inProg, &ready, &delivered,
+			&custName, &custPhone, &brName, &brPhone, &brWA, &brAddr, &lat, &lon, &brFoot,
+			&settingsRaw)
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": map[string]string{"message": "Order not found"}})
 			return
 		}
+
+		nullableStr := func(v sql.NullString) interface{} {
+			if v.Valid {
+				return v.String
+			}
+			return nil
+		}
+		nullableTime := func(v sql.NullTime) interface{} {
+			if v.Valid {
+				return v.Time.UTC().Format(time.RFC3339)
+			}
+			return nil
+		}
+		nullableFloat := func(v sql.NullFloat64) interface{} {
+			if v.Valid {
+				return v.Float64
+			}
+			return nil
+		}
+
+		// Items: service name + pricing type + garment breakdown (JSONB, nullable).
+		type breakdownItem struct {
+			Name string `json:"name"`
+			Qty  int    `json:"qty"`
+		}
 		items := []map[string]interface{}{}
 		if iRows, ierr := db.QueryContext(req.Context(), `
-			SELECT COALESCE(s.name,''), oi.quantity::float, oi.subtotal::float
+			SELECT s.name, s."pricingType"::text, oi.quantity::float, oi."weightKg"::float,
+			       oi."pricePerUnit"::float, oi.subtotal::float, oi."garmentBreakdown"
 			FROM "OrderItem" oi LEFT JOIN "Service" s ON s.id = oi."serviceId"
 			WHERE oi."orderId" = $1`, id); ierr == nil {
 			for iRows.Next() {
-				var name string
-				var qty, sub float64
-				if iRows.Scan(&name, &qty, &sub) == nil {
-					items = append(items, map[string]interface{}{"name": name, "quantity": qty, "subtotal": sub})
+				var svcName, pricing sql.NullString
+				var qty, ppu, sub float64
+				var weight sql.NullFloat64
+				var gb []byte
+				if iRows.Scan(&svcName, &pricing, &qty, &weight, &ppu, &sub, &gb) == nil {
+					var breakdown interface{}
+					if len(gb) > 0 && string(gb) != "null" {
+						var bs []breakdownItem
+						if json.Unmarshal(gb, &bs) == nil && len(bs) > 0 {
+							breakdown = bs
+						}
+					}
+					items = append(items, map[string]interface{}{
+						"service":          svcName.String,
+						"pricingType":      pricing.String,
+						"quantity":         qty,
+						"weightKg":         nullableFloat(weight),
+						"pricePerUnit":     ppu,
+						"subtotal":         sub,
+						"garmentBreakdown": breakdown,
+					})
 				}
 			}
 			iRows.Close()
 		}
+
+		// Payments (newest first).
+		payments := []map[string]interface{}{}
+		if pRows, perr := db.QueryContext(req.Context(), `
+			SELECT amount::float, "paymentMethod"::text, "paidAt"
+			FROM "Payment" WHERE "orderId" = $1 ORDER BY "paidAt" DESC`, id); perr == nil {
+			for pRows.Next() {
+				var amt float64
+				var method string
+				var paidAt time.Time
+				if pRows.Scan(&amt, &method, &paidAt) == nil {
+					payments = append(payments, map[string]interface{}{
+						"amount": amt, "method": method, "paidAt": paidAt.UTC().Format(time.RFC3339),
+					})
+				}
+			}
+			pRows.Close()
+		}
+
+		// Tenant.settings (JSONB) → qrisImageUrl + whatsappTemplates.
+		var qrisImageUrl interface{}
+		var whatsappTemplates interface{}
+		if len(settingsRaw) > 0 && string(settingsRaw) != "null" {
+			var s struct {
+				Website struct {
+					Qris *string `json:"qrisImageUrl"`
+				} `json:"website"`
+				Templates json.RawMessage `json:"whatsappTemplates"`
+			}
+			if json.Unmarshal(settingsRaw, &s) == nil {
+				if s.Website.Qris != nil && *s.Website.Qris != "" {
+					qrisImageUrl = *s.Website.Qris
+				}
+				if len(s.Templates) > 0 && string(s.Templates) != "null" {
+					whatsappTemplates = json.RawMessage(s.Templates)
+				}
+			}
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "data": map[string]interface{}{
-			"orderNumber": orderNumber, "status": status, "paymentStatus": payStatus,
-			"totalAmount": total, "items": items,
-			"createdAt":   createdAt.UTC().Format(time.RFC3339),
+			"orderNumber":        orderNumber,
+			"status":             status.String,
+			"statusLabel":        status.String, // FE doesn't render this; mirrors the TS fallback (?? status)
+			"paymentStatus":      payStatus.String,
+			"paymentStatusLabel": payStatus.String,
+			"customerName":       custName.String,
+			"customerPhone":      nullableStr(custPhone),
+			"totalAmount":        total,
+			"discountAmount":     discount,
+			"paidAmount":         paid,
+			"notes":              nullableStr(notes),
+			"createdAt":          createdAt.UTC().Format(time.RFC3339),
+			"receivedAt":         nullableTime(received),
+			"inProgressAt":       nullableTime(inProg),
+			"readyAt":            nullableTime(ready),
+			"deliveredAt":        nullableTime(delivered),
+			"items":              items,
+			"payments":           payments,
+			"branch": map[string]interface{}{
+				"name":          brName.String,
+				"phone":         nullableStr(brPhone),
+				"whatsappLink":  nullableStr(brWA),
+				"address":       nullableStr(brAddr),
+				"latitude":      nullableFloat(lat),
+				"longitude":     nullableFloat(lon),
+				"invoiceFooter": nullableStr(brFoot),
+			},
+			"qrisImageUrl":      qrisImageUrl,
+			"whatsappTemplates": whatsappTemplates,
 		}})
 	})
 	r.Get("/api/track/{orderNumber}/photos", func(w http.ResponseWriter, req *http.Request) {
