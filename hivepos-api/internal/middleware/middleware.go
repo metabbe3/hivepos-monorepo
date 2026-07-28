@@ -247,17 +247,31 @@ func RequestIDHeader(next http.Handler) http.Handler {
 // ── ErrorLogger: persists 4xx/5xx errors to the ErrorLog table for support ──
 
 // ErrorLogger returns middleware that captures the HTTP status + error headers
-// and writes a row to ErrorLog on 4xx/5xx. Best-effort — never blocks the response.
+// and writes a row to ErrorLog on 5xx + unexpected 4xx. Best-effort — never
+// blocks the response. Expected client outcomes (401 token-expiry, 403
+// missing-tenant/permission from background polls, 409 business-rule conflicts
+// like "service in use") are NOT persisted — they flooded the support log and
+// drowned genuine server faults. See plans/joyful-churning-popcorn.md.
 func ErrorLogger(db *sql.DB) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			sc := &statusCapture{ResponseWriter: w, status: 0}
 			next.ServeHTTP(sc, r)
-			if sc.status >= 400 && db != nil {
+			if sc.status >= 400 && db != nil && shouldLogError(sc.status) {
 				logErrorToDB(db, r, sc)
 			}
 		})
 	}
+}
+
+// shouldLogError reports whether a status is worth a support ErrorLog row.
+// Skip the expected client-flow statuses that produced ~95% of the noise.
+func shouldLogError(status int) bool {
+	switch status {
+	case http.StatusUnauthorized, http.StatusForbidden, http.StatusConflict:
+		return false
+	}
+	return true
 }
 
 // statusCapture wraps http.ResponseWriter to record the final status code.

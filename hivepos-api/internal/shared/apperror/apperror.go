@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 )
 
@@ -153,6 +154,19 @@ func Write(w http.ResponseWriter, err error) {
 	ae := As(err)
 	if ae == nil {
 		ae = NewInternal("", err)
+	}
+	// Server-side 5xx logging: prod redacts the message for clients (below), but the
+	// real cause must reach the server log so failures are diagnosable — the request
+	// INFO line only carries status, and ErrorLogger stores the redacted header. Best-effort.
+	if ae.Status >= 500 {
+		args := []any{"status", ae.Status, "code", ae.Code, "message", ae.Message}
+		if rid := w.Header().Get("X-Request-Id"); rid != "" {
+			args = append(args, "requestId", rid)
+		}
+		if ae.Cause != nil {
+			args = append(args, "cause", ae.Cause.Error())
+		}
+		slog.Error("server error", args...)
 	}
 	msg := ae.Message
 	if production && ae.Status >= 500 {
