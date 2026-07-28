@@ -20,10 +20,15 @@ const csp = [
 const nextConfig: NextConfig = {
   output: "standalone",
   images: {
-    remotePatterns: [{ protocol: "https", hostname: "**" }],
-    // ponytail: hostname "**" = open /_next/image proxy (anyone can fetch+transform arbitrary
-    // https imgs). Acceptable: low-traffic site, CSP already allows any https img. Upgrade path:
-    // curated host list or move uploads to owned storage (R2), then restrict remotePatterns.
+    // SSRF guard: tenant-supplied image URLs (logoUrl, heroPhotoUrl, order photoUrl) are arbitrary
+    // strings, so no safe host allowlist exists. remotePatterns hostname "**" made /_next/image an
+    // open server-side proxy — an attacker could fetch internal endpoints (cloud metadata, :8099
+    // /metrics, RFC1918 hosts) through it. Disabling the optimizer makes <Image> a plain <img>: the
+    // browser fetches directly under CSP img-src (the user's own network, their own risk), and the
+    // server never fetches a remote URL. Loses server-side resize/format conversion — acceptable
+    // for SMB logos/photos. Upgrade path: move uploads to owned storage (R2/S3), pin logoUrl to a
+    // curated host set at write-time, then re-enable the optimizer with a restricted remotePatterns.
+    unoptimized: true,
   },
   experimental: {
     // Tree-shake barrel imports so only the icons/charts actually used ship.
