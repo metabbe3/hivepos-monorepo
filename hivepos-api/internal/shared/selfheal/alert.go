@@ -15,6 +15,8 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/hivepos/api/internal/shared/jobs"
 )
 
 // Config for the alert ticker.
@@ -49,8 +51,16 @@ func RunAlertTicker(ctx context.Context, db *sql.DB, interval time.Duration, cfg
 	for {
 		select {
 		case <-ticker.C:
+			// Record this scan durably (JobRun) — observability + crash evidence.
+			// Best-effort; a nil run means the table isn't migrated yet.
+			run, _ := jobs.Start(ctx, db, "self_heal_alert")
 			if err := scanAndAlert(ctx, db, cfg); err != nil {
 				log.Printf("self-heal alert scan error: %v", err)
+				if run != nil {
+					run.Fail(ctx, err)
+				}
+			} else if run != nil {
+				run.Complete(ctx, map[string]any{"status": "ok"})
 			}
 		case <-ctx.Done():
 			return

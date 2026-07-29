@@ -40,6 +40,7 @@ import (
 	"github.com/hivepos/api/internal/router"
 	"github.com/hivepos/api/internal/shared/apperror"
 	"github.com/hivepos/api/internal/shared/logging"
+	"github.com/hivepos/api/internal/shared/jobs"
 	"github.com/hivepos/api/internal/shared/selfheal"
 )
 
@@ -407,11 +408,19 @@ func main() {
 		for {
 			select {
 			case <-ticker.C:
+				// Record this run durably (JobRun) — a crash mid-run used to leave no
+				// trace. Recording is best-effort; a nil run means the JobRun table
+				// isn't there yet and the job proceeds regardless.
+				run, _ := jobs.Start(reaperCtx, db, "photo_cleanup")
+				deletedPhotos, purgedErrorlog := int64(0), int64(0)
+				jobErr := error(nil)
 				res, err := db.ExecContext(reaperCtx,
 					`DELETE FROM "OrderPhoto" WHERE "createdAt" < NOW() - INTERVAL '7 days'`)
 				if err != nil {
 					log.Printf("photo cleanup error: %v", err)
+					jobErr = err
 				} else if n, _ := res.RowsAffected(); n > 0 {
+					deletedPhotos = n
 					log.Printf("photo cleanup: deleted %d expired photos", n)
 				}
 				// ErrorLog retention — cap table growth so a client-error flood or 5xx
@@ -420,8 +429,19 @@ func main() {
 				if res, err := db.ExecContext(reaperCtx,
 					`DELETE FROM "ErrorLog" WHERE "createdAt" < NOW() - INTERVAL '90 days'`); err != nil {
 					log.Printf("errorlog retention error: %v", err)
+					if jobErr == nil {
+						jobErr = err
+					}
 				} else if n, _ := res.RowsAffected(); n > 0 {
+					purgedErrorlog = n
 					log.Printf("errorlog retention: purged %d rows older than 90 days", n)
+				}
+				if run != nil {
+					if jobErr != nil {
+						run.Fail(reaperCtx, jobErr)
+					} else {
+						run.Complete(reaperCtx, map[string]any{"deleted_photos": deletedPhotos, "purged_errorlog": purgedErrorlog})
+					}
 				}
 			case <-reaperCtx.Done():
 				return
