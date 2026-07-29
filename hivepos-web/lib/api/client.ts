@@ -11,7 +11,6 @@
  */
 
 import { withRetry, isTransientError } from "./retry";
-import { getAuthToken } from "./token";
 
 export interface ResponseMeta {
   page?: number;
@@ -48,9 +47,9 @@ export async function apiFetch<T>(
 ): Promise<{ data: T; meta?: ResponseMeta }> {
   const { body, headers, ...rest } = options;
 
-  // Attach the JWT (hivepos-api returns it in the login body, not a cookie).
-  const token = getAuthToken();
-
+  // Auth is the httpOnly hp_session cookie (set by the backend on /auth/login +
+  // /auth/login-bounce), sent automatically via credentials:"include". The JWT no
+  // longer lives in localStorage (XSS-exfiltrable) — JS can't read the cookie.
   // ponytail: the port left two path conventions in the call sites — 58 pass "/api/...",
   // auth-client passes "/auth/...". BASE already ends with "/api", so strip a duplicate
   // "/api" prefix so both resolve to "<base>/...". Tighten to one convention once port settles.
@@ -65,7 +64,6 @@ export async function apiFetch<T>(
         credentials: "include",
         signal: signal ?? rest.signal,
         headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
           ...headers,
         },

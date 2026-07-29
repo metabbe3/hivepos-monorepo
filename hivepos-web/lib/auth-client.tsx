@@ -1,13 +1,13 @@
 "use client";
 
 // JWT client auth — drop-in replacement for next-auth/react used during the port.
-// Go's /api/auth/login returns the JWT in the body (data.token); we store it in
-// localStorage (lib/api/token) and attach Authorization: Bearer via the apiFetch client.
+// The JWT lives ONLY in the httpOnly hp_session cookie (set by the backend on
+// /auth/login + /auth/login-bounce); apiFetch sends it via credentials:"include".
+// No localStorage token (XSS-exfilable) — JS can't read the cookie.
 // Exposes the same names/shapes pos-saas used: useSession(), signIn(), signOut(), SessionProvider.
 
 import { useCallback, useEffect, useReducer } from "react";
 import { apiFetch, ApiClientError } from "@/lib/api/client";
-import { setAuthToken, clearAuthToken } from "@/lib/api/token";
 import { DEFAULT_ROLES } from "@/lib/permissions/defaults";
 
 const BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api").replace(/\/$/, "");
@@ -73,10 +73,11 @@ export async function reloadSession(): Promise<void> {
     const authRejected =
       e instanceof ApiClientError && (e.httpStatus === 401 || e.httpStatus === 403);
     if (!authRejected) {
-      // Leave session + token untouched; a blip shouldn't log out a valid user.
+      // Leave session untouched; a blip shouldn't log out a valid user.
       return;
     }
-    clearAuthToken();
+    // The httpOnly cookie can't be cleared from JS — the backend clears it on
+    // /auth/logout, or it expires. Here we just mark the session gone client-side.
     currentSession = null;
     currentStatus = "unauthenticated";
     emit();
@@ -112,7 +113,10 @@ export async function signIn(
         ...(opts?.scope ? { scope: opts.scope } : {}),
       },
     });
-    setAuthToken(data.token);
+    // Backend sets the httpOnly hp_session cookie on this response (data.token is
+    // returned but no longer stored — cookie-only auth). reloadSession probes
+    // /auth/me, which reads the cookie.
+    void data;
     await reloadSession();
     if (opts?.callbackUrl && typeof window !== "undefined") window.location.href = opts.callbackUrl;
     return { ok: true };
@@ -123,10 +127,9 @@ export async function signIn(
 }
 
 export async function signOut(opts?: { callbackUrl?: string } & Record<string, unknown>): Promise<void> {
-  clearAuthToken();
-  // Clear httpOnly session cookies server-side. Go's extractToken honors the legacy
-  // next-auth.session-token cookie as a fallback when the Bearer is gone, so dropping
-  // only localStorage leaves super-admin authed. This call clears both cookie variants.
+  // Clear the httpOnly session cookies server-side. JS can't touch them, so the
+  // /auth/logout call (which Set-Cookie expires hp_session + the legacy
+  // next-auth.session-token) is what actually logs the user out.
   try {
     await apiFetch("/auth/logout", { method: "POST" });
   } catch {

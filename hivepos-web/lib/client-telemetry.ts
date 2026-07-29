@@ -15,7 +15,6 @@
 // components/shared/telemetry-flusher.tsx for the gate.
 
 import type { TelemetryKind } from "@/lib/telemetry";
-import { getAuthToken } from "@/lib/api/token";
 
 interface QueuedEvent {
   kind: TelemetryKind;
@@ -34,30 +33,22 @@ function isProd(): boolean {
   return typeof window !== "undefined" && process.env.NODE_ENV === "production";
 }
 
-// ponytail: /api/telemetry is authed — skip when no JWT (pre-login / logged-out)
-// so the flush loop doesn't generate a 401 on every page. Vitals are per-user
-// analytics; an unauthed batch has no one to attribute to anyway. Drop the queue
-// too so it can't grow unbounded while logged out.
-function dropIfUnauthed(token: string | null): boolean {
-  if (!token) {
-    queue.length = 0;
-    return true;
-  }
-  return false;
-}
-
+// ponytail: /api/telemetry is authed via the httpOnly cookie (credentials:"include").
+// Vitals are per-user analytics; telemetry only fires from authed dashboard actions,
+// so a logged-out user isn't enqueuing. A 401 (cookie absent/expired) drops the batch.
 async function flush(): Promise<void> {
   if (queue.length === 0) return;
-  const token = getAuthToken();
-  if (dropIfUnauthed(token)) return;
   const batch = queue.splice(0, queue.length);
   try {
-    // Best-effort. Failures drop the batch — telemetry is fire-and-forget,
-    // retrying risks amplifying a bad endpoint.
+    // Best-effort. Auth is the httpOnly hp_session cookie (credentials:"include");
+    // failures drop the batch — telemetry is fire-and-forget, retrying risks
+    // amplifying a bad endpoint. No localStorage token gate anymore: telemetry only
+    // fires from authed dashboard actions, so a logged-out user isn't enqueuing.
     await fetch(ENDPOINT, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ events: batch }),
+      credentials: "include",
       keepalive: true,
     });
   } catch {
@@ -67,7 +58,7 @@ async function flush(): Promise<void> {
 
 function flushBeacon(): void {
   if (queue.length === 0) return;
-  if (dropIfUnauthed(getAuthToken())) return;
+  // sendBeacon includes same-origin cookies (the hp_session cookie) automatically.
   const batch = queue.splice(0, queue.length);
   try {
     navigator.sendBeacon(

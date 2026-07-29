@@ -4,12 +4,10 @@
  * Best-effort client-side error capture → POST /api/telemetry (persisted to
  * ErrorLog by the backend, type:"error"). Surfaced in super-admin error-logs.
  *
- * Uses bare fetch + the JWT from localStorage — NEVER apiFetch — so the error
- * reporter can't recurse or loop if the reporting call itself fails. Fire-and-
- * forget: never awaited, never throws.
+ * Uses bare fetch + the httpOnly cookie (credentials:"include") — NEVER apiFetch —
+ * so the error reporter can't recurse or loop if the reporting call itself fails.
+ * Fire-and-forget: never awaited, never throws.
  */
-
-import { getAuthToken } from "@/lib/api/token";
 
 const BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api").replace(/\/$/, "");
 
@@ -26,12 +24,9 @@ export function reportClientError(err: unknown, ctx?: Record<string, unknown>): 
     ...(ctx ?? {}),
   };
 
+  // Auth is the httpOnly hp_session cookie (credentials:"include" below). Logged-out
+  // errors 401, but the ErrorLogger middleware skips 401s → no ErrorLog noise.
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const token = getAuthToken();
-  // ponytail: no JWT (logged-out / pre-login page) → /api/telemetry 401s and just
-  // noise up ErrorLog. There's no user to attribute the error to anyway.
-  if (!token) return;
-  headers["Authorization"] = `Bearer ${token}`;
 
   // ponytail: fire-and-forget; .catch swallows so a bad receiver never throws.
   fetch(`${BASE}/telemetry`, {

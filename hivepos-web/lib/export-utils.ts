@@ -2,7 +2,6 @@
 // Static import would bundle it with every page that touches export-utils.
 
 import { apiFetch } from "@/modules/shared";
-import { getAuthToken } from "@/lib/api/token";
 
 export function exportToCsv(data: Record<string, unknown>[], filename: string, headers?: Record<string, string>) {
   if (data.length === 0) return;
@@ -35,12 +34,12 @@ export async function exportToXls(data: Record<string, unknown>[], filename: str
 }
 
 export async function exportToPdf(type: string, from: string, to: string) {
-  // Auth is a JWT in localStorage (not a cookie), so window.open can't carry the
-  // Bearer header — the per-report PDF/CSV exports all 401'd. Fetch the file
-  // with the token + trigger a blob download instead (BUGS-E2E-FINDINGS #R2).
+  // Auth is the httpOnly hp_session cookie. window.open can't carry custom headers,
+  // so fetch the file with credentials:"include" (sends the cookie) + trigger a blob
+  // download instead (BUGS-E2E-FINDINGS #R2).
   const base = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api").replace(/\/$/, "");
   const url = `${base}/reports/export?type=${encodeURIComponent(type)}&from=${from}&to=${to}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${getAuthToken() ?? ""}` } });
+  const res = await fetch(url, { credentials: "include" });
   if (!res.ok) throw new Error(`export failed: ${res.status}`);
   const blob = await res.blob();
   const ct = res.headers.get("content-type") || "";
