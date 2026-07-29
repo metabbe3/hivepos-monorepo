@@ -87,28 +87,33 @@ UNION ALL SELECT 'StockMovement', count(*) FROM "StockMovement" WHERE "stockItem
 indexed on `id`/`"tenantId"`). Phase 2 denormalizes a real `"tenantId"` onto these
 tables to replace the EXISTS with a direct predicate.
 
-## Phase 1 enforcement checklist
-1. **Backup first** (always): `backups/` + the 12h sidecar.
-2. **Create the roles** (as superuser):
-   ```sql
-   CREATE ROLE hivepos_app NOSUPERUSER NOBYPASSRLS NOLOGIN;
-   GRANT USAGE ON SCHEMA public TO hivepos_app;
-   GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hivepos_app;
-   ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hivepos_app;
-   -- workers + super-admin cross-tenant:
-   CREATE ROLE hivepos_admin NOSUPERUSER BYPASSRLS NOLOGIN;
-   GRANT ALL ON ALL TABLES IN SCHEMA public TO hivepos_admin;
-   ```
-3. **Switch the app DSN** to connect as a role granted `hivepos_app` (or set
-   `SET ROLE hivepos_app` on each pooled connection). Verify in a **staging** DB first.
-4. **Move background workers + super-admin** to a small `hivepos_admin` (BYPASSRLS)
-   pool — else photo-cleanup/self-heal read zero rows and super-admin can't cross tenants.
-5. **Migrate repos** to `database.TxBegin(ctx, db, tenantID)` for tenant work and
-   `database.TxNoTenant` for global work. Audit any path using a *separate* connection
-   (raw `db.ExecContext`, pgx batch) — those bypass RLS silently.
-6. **Cut over** one table-group at a time; watch for empty-result regressions.
-7. **Rollback:** `ALTER TABLE "<t>" DISABLE ROW LEVEL SECURITY` (or revert DSN to
-   posadmin). Enforcement is fully reversible.
+## Phase 1 enforcement runbook (STAGING-GATED — do NOT run on live without staging sign-off)
+A missed tenant GUC makes rows vanish (looks like data loss) or blocks writes. Every
+step below is verified on a staging clone first. The enforcement flip is the ONE
+irreversible-ish step; everything else is reversible.
+
+**Already scaffolded (safe, on `main`):**
+- Migration `000005_rls_roles` — roles `hivepos_app` (NOSUPERUSER, NOBYPASSRLS) +
+  `hivepos_admin` (NOSUPERUSER, BYPASSRLS) + grants + default-privileges. Applied via
+  `cmd/migrate up`. Inert — app still connects as `posadmin`.
+- `database.TenantConn` (`internal/database/tenant_conn.go`) — request-scoped tx +
+  `SET LOCAL app.current_tenant` via `AcquireTenant`; the pattern repos adopt.
+  `TestAcquireTenantSetsGUC` proves the GUC is set on the request connection.
+
+**Remaining cutover (operator-driven, staging-verified):**
+1. **Backup first** (always): fresh `backups/manual-full-*.sql.gz` + the 12h sidecar.
+2. **Connection strategy — `SET ROLE` on connect.** Wire a pgx `AfterConnect` (or a
+   `database/sql` opener) that runs `SET ROLE hivepos_app` on each pooled conn for the
+   tenant-serving pool, and `SET ROLE hivepos_admin` for the worker/super-admin pool.
+   (posadmin can SET ROLE to either; the session then drops superuser/bypass as that
+   role.) This replaces changing the DSN credentials.
+3. **Migrate repos to `TenantConn`.** Each tenant-scoped handler: `tc, _ := database.AcquireTenant(ctx, db, tenantID); defer tc.Rollback(); … tc.Tx().Query… ; tc.Commit()`. Global/workers use `TxNoTenant` (or the admin pool). **Audit every `*sql.DB` path** — any query not through the scoped tx bypasses RLS silently (the load-bearing risk). Migrate one module at a time.
+4. **Two pools:** tenant pool (`hivepos_app`) for authed tenant routes; admin pool (`hivepos_admin`, BYPASSRLS) for background tickers + super-admin cross-tenant routes. Workers must use the admin pool or they read zero rows (cleanup stops).
+5. **Staging verify (gate):** on a clone, exercise every endpoint per tenant — assert each returns ITS rows, none empty, no cross-tenant bleed. Re-run the NULL-FK check (Phase 0.5) — must stay 0.
+6. **Flip:** point the tenant-serving pool at `hivepos_app` (SET ROLE). `FORCE` is NOT needed (hivepos_app isn't owner/superuser → `ENABLE RLS` already binds).
+7. **Rollback:** revert pools to `posadmin` (or `RESET ROLE`). RLS stays defined but posadmin bypasses it. Fully reversible in seconds.
+
+## Verification
 
 ## Verification
 - `go test ./internal/database/... -run TestRLSPolicyIsolation -v` — proves isolation.
