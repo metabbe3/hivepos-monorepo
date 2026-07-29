@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { apiFetch } from "@/modules/shared";
-import { Badge } from "@/components/ui/badge";
 
 interface ReferralRow {
   id: string;
@@ -12,8 +11,10 @@ interface ReferralRow {
   rewardMonths: number;
   createdAt: string;
   rewardedAt: string | null;
-  referrer: { name: string; slug: string; code: string } | null;
-  referred: { name: string; slug: string } | null;
+  // Flat denormalized fields (BE LEFT JOINs Tenant — matches SuperAdminReferral contract).
+  referrerName?: string;
+  referrerCode?: string | null;
+  referredName?: string;
 }
 
 const STATUS_STYLE: Record<ReferralRow["status"], string> = {
@@ -66,10 +67,10 @@ export function ReferralsManager() {
           {rows.map((r) => (
             <tr key={r.id}>
               <td className="px-4 py-3">
-                <div className="font-medium">{r.referrer?.name ?? "-"}</div>
-                <div className="text-xs text-muted-foreground">code: {r.referrer?.code ?? "-"}</div>
+                <div className="font-medium">{r.referrerName ?? "-"}</div>
+                <div className="text-xs text-muted-foreground">code: {r.referrerCode ?? "-"}</div>
               </td>
-              <td className="px-4 py-3">{r.referred?.name ?? "-"}</td>
+              <td className="px-4 py-3">{r.referredName ?? "-"}</td>
               <td className="px-4 py-3">
                 <span className={`inline-flex rounded-md px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[r.status]}`}>
                   {r.status}

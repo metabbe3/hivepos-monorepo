@@ -52,11 +52,40 @@ The app connects as `posadmin`, which is `rolsuper=t` AND `rolbypassrls=t`.
   via `SET ROLE` to a non-superuser (models enforcement) — zero persistent change.
   Migration file written, **not applied** to the live DB this session; dry-run
   (`BEGIN; <up.sql>; ROLLBACK;`) confirmed all 14 policies CREATE cleanly.
-- **Phase 0.5 — indirect tables.** JOIN-based policies on the 12 core tables, same
-  inert+tested pattern.
+- **Phase 0.5 — DONE (inert, no data risk).** JOIN-based policies on the 12
+  indirect core tables (migration `000003_rls_indirect`); `TestRLSJoinPolicyIsolation`
+  proves the same 4 guarantees. See "Phase 0.5 detail" below. RLS policy coverage
+  is now total (14 direct + 12 indirect = all 26 tenant tables).
 - **Phase 1 — enforcement (operator-driven, staging first).** See checklist below.
 - **Phase 2 — denormalize (optional).** Add real `"tenantId"` to the 12 indirect
   tables + backfill, replacing JOIN policies with direct ones.
+
+## Phase 0.5 detail — indirect tables (JOIN-based policies)
+The 12 core tables have no direct `"tenantId"`; they're scoped via `Branch."tenantId"`
+through a foreign-key chain. Migration `000003_rls_indirect` attaches a correlated
+`EXISTS` policy per chain. All policies are `FOR ALL` (USING + WITH CHECK), `ENABLE
+RLS`, no `FORCE` → inert (posadmin bypasses).
+
+| Chain | Tables | EXISTS walks |
+|---|---|---|
+| `→ Branch` | `Order, Customer, Service, ServiceGroup, StockItem, Expense, ExpenseCategory, DepositTransaction` | `Branch.id = <t>."branchId"` |
+| `→ Order → Branch` | `OrderItem, Payment` | `Order.id = <t>."orderId"` → `Branch.id = Order."branchId"` |
+| `→ StockItem → Branch` | `StockMovement` | `StockItem.id = "stockItemId"` → `Branch` |
+| `→ SupportTicket` (direct nullable tenantId) | `TicketComment` | `SupportTicket.id = "ticketId"` |
+
+**Data-safety (verified before writing):** all 12 FK columns are `NOT NULL` and there
+are **zero NULL-FK rows** in existing data → under future enforcement no legitimate
+row is hidden. Re-confirm with:
+```sql
+SELECT 'Order' t, count(*) FROM "Order" WHERE "branchId" IS NULL
+UNION ALL SELECT 'Payment', count(*) FROM "Payment" WHERE "orderId" IS NULL
+UNION ALL SELECT 'OrderItem', count(*) FROM "OrderItem" WHERE "orderId" IS NULL
+UNION ALL SELECT 'StockMovement', count(*) FROM "StockMovement" WHERE "stockItemId" IS NULL;
+-- all must be 0 before flipping enforcement
+```
+**Perf:** a correlated EXISTS evaluates per row. Fine at SMB scale (Branch is tiny +
+indexed on `id`/`"tenantId"`). Phase 2 denormalizes a real `"tenantId"` onto these
+tables to replace the EXISTS with a direct predicate.
 
 ## Phase 1 enforcement checklist
 1. **Backup first** (always): `backups/` + the 12h sidecar.

@@ -159,12 +159,47 @@ func (m *Module) Register(r chi.Router) {
 // ===================== STATS =====================
 
 func (m *Module) getStats(w http.ResponseWriter, req *http.Request) {
-	s, err := m.svc.GetStats(req.Context())
+	ctx := req.Context()
+	s, err := m.svc.GetStats(ctx)
 	if err != nil {
 		apphttp.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	apphttp.Success(w, s)
+	// Overview tiles read platform + billing + ops metrics off one payload. Merge the
+	// three sources so the FE spread (...data) lands every key it renders.
+	billing, _ := m.svc.GetBillingOverview(ctx)
+	ops, _ := m.repo.GetOpsCounts(ctx)
+	mrr := s.MRR
+	if billing != nil {
+		mrr = billing.MRR
+	}
+	out := map[string]any{
+		"totalTenants":     s.TotalTenants,
+		"activeTenants":    s.ActiveTenants,
+		"pendingTenants":   s.PendingTenants,
+		"pendingApprovals": s.PendingTenants, // FE maps pendingApprovals ← pendingTenants; keep both
+		"trialTenants":     s.TrialTenants,
+		"newThisMonth":     s.NewThisMonth,
+		"totalUsers":       s.TotalUsers,
+		"activeUsers":      s.ActiveUsers,
+		"mrr":              mrr,
+	}
+	if billing != nil {
+		out["paidTenantCount"] = billing.PaidTenantCount
+		out["activePaidOutlets"] = billing.ActivePaidOutlets
+		out["failedCount30d"] = billing.FailedCount30d
+		out["lifetimeGross"] = billing.LifetimeGross
+	}
+	if ops != nil {
+		out["openTickets"] = ops.OpenTickets
+		out["urgentTickets"] = ops.UrgentTickets
+		out["unresolvedErrors"] = ops.UnresolvedErrors
+		out["suspendedTenants"] = ops.SuspendedTenants
+		out["pastDueSubs"] = ops.PastDueSubs
+		out["canceledSubs"] = ops.CanceledSubs
+		out["totalOrders"] = ops.TotalOrders
+	}
+	apphttp.Success(w, out)
 }
 
 // performance — cross-tenant performance rows for /super-admin/performance.
@@ -224,13 +259,40 @@ func (m *Module) getTenant(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 	}
-	apphttp.Success(w, map[string]any{
+	resp := map[string]any{
 		"tenant":             t,
 		"plans":              plans,
 		"subscription":       sub,
 		"planName":           planName,
 		"subscriptionStatus": subStatus,
-	})
+	}
+	// Perf tiles (outlets/orders/revenue/trial) — reuse the cross-tenant performance
+	// query and lift this tenant's row to the top level (FE reads perf = d). Small data
+	// set; avoids a filtered variant.
+	if rows, perr := m.repo.GetTenantPerformance(ctx, ""); perr == nil {
+		for _, row := range rows {
+			if rid, ok := row["id"].(string); ok && rid == id {
+				for _, k := range []string{"activeOutlets", "totalOutlets", "orders30d", "ordersAll",
+					"revenue30d", "revenueAll", "saasRevenuePaid", "daysSinceLastOrder", "trialDaysRemaining"} {
+					if v, ok := row[k]; ok {
+						resp[k] = v
+					}
+				}
+				break
+			}
+		}
+	}
+	if staff, serr := m.repo.CountStaffByTenant(ctx, id); serr == nil {
+		resp["staffCount"] = staff
+	}
+	if billing, berr := m.svc.GetTenantBilling(ctx, id); berr == nil && billing != nil {
+		if bm, ok := billing.(map[string]any); ok {
+			if pays, ok := bm["payments"]; ok {
+				resp["recentPayments"] = pays
+			}
+		}
+	}
+	apphttp.Success(w, resp)
 }
 
 func (m *Module) updateTenant(w http.ResponseWriter, req *http.Request) {

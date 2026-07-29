@@ -32,6 +32,23 @@ type Tenant struct {
 	UpdatedAt             time.Time          `json:"updatedAt"`
 }
 
+// TenantListItem wraps a Tenant with the list-page-only aggregates the FE reads:
+// _count.branches (outlet count) + subscription.status. Kept separate from Tenant
+// so GetTenant (detail) stays a flat SELECT — these are stitched from sub-queries.
+type TenantListItem struct {
+	*Tenant
+	Subscription *TenantSubStatus `json:"subscription,omitempty"`
+	Count        *TenantCounts    `json:"_count,omitempty"`
+}
+
+type TenantSubStatus struct {
+	Status string `json:"status"`
+}
+
+type TenantCounts struct {
+	Branches int `json:"branches"`
+}
+
 type User struct {
 	ID              string     `json:"id"`
 	Email           string     `json:"email"`
@@ -42,6 +59,9 @@ type User struct {
 	TenantID        string     `json:"tenantId"`
 	BranchID        *string    `json:"branchId"`
 	IsActive        bool       `json:"isActive"`
+	// Denormalized for the cross-tenant users list (LEFT JOIN Tenant/Branch).
+	TenantName string `json:"tenantName,omitempty"`
+	BranchName string `json:"branchName,omitempty"`
 	EmailVerified   *time.Time `json:"emailVerified,omitempty"`
 	LastLoginAt     *time.Time `json:"lastLoginAt,omitempty"`
 	CreatedAt       time.Time  `json:"createdAt"`
@@ -90,6 +110,8 @@ type Plan struct {
 	Features    json.RawMessage `json:"features,omitempty"`
 	IsActive    bool            `json:"isActive"`
 	Tier        *string         `json:"tier,omitempty"` // FREE | GROWTH | PRO
+	// Denormalized for the plans list (COUNT of active subscriptions per plan).
+	SubscriptionCount int `json:"subscriptionCount"`
 	CreatedAt   time.Time       `json:"createdAt"`
 	UpdatedAt   time.Time       `json:"updatedAt"`
 }
@@ -101,6 +123,8 @@ type FeatureFlag struct {
 	Description *string   `json:"description"`
 	Enabled     bool      `json:"enabled"`
 	Category    string    `json:"category"`
+	// Denormalized for the feature-flags list (COUNT of tenant overrides).
+	OverrideCount int       `json:"overrideCount"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
@@ -171,6 +195,9 @@ type SupportTicket struct {
 	Priority       string     `json:"priority"`   // LOW | NORMAL | HIGH | URGENT
 	Status         string     `json:"status"`     // OPEN | IN_PROGRESS | RESOLVED | CLOSED
 	TenantID       *string    `json:"tenantId,omitempty"`
+	// Denormalized for the tickets list/detail (LEFT JOIN Tenant + comment count).
+	TenantName  string `json:"tenantName,omitempty"`
+	CommentCount int   `json:"commentCount"`
 	SubmitterName  string     `json:"submitterName"`
 	SubmitterEmail string     `json:"submitterEmail"`
 	SubmitterPhone *string    `json:"submitterPhone,omitempty"`
@@ -201,8 +228,11 @@ type Referral struct {
 	CreatedAt    time.Time  `json:"createdAt"`
 	RewardedAt   *time.Time `json:"rewardedAt,omitempty"`
 	// Denormalized for list views
-	ReferrerName string `json:"referrerName,omitempty"`
-	ReferredName string `json:"referredName,omitempty"`
+	ReferrerName string  `json:"referrerName,omitempty"`
+	ReferredName string  `json:"referredName,omitempty"`
+	ReferrerSlug string  `json:"referrerSlug,omitempty"`
+	ReferredSlug string  `json:"referredSlug,omitempty"`
+	ReferrerCode *string `json:"referrerCode,omitempty"`
 }
 
 type PromoCode struct {
@@ -243,6 +273,19 @@ type BillingOverview struct {
 	PaidTenantCount  int64   `json:"paidTenantCount"`
 	ActivePaidOutlets int64  `json:"activePaidOutlets"`
 	FailedCount30d   int64   `json:"failedCount30d"`
+}
+
+// OpsCounts are the operational health counters the super-admin overview tiles
+// read alongside PlatformStats + BillingOverview (open/urgent tickets, unresolved
+// errors, suspended tenants, past-due/canceled subs, total orders).
+type OpsCounts struct {
+	OpenTickets      int64 `json:"openTickets"`
+	UrgentTickets    int64 `json:"urgentTickets"`
+	UnresolvedErrors int64 `json:"unresolvedErrors"`
+	SuspendedTenants int64 `json:"suspendedTenants"`
+	PastDueSubs      int64 `json:"pastDueSubs"`
+	CanceledSubs     int64 `json:"canceledSubs"`
+	TotalOrders      int64 `json:"totalOrders"`
 }
 
 type ImpersonationSession struct {

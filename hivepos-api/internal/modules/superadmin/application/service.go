@@ -132,7 +132,7 @@ type Repository interface {
 	GetBillingOverview(ctx context.Context) (*domain.BillingOverview, error)
 
 	// Tenants
-	ListTenants(ctx context.Context, filter ListFilter) ([]*domain.Tenant, int64, error)
+	ListTenants(ctx context.Context, filter ListFilter) ([]*domain.TenantListItem, int64, error)
 	GetTenant(ctx context.Context, id string) (*domain.Tenant, error)
 	UpdateTenant(ctx context.Context, id string, input TenantInput) (*domain.Tenant, error)
 	ApproveTenant(ctx context.Context, id string) (*domain.Tenant, error)
@@ -241,7 +241,7 @@ func (s *Service) GetBillingOverview(ctx context.Context) (*domain.BillingOvervi
 }
 
 // Tenants
-func (s *Service) ListTenants(ctx context.Context, filter ListFilter) ([]*domain.Tenant, int64, error) {
+func (s *Service) ListTenants(ctx context.Context, filter ListFilter) ([]*domain.TenantListItem, int64, error) {
 	normalizePage(&filter)
 	return s.Repo.ListTenants(ctx, filter)
 }

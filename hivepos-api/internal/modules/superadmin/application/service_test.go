@@ -25,7 +25,7 @@ func (f *fakeRepo) GetPlatformStats(_ context.Context) (*domain.PlatformStats, e
 func (f *fakeRepo) GetBillingOverview(_ context.Context) (*domain.BillingOverview, error) {
 	return nil, f.err
 }
-func (f *fakeRepo) ListTenants(_ context.Context, fl application.ListFilter) ([]*domain.Tenant, int64, error) {
+func (f *fakeRepo) ListTenants(_ context.Context, fl application.ListFilter) ([]*domain.TenantListItem, int64, error) {
 	f.lastFlt = fl
 	return nil, f.total, f.err
 }

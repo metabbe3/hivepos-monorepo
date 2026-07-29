@@ -11786,6 +11786,9 @@ components:
           type: boolean
         category:
           type: string
+        overrideCount:
+          type: integer
+          description: Denormalized count of tenant overrides (list view).
         createdAt:
           type: string
           format: date-time
@@ -12001,6 +12004,9 @@ components:
             - FREE
             - GROWTH
             - PRO
+        subscriptionCount:
+          type: integer
+          description: Denormalized count of active subscriptions on this plan (list view).
         createdAt:
           type: string
           format: date-time
@@ -12229,6 +12235,16 @@ components:
         referredName:
           type: string
           description: Denormalized for list views.
+        referrerSlug:
+          type: string
+          description: Denormalized referrer tenant slug.
+        referredSlug:
+          type: string
+          description: Denormalized referred tenant slug.
+        referrerCode:
+          type: string
+          nullable: true
+          description: Denormalized referrer referral code.
       required:
         - id
         - referrerId
@@ -12358,6 +12374,43 @@ components:
           type: integer
           format: int64
         newThisMonth:
+          type: integer
+          format: int64
+        pendingApprovals:
+          type: integer
+          format: int64
+          description: Alias of pendingTenants (overview tiles read pendingApprovals).
+        paidTenantCount:
+          type: integer
+          format: int64
+        activePaidOutlets:
+          type: integer
+          format: int64
+        failedCount30d:
+          type: integer
+          format: int64
+        lifetimeGross:
+          type: number
+          format: double
+        suspendedTenants:
+          type: integer
+          format: int64
+        openTickets:
+          type: integer
+          format: int64
+        urgentTickets:
+          type: integer
+          format: int64
+        unresolvedErrors:
+          type: integer
+          format: int64
+        pastDueSubs:
+          type: integer
+          format: int64
+        canceledSubs:
+          type: integer
+          format: int64
+        totalOrders:
           type: integer
           format: int64
       required:
@@ -12514,6 +12567,20 @@ components:
         updatedAt:
           type: string
           format: date-time
+        _count:
+          type: object
+          nullable: true
+          description: List-page aggregate counts (outlets).
+          properties:
+            branches:
+              type: integer
+        subscription:
+          type: object
+          nullable: true
+          description: List-page subscription summary.
+          properties:
+            status:
+              type: string
       required:
         - id
         - name
@@ -12556,6 +12623,35 @@ components:
           type: string
         subscriptionStatus:
           type: string
+        activeOutlets:
+          type: integer
+        totalOutlets:
+          type: integer
+        orders30d:
+          type: integer
+        ordersAll:
+          type: integer
+        revenue30d:
+          type: number
+          format: double
+        revenueAll:
+          type: number
+          format: double
+        saasRevenuePaid:
+          type: number
+          format: double
+        daysSinceLastOrder:
+          type: integer
+          nullable: true
+        trialDaysRemaining:
+          type: integer
+          nullable: true
+        staffCount:
+          type: integer
+        recentPayments:
+          type: array
+          items:
+            $ref: "#/components/schemas/SuperAdminSaaSPayment"
       required:
         - tenant
         - plans
@@ -12682,6 +12778,13 @@ components:
         tenantId:
           type: string
           nullable: true
+        tenantName:
+          type: string
+          nullable: true
+          description: Denormalized tenant name (LEFT JOIN Tenant).
+        commentCount:
+          type: integer
+          description: Denormalized reply-thread count (list view).
         submitterName:
           type: string
         submitterEmail:
@@ -12845,6 +12948,14 @@ components:
         branchId:
           type: string
           nullable: true
+        tenantName:
+          type: string
+          nullable: true
+          description: Denormalized tenant name (cross-tenant users list).
+        branchName:
+          type: string
+          nullable: true
+          description: Denormalized branch name (cross-tenant users list).
         isActive:
           type: boolean
         emailVerified:

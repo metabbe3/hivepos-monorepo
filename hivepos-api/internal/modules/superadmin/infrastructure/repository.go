@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -81,7 +82,7 @@ func (r *PgSuperAdminRepository) GetBillingOverview(ctx context.Context) (*domai
 
 // ===================== TENANTS =====================
 
-func (r *PgSuperAdminRepository) ListTenants(ctx context.Context, filter application.ListFilter) ([]*domain.Tenant, int64, error) {
+func (r *PgSuperAdminRepository) ListTenants(ctx context.Context, filter application.ListFilter) ([]*domain.TenantListItem, int64, error) {
 	where := "WHERE 1=1"
 	args := []interface{}{}
 	idx := 1
@@ -130,7 +131,90 @@ func (r *PgSuperAdminRepository) ListTenants(ctx context.Context, filter applica
 	if err := rows.Err(); err != nil {
 		return nil, 0, fmt.Errorf("iterating tenants: %w", err)
 	}
-	return list, total, nil
+
+	// Stitch list-page aggregates the FE reads: _count.branches + subscription.status.
+	// Two cheap GROUP BY queries (same SQL as GetTenantPerformance q1/q2), not N+1.
+	branchCount := r.countGrouped(ctx, "Branch", "tenantId")
+	subStatus := r.tenantSubStatus(ctx)
+	items := make([]*domain.TenantListItem, 0, len(list))
+	for _, t := range list {
+		item := &domain.TenantListItem{Tenant: t}
+		if c, ok := branchCount[t.ID]; ok {
+			item.Count = &domain.TenantCounts{Branches: c}
+		}
+		if st := subStatus[t.ID]; st != "" {
+			item.Subscription = &domain.TenantSubStatus{Status: st}
+		}
+		items = append(items, item)
+	}
+	return items, total, nil
+}
+
+// countGrouped runs `SELECT "<groupCol>", COUNT(*) FROM "<table>" GROUP BY "<groupCol>"`
+// and returns id→count. table/groupCol are package-controlled constants (never user
+// input), so the string build is safe. Returns empty map on error (best-effort stitch).
+func (r *PgSuperAdminRepository) countGrouped(ctx context.Context, table, groupCol string) map[string]int {
+	out := map[string]int{}
+	q := fmt.Sprintf(`SELECT "%s", COUNT(*) FROM "%s" GROUP BY "%s"`, groupCol, table, groupCol)
+	rows, err := r.db.QueryContext(ctx, q)
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var c int
+		if err := rows.Scan(&id, &c); err == nil {
+			out[id] = c
+		}
+	}
+	return out
+}
+
+// tenantSubStatus returns tenantId→latest subscription status. Subscription has a
+// unique constraint on tenantId (see UpdateTenantSubscription ON CONFLICT), so one
+// row per tenant. Best-effort — empty map on error.
+func (r *PgSuperAdminRepository) tenantSubStatus(ctx context.Context) map[string]string {
+	out := map[string]string{}
+	rows, err := r.db.QueryContext(ctx, `SELECT "tenantId", status FROM "Subscription"`)
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, st string
+		if err := rows.Scan(&id, &st); err == nil {
+			out[id] = st
+		}
+	}
+	return out
+}
+
+// CountStaffByTenant returns the user count for one tenant (tenant detail Staff tile).
+func (r *PgSuperAdminRepository) CountStaffByTenant(ctx context.Context, tenantID string) (int64, error) {
+	var c int64
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "User" WHERE "tenantId" = $1`, tenantID).Scan(&c); err != nil {
+		return 0, fmt.Errorf("counting tenant staff: %w", err)
+	}
+	return c, nil
+}
+
+// GetOpsCounts returns the operational health counters for the overview /stats merge.
+func (r *PgSuperAdminRepository) GetOpsCounts(ctx context.Context) (*domain.OpsCounts, error) {
+	o := &domain.OpsCounts{}
+	row := r.db.QueryRowContext(ctx, `
+		SELECT
+			(SELECT COUNT(*) FROM "SupportTicket" WHERE status IN ('OPEN','IN_PROGRESS')),
+			(SELECT COUNT(*) FROM "SupportTicket" WHERE priority = 'URGENT' AND status NOT IN ('RESOLVED','CLOSED')),
+			(SELECT COUNT(*) FROM "ErrorLog" WHERE resolved = false),
+			(SELECT COUNT(*) FROM "Tenant" WHERE "isActive" = false),
+			(SELECT COUNT(*) FROM "Subscription" WHERE status = 'PAST_DUE'),
+			(SELECT COUNT(*) FROM "Subscription" WHERE status = 'CANCELED'),
+			(SELECT COUNT(*) FROM "Order")`)
+	if err := row.Scan(&o.OpenTickets, &o.UrgentTickets, &o.UnresolvedErrors, &o.SuspendedTenants, &o.PastDueSubs, &o.CanceledSubs, &o.TotalOrders); err != nil {
+		return nil, fmt.Errorf("ops counts: %w", err)
+	}
+	return o, nil
 }
 
 func (r *PgSuperAdminRepository) GetTenant(ctx context.Context, id string) (*domain.Tenant, error) {
@@ -376,22 +460,26 @@ func (r *PgSuperAdminRepository) ListUsers(ctx context.Context, filter applicati
 	args := []interface{}{}
 	idx := 1
 	if filter.Search != "" {
-		where += fmt.Sprintf(` AND (email ILIKE $%d OR name ILIKE $%d)`, idx, idx)
+		where += fmt.Sprintf(` AND (u.email ILIKE $%d OR u.name ILIKE $%d)`, idx, idx)
 		args = append(args, "%"+filter.Search+"%")
 		idx++
 	}
 
 	var total int64
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "User" `+where, args...).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "User" u `+where, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("counting users: %w", err)
 	}
 
 	offset := (filter.Page - 1) * filter.Limit
 	args = append(args, filter.Limit, offset)
 	query := fmt.Sprintf(`
-		SELECT id, email, name, phone, role, "roleId", "tenantId", "branchId", "isActive",
-		       "emailVerified", "lastLoginAt", "createdAt", "updatedAt"
-		FROM "User" %s ORDER BY "createdAt" DESC LIMIT $%d OFFSET $%d`, where, idx, idx+1)
+		SELECT u.id, u.email, u.name, u.phone, u.role, u."roleId", u."tenantId", u."branchId", u."isActive",
+		       u."emailVerified", u."lastLoginAt", u."createdAt", u."updatedAt",
+		       COALESCE(t.name, ''), COALESCE(b.name, '')
+		FROM "User" u
+		LEFT JOIN "Tenant" t ON t.id = u."tenantId"
+		LEFT JOIN "Branch" b ON b.id = u."branchId"
+		%s ORDER BY u."createdAt" DESC LIMIT $%d OFFSET $%d`, where, idx, idx+1)
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
@@ -402,7 +490,8 @@ func (r *PgSuperAdminRepository) ListUsers(ctx context.Context, filter applicati
 	for rows.Next() {
 		u := &domain.User{}
 		if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.Phone, &u.Role, &u.RoleID, &u.TenantID, &u.BranchID,
-			&u.IsActive, &u.EmailVerified, &u.LastLoginAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			&u.IsActive, &u.EmailVerified, &u.LastLoginAt, &u.CreatedAt, &u.UpdatedAt,
+			&u.TenantName, &u.BranchName); err != nil {
 			return nil, 0, err
 		}
 		list = append(list, u)
@@ -528,7 +617,8 @@ func (r *PgSuperAdminRepository) RefundPayment(ctx context.Context, id string) (
 func (r *PgSuperAdminRepository) ListPlans(ctx context.Context) ([]*domain.Plan, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, name, description, "maxOutlets", "maxUsers", "maxOrders",
-		       "priceMonthly"::float, "priceYearly"::float, "isActive", tier, "createdAt", "updatedAt"
+		       "priceMonthly"::float, "priceYearly"::float, "isActive", tier,
+		       array_to_string(COALESCE(modules, '{}'), ','), "createdAt", "updatedAt"
 		FROM "Plan" ORDER BY "priceMonthly" ASC`)
 	if err != nil {
 		return nil, err
@@ -537,14 +627,27 @@ func (r *PgSuperAdminRepository) ListPlans(ctx context.Context) ([]*domain.Plan,
 	var list []*domain.Plan
 	for rows.Next() {
 		p := &domain.Plan{}
+		var modulesCSV string
 		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.MaxOutlets, &p.MaxUsers, &p.MaxOrders,
-			&p.PriceMonthly, &p.PriceYearly, &p.IsActive, &p.Tier, &p.CreatedAt, &p.UpdatedAt); err != nil {
+			&p.PriceMonthly, &p.PriceYearly, &p.IsActive, &p.Tier, &modulesCSV, &p.CreatedAt, &p.UpdatedAt); err != nil {
 			return nil, err
+		}
+		if modulesCSV != "" {
+			for _, m := range strings.Split(modulesCSV, ",") {
+				if m = strings.TrimSpace(m); m != "" {
+					p.Modules = append(p.Modules, m)
+				}
+			}
 		}
 		list = append(list, p)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterating plans: %w", err)
+	}
+	// Stitch subscriptionCount (Tenants column) — COUNT subs per planId.
+	subsByPlan := r.countGrouped(ctx, "Subscription", "planId")
+	for _, p := range list {
+		p.SubscriptionCount = subsByPlan[p.ID]
 	}
 	return list, nil
 }
@@ -778,6 +881,11 @@ func (r *PgSuperAdminRepository) ListFeatureFlags(ctx context.Context) ([]*domai
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterating feature flags: %w", err)
 	}
+	// Stitch overrideCount (Overrides column) — COUNT tenant overrides per flagId.
+	overrides := r.countGrouped(ctx, "TenantFeatureFlag", "flagId")
+	for _, f := range list {
+		f.OverrideCount = overrides[f.ID]
+	}
 	return list, nil
 }
 
@@ -1002,7 +1110,8 @@ func (r *PgSuperAdminRepository) ListReferrals(ctx context.Context, filter appli
 	args = append(args, filter.Limit, offset)
 	query := fmt.Sprintf(`
 		SELECT r.id, r."referrerId", r."referredId", r.status, r."rewardMonths", r.reason, r."createdAt", r."rewardedAt",
-		       ref.name AS "referrerName", rec.name AS "referredName"
+		       COALESCE(ref.name, ''), COALESCE(rec.name, ''),
+		       COALESCE(ref.slug, ''), COALESCE(rec.slug, ''), ref."referralCode"
 		FROM "Referral" r
 		LEFT JOIN "Tenant" ref ON ref.id = r."referrerId"
 		LEFT JOIN "Tenant" rec ON rec.id = r."referredId"
@@ -1017,7 +1126,8 @@ func (r *PgSuperAdminRepository) ListReferrals(ctx context.Context, filter appli
 	for rows.Next() {
 		ref := &domain.Referral{}
 		if err := rows.Scan(&ref.ID, &ref.ReferrerID, &ref.ReferredID, &ref.Status, &ref.RewardMonths, &ref.Reason,
-			&ref.CreatedAt, &ref.RewardedAt, &ref.ReferrerName, &ref.ReferredName); err != nil {
+			&ref.CreatedAt, &ref.RewardedAt, &ref.ReferrerName, &ref.ReferredName,
+			&ref.ReferrerSlug, &ref.ReferredSlug, &ref.ReferrerCode); err != nil {
 			return nil, 0, err
 		}
 		list = append(list, ref)
@@ -1058,28 +1168,30 @@ func (r *PgSuperAdminRepository) ListTickets(ctx context.Context, filter applica
 	args := []interface{}{}
 	idx := 1
 	if filter.Status != "" {
-		where += fmt.Sprintf(` AND status = $%d`, idx)
+		where += fmt.Sprintf(` AND st.status = $%d`, idx)
 		args = append(args, filter.Status)
 		idx++
 	}
 	if filter.Search != "" {
-		where += fmt.Sprintf(` AND (subject ILIKE $%d OR "submitterEmail" ILIKE $%d)`, idx, idx)
+		where += fmt.Sprintf(` AND (st.subject ILIKE $%d OR st."submitterEmail" ILIKE $%d)`, idx, idx)
 		args = append(args, "%"+filter.Search+"%")
 		idx++
 	}
 
 	var total int64
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "SupportTicket" `+where, args...).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "SupportTicket" st `+where, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("counting support tickets: %w", err)
 	}
 
 	offset := (filter.Page - 1) * filter.Limit
 	args = append(args, filter.Limit, offset)
 	query := fmt.Sprintf(`
-		SELECT id, subject, description, category, priority, status, "tenantId",
-		       "submitterName", "submitterEmail", "submitterPhone", "csatRating", "csatComment",
-		       "createdAt", "updatedAt", "resolvedAt"
-		FROM "SupportTicket" %s ORDER BY "createdAt" DESC LIMIT $%d OFFSET $%d`, where, idx, idx+1)
+		SELECT st.id, st.subject, st.description, st.category, st.priority, st.status, st."tenantId",
+		       st."submitterName", st."submitterEmail", st."submitterPhone", st."csatRating", st."csatComment",
+		       st."createdAt", st."updatedAt", st."resolvedAt", COALESCE(tn.name, '')
+		FROM "SupportTicket" st
+		LEFT JOIN "Tenant" tn ON tn.id = st."tenantId"
+		%s ORDER BY st."createdAt" DESC LIMIT $%d OFFSET $%d`, where, idx, idx+1)
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
@@ -1091,7 +1203,7 @@ func (r *PgSuperAdminRepository) ListTickets(ctx context.Context, filter applica
 		t := &domain.SupportTicket{}
 		if err := rows.Scan(&t.ID, &t.Subject, &t.Description, &t.Category, &t.Priority, &t.Status, &t.TenantID,
 			&t.SubmitterName, &t.SubmitterEmail, &t.SubmitterPhone, &t.CsatRating, &t.CsatComment,
-			&t.CreatedAt, &t.UpdatedAt, &t.ResolvedAt); err != nil {
+			&t.CreatedAt, &t.UpdatedAt, &t.ResolvedAt, &t.TenantName); err != nil {
 			return nil, 0, err
 		}
 		list = append(list, t)
@@ -1099,19 +1211,26 @@ func (r *PgSuperAdminRepository) ListTickets(ctx context.Context, filter applica
 	if err := rows.Err(); err != nil {
 		return nil, 0, fmt.Errorf("iterating support tickets: %w", err)
 	}
+	// Stitch commentCount (reply-count badge) — COUNT comments per ticketId.
+	comments := r.countGrouped(ctx, "TicketComment", "ticketId")
+	for _, t := range list {
+		t.CommentCount = comments[t.ID]
+	}
 	return list, total, nil
 }
 
 func (r *PgSuperAdminRepository) GetTicket(ctx context.Context, id string) (*domain.SupportTicket, error) {
 	t := &domain.SupportTicket{}
 	err := r.db.QueryRowContext(ctx, `
-		SELECT id, subject, description, category, priority, status, "tenantId",
-		       "submitterName", "submitterEmail", "submitterPhone", "csatRating", "csatComment",
-		       "createdAt", "updatedAt", "resolvedAt"
-		FROM "SupportTicket" WHERE id = $1`, id,
+		SELECT st.id, st.subject, st.description, st.category, st.priority, st.status, st."tenantId",
+		       st."submitterName", st."submitterEmail", st."submitterPhone", st."csatRating", st."csatComment",
+		       st."createdAt", st."updatedAt", st."resolvedAt", COALESCE(tn.name, '')
+		FROM "SupportTicket" st
+		LEFT JOIN "Tenant" tn ON tn.id = st."tenantId"
+		WHERE st.id = $1`, id,
 	).Scan(&t.ID, &t.Subject, &t.Description, &t.Category, &t.Priority, &t.Status, &t.TenantID,
 		&t.SubmitterName, &t.SubmitterEmail, &t.SubmitterPhone, &t.CsatRating, &t.CsatComment,
-		&t.CreatedAt, &t.UpdatedAt, &t.ResolvedAt)
+		&t.CreatedAt, &t.UpdatedAt, &t.ResolvedAt, &t.TenantName)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}

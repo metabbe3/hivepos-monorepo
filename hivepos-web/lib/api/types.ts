@@ -5829,6 +5829,8 @@ export interface components {
             description?: string | null;
             enabled: boolean;
             category: string;
+            /** @description Denormalized count of tenant overrides (list view). */
+            overrideCount?: number;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -5924,6 +5926,8 @@ export interface components {
             isActive: boolean;
             /** @enum {string|null} */
             tier?: "FREE" | "GROWTH" | "PRO" | null;
+            /** @description Denormalized count of active subscriptions on this plan (list view). */
+            subscriptionCount?: number;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -6017,6 +6021,12 @@ export interface components {
             referrerName?: string;
             /** @description Denormalized for list views. */
             referredName?: string;
+            /** @description Denormalized referrer tenant slug. */
+            referrerSlug?: string;
+            /** @description Denormalized referred tenant slug. */
+            referredSlug?: string;
+            /** @description Denormalized referrer referral code. */
+            referrerCode?: string | null;
         };
         SuperAdminReferralEnvelope: components["schemas"]["EnvelopeSuccess"] & {
             data?: components["schemas"]["SuperAdminReferral"];
@@ -6075,6 +6085,33 @@ export interface components {
             trialTenants: number;
             /** Format: int64 */
             newThisMonth: number;
+            /**
+             * Format: int64
+             * @description Alias of pendingTenants (overview tiles read pendingApprovals).
+             */
+            pendingApprovals?: number;
+            /** Format: int64 */
+            paidTenantCount?: number;
+            /** Format: int64 */
+            activePaidOutlets?: number;
+            /** Format: int64 */
+            failedCount30d?: number;
+            /** Format: double */
+            lifetimeGross?: number;
+            /** Format: int64 */
+            suspendedTenants?: number;
+            /** Format: int64 */
+            openTickets?: number;
+            /** Format: int64 */
+            urgentTickets?: number;
+            /** Format: int64 */
+            unresolvedErrors?: number;
+            /** Format: int64 */
+            pastDueSubs?: number;
+            /** Format: int64 */
+            canceledSubs?: number;
+            /** Format: int64 */
+            totalOrders?: number;
         };
         /** @description domain.Subscription. */
         SuperAdminSubscription: {
@@ -6144,6 +6181,14 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+            /** @description List-page aggregate counts (outlets). */
+            _count?: {
+                branches?: number;
+            } | null;
+            /** @description List-page subscription summary. */
+            subscription?: {
+                status?: string;
+            } | null;
         };
         /** @description Composite returned by GET /tenants/{id}/billing. */
         SuperAdminTenantBilling: {
@@ -6157,6 +6202,20 @@ export interface components {
             subscription?: components["schemas"]["SuperAdminSubscription"] | null;
             planName: string;
             subscriptionStatus: string;
+            activeOutlets?: number;
+            totalOutlets?: number;
+            orders30d?: number;
+            ordersAll?: number;
+            /** Format: double */
+            revenue30d?: number;
+            /** Format: double */
+            revenueAll?: number;
+            /** Format: double */
+            saasRevenuePaid?: number;
+            daysSinceLastOrder?: number | null;
+            trialDaysRemaining?: number | null;
+            staffCount?: number;
+            recentPayments?: components["schemas"]["SuperAdminSaaSPayment"][];
         };
         SuperAdminTenantFeatureFlag: {
             id: string;
@@ -6208,6 +6267,10 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
             tenantId?: string | null;
+            /** @description Denormalized tenant name (LEFT JOIN Tenant). */
+            tenantName?: string | null;
+            /** @description Denormalized reply-thread count (list view). */
+            commentCount?: number;
             submitterName: string;
             submitterEmail: string;
             submitterPhone?: string | null;
@@ -6270,6 +6333,10 @@ export interface components {
             roleId?: string | null;
             tenantId: string;
             branchId?: string | null;
+            /** @description Denormalized tenant name (cross-tenant users list). */
+            tenantName?: string | null;
+            /** @description Denormalized branch name (cross-tenant users list). */
+            branchName?: string | null;
             isActive: boolean;
             /** Format: date-time */
             emailVerified?: string | null;
