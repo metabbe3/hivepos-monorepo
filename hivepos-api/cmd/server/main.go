@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
-	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -11,36 +9,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	appauth "github.com/hivepos/api/internal/auth"
 	"github.com/hivepos/api/internal/config"
 	"github.com/hivepos/api/internal/database"
-	"github.com/hivepos/api/internal/middleware"
-	"github.com/hivepos/api/internal/modules/account"
-	"github.com/hivepos/api/internal/modules/attendance"
-	"github.com/hivepos/api/internal/modules/auth"
-	"github.com/hivepos/api/internal/modules/billing"
-	"github.com/hivepos/api/internal/modules/branches"
-	"github.com/hivepos/api/internal/modules/customers"
-	"github.com/hivepos/api/internal/modules/dashboard"
-	"github.com/hivepos/api/internal/modules/demo"
-	"github.com/hivepos/api/internal/modules/expenses"
-	"github.com/hivepos/api/internal/modules/inventory"
-	"github.com/hivepos/api/internal/modules/orders"
-	"github.com/hivepos/api/internal/modules/pickup"
-	"github.com/hivepos/api/internal/modules/public_api"
-	"github.com/hivepos/api/internal/modules/reports"
-	"github.com/hivepos/api/internal/modules/services"
 	"github.com/hivepos/api/internal/modules/superadmin"
-	"github.com/hivepos/api/internal/modules/telemetry"
-	"github.com/hivepos/api/internal/modules/tickets"
-	"github.com/hivepos/api/internal/modules/tenant"
-	"github.com/hivepos/api/internal/modules/users"
-	"github.com/hivepos/api/internal/modules/whatsapp"
 	"github.com/hivepos/api/internal/router"
 	"github.com/hivepos/api/internal/shared/apperror"
-	"github.com/hivepos/api/internal/shared/logging"
 	"github.com/hivepos/api/internal/shared/jobs"
+	"github.com/hivepos/api/internal/shared/logging"
 	"github.com/hivepos/api/internal/shared/selfheal"
 )
 
@@ -74,333 +49,32 @@ func main() {
 		log.Printf("⚠ schema: %s", st.Action)
 	}
 
-	// Build router — ALL middleware must be registered BEFORE any routes (chi requirement).
-	// CORS first (outermost) so preflight OPTIONS is answered before JWT rejects it.
-	jwtMgr := appauth.NewJWTManager(cfg.JWTSecret)
-	r := router.New(db, middleware.CORS, middleware.RequestTimeout, jwtMgr.Middleware, middleware.RequestIDHeader, middleware.ErrorLogger(db), middleware.Metrics)
+	// Seed platform feature flags (boot side-effect; kept out of BuildRouter so the
+	// OpenAPI generator can construct the router offline without a live DB).
+	superAdminForSeeding := superadmin.NewModule(db, cfg.AIKey, cfg.AIModel, cfg.AIBaseURL)
+	superAdminForSeeding.SeedFeatureFlags(context.Background())
 
-	// Register ALL domain modules
-	// Core CRUD (require auth + feature flag)
-	ordersModule := orders.NewModule(db)
-	r.Route("/api/orders", func(r chi.Router) { r.Use(middleware.RequireResource("orders"), middleware.RequireFeatureFlag("orders")); ordersModule.Register(r) })
-
-	customersModule := customers.NewModule(db)
-	r.Route("/api/customers", func(r chi.Router) { r.Use(middleware.RequireResource("customers"), middleware.RequireFeatureFlag("customers")); customersModule.Register(r) })
-
-	servicesModule := services.NewModule(db)
-	r.Route("/api/services", func(r chi.Router) { r.Use(middleware.RequireResource("services"), middleware.RequireFeatureFlag("services")); servicesModule.Register(r) })
-	r.Route("/api/service-groups", func(r chi.Router) { r.Use(middleware.RequireResource("services"), middleware.RequireFeatureFlag("services")); servicesModule.RegisterGroups(r) })
-
-	branchesModule := branches.NewModule(db)
-	r.Route("/api/branches", func(r chi.Router) { r.Use(middleware.RequireResource("branches"), middleware.RequireFeatureFlag("branches")); branchesModule.Register(r) })
-
-	inventoryModule := inventory.NewModule(db)
-	r.Route("/api/stock-items", func(r chi.Router) { r.Use(middleware.RequireResource("inventory"), middleware.RequireFeatureFlag("inventory")); inventoryModule.Register(r) })
-
-	expensesModule := expenses.NewModule(db)
-	r.Route("/api/expenses", func(r chi.Router) { r.Use(middleware.RequireResource("expenses"), middleware.RequireFeatureFlag("expenses")); expensesModule.Register(r) })
-	r.Route("/api/expense-categories", func(r chi.Router) {
-		r.Use(middleware.RequireResource("expenses"), middleware.RequireFeatureFlag("expenses"))
-		expensesModule.RegisterCategories(r)
-	})
-
-	usersModule := users.NewModule(db)
-	r.Route("/api/users", func(r chi.Router) { r.Use(middleware.RequireResource("users"), middleware.RequireFeatureFlag("roles")); usersModule.RegisterUsers(r) })
-	r.Route("/api/roles", func(r chi.Router) { r.Use(middleware.RequireResource("roles"), middleware.RequireFeatureFlag("roles")); usersModule.RegisterRoles(r) })
-
-	attendanceModule := attendance.NewModule(db)
-	r.Route("/api/attendance", func(r chi.Router) { r.Use(middleware.RequireResource("attendance"), middleware.RequireFeatureFlag("staffAttendance")); attendanceModule.Register(r) })
-
-	pickupModule := pickup.NewModule(db)
-	r.Route("/api/pickup-requests", func(r chi.Router) { r.Use(middleware.RequireResource("pickupRequests"), middleware.RequireFeatureFlag("pickupRequests")); pickupModule.Register(r) })
-
-	dashboardModule := dashboard.NewModule(db)
-	r.Route("/api/dashboard", func(r chi.Router) { r.Use(middleware.RequireResource("dashboard"), middleware.RequireFeatureFlag("dashboard")); dashboardModule.Register(r) })
-
-	// Billing
-	billingModule := billing.NewModule(db, cfg.MidtransServerKey, cfg.MidtransEnv, cfg.BillingAllowUnsignedWebhook)
-	r.Route("/api/billing", billingModule.Register)
-
-	// Auth (login, register)
-	authModule := auth.NewModule(db, jwtMgr, cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleRedirectURI, cfg.WebOrigin, cfg.JWTSecret)
-	r.Route("/api/auth", func(r chi.Router) { authModule.Register(r, middleware.RateLimit(20, time.Minute)) })
-	r.With(middleware.RateLimit(5, time.Hour)).Post("/api/register", authModule.RegisterHandler)
-
-	// Demo entrypoint (public): returns shared demo creds for the web /demo auto-signin.
-	demoModule := demo.NewModule()
-	r.With(middleware.RateLimit(10, time.Hour)).Post("/api/demo/start", demoModule.Start)
-
-	// Public API (no auth)
-	publicModule := publicapi.NewModule(db)
-	r.Route("/api/public", publicModule.Register)
-
-	// PWA nonce — public (the service worker's force-update watcher polls it; no auth needed).
-	// INSERT ... ON CONFLICT DO NOTHING seeds a default on first call, then returns the value.
-	r.Get("/api/pwa/nonce", func(w http.ResponseWriter, req *http.Request) {
-		var nonce string
-		err := db.QueryRowContext(req.Context(), `
-			INSERT INTO "SystemSetting" (key, value, "updatedAt")
-			VALUES ('pwaNonce', gen_random_uuid()::text, NOW())
-			ON CONFLICT (key) DO UPDATE SET "updatedAt" = "SystemSetting"."updatedAt"
-			RETURNING value
-		`).Scan(&nonce)
-		if err != nil {
-			http.Error(w, `{"success":false,"error":{"message":"nonce read failed"}}`, http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "data": map[string]string{"nonce": nonce}})
-	})
-
-	// Public order tracking — /api/track/{orderNumber} + /api/track/{orderNumber}/photos.
-	// Customer-facing (no auth); read-only. Mirrors the legacy pos-saas tracking payload
-	// (pos-saas/app/api/track/[orderNumber]/route.ts): the FE track page renders branch /
-	// payments / timestamps / QRIS, so the minimal stub it replaced crashed the render on
-	// data.branch / data.payments being undefined. ponytail: 3 queries per hit, no cache —
-	// order detail changes often; consolidate into public_api.TrackOrder if a 2nd caller appears.
-	r.Get("/api/track/{orderNumber}", func(w http.ResponseWriter, req *http.Request) {
-		orderNumber := chi.URLParam(req, "orderNumber")
-		var (
-			id                                                       string
-			status, payStatus, notes                                 sql.NullString
-			custName                                                 sql.NullString
-			custPhone, brName, brPhone, brWA, brAddr, brFoot         sql.NullString
-			lat, lon                                                 sql.NullFloat64
-			total, discount, paid                                    float64
-			createdAt                                                time.Time
-			received, inProg, ready, delivered                       sql.NullTime
-			settingsRaw                                              []byte
-		)
-		err := db.QueryRowContext(req.Context(), `
-			SELECT o.id, o.status, o."paymentStatus"::text,
-			       o."totalAmount"::float, o."discountAmount"::float, o."paidAmount"::float,
-			       o.notes, o."createdAt",
-			       o."receivedAt", o."inProgressAt", o."readyAt", o."deliveredAt",
-			       c.name, c.phone,
-			       b.name, b.phone, b."whatsappLink", b.address, b.latitude, b.longitude, b."invoiceFooter",
-			       t.settings
-			FROM "Order" o
-			JOIN "Customer" c ON c.id = o."customerId"
-			JOIN "Branch"   b ON b.id = o."branchId"
-			JOIN "Tenant"   t ON t.id = b."tenantId"
-			WHERE o."orderNumber" = $1`, orderNumber,
-		).Scan(&id, &status, &payStatus, &total, &discount, &paid, &notes, &createdAt,
-			&received, &inProg, &ready, &delivered,
-			&custName, &custPhone, &brName, &brPhone, &brWA, &brAddr, &lat, &lon, &brFoot,
-			&settingsRaw)
-		if err != nil {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusNotFound)
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": map[string]string{"message": "Order not found"}})
-			return
-		}
-
-		nullableStr := func(v sql.NullString) interface{} {
-			if v.Valid {
-				return v.String
-			}
-			return nil
-		}
-		nullableTime := func(v sql.NullTime) interface{} {
-			if v.Valid {
-				return v.Time.UTC().Format(time.RFC3339)
-			}
-			return nil
-		}
-		nullableFloat := func(v sql.NullFloat64) interface{} {
-			if v.Valid {
-				return v.Float64
-			}
-			return nil
-		}
-
-		// Items: service name + pricing type + garment breakdown (JSONB, nullable).
-		type breakdownItem struct {
-			Name string `json:"name"`
-			Qty  int    `json:"qty"`
-		}
-		items := []map[string]interface{}{}
-		if iRows, ierr := db.QueryContext(req.Context(), `
-			SELECT s.name, s."pricingType"::text, oi.quantity::float, oi."weightKg"::float,
-			       oi."pricePerUnit"::float, oi.subtotal::float, oi."garmentBreakdown"
-			FROM "OrderItem" oi LEFT JOIN "Service" s ON s.id = oi."serviceId"
-			WHERE oi."orderId" = $1`, id); ierr == nil {
-			for iRows.Next() {
-				var svcName, pricing sql.NullString
-				var qty, ppu, sub float64
-				var weight sql.NullFloat64
-				var gb []byte
-				if iRows.Scan(&svcName, &pricing, &qty, &weight, &ppu, &sub, &gb) == nil {
-					var breakdown interface{}
-					if len(gb) > 0 && string(gb) != "null" {
-						var bs []breakdownItem
-						if json.Unmarshal(gb, &bs) == nil && len(bs) > 0 {
-							breakdown = bs
-						}
-					}
-					items = append(items, map[string]interface{}{
-						"service":          svcName.String,
-						"pricingType":      pricing.String,
-						"quantity":         qty,
-						"weightKg":         nullableFloat(weight),
-						"pricePerUnit":     ppu,
-						"subtotal":         sub,
-						"garmentBreakdown": breakdown,
-					})
-				}
-			}
-			iRows.Close()
-		}
-
-		// Payments (newest first).
-		payments := []map[string]interface{}{}
-		if pRows, perr := db.QueryContext(req.Context(), `
-			SELECT amount::float, "paymentMethod"::text, "paidAt"
-			FROM "Payment" WHERE "orderId" = $1 ORDER BY "paidAt" DESC`, id); perr == nil {
-			for pRows.Next() {
-				var amt float64
-				var method string
-				var paidAt time.Time
-				if pRows.Scan(&amt, &method, &paidAt) == nil {
-					payments = append(payments, map[string]interface{}{
-						"amount": amt, "method": method, "paidAt": paidAt.UTC().Format(time.RFC3339),
-					})
-				}
-			}
-			pRows.Close()
-		}
-
-		// Tenant.settings (JSONB) → qrisImageUrl + whatsappTemplates.
-		var qrisImageUrl interface{}
-		var whatsappTemplates interface{}
-		if len(settingsRaw) > 0 && string(settingsRaw) != "null" {
-			var s struct {
-				Website struct {
-					Qris *string `json:"qrisImageUrl"`
-				} `json:"website"`
-				Templates json.RawMessage `json:"whatsappTemplates"`
-			}
-			if json.Unmarshal(settingsRaw, &s) == nil {
-				if s.Website.Qris != nil && *s.Website.Qris != "" {
-					qrisImageUrl = *s.Website.Qris
-				}
-				if len(s.Templates) > 0 && string(s.Templates) != "null" {
-					whatsappTemplates = json.RawMessage(s.Templates)
-				}
-			}
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "data": map[string]interface{}{
-			"orderNumber":        orderNumber,
-			"status":             status.String,
-			"statusLabel":        status.String, // FE doesn't render this; mirrors the TS fallback (?? status)
-			"paymentStatus":      payStatus.String,
-			"paymentStatusLabel": payStatus.String,
-			"customerName":       custName.String,
-			"customerPhone":      nullableStr(custPhone),
-			"totalAmount":        total,
-			"discountAmount":     discount,
-			"paidAmount":         paid,
-			"notes":              nullableStr(notes),
-			"createdAt":          createdAt.UTC().Format(time.RFC3339),
-			"receivedAt":         nullableTime(received),
-			"inProgressAt":       nullableTime(inProg),
-			"readyAt":            nullableTime(ready),
-			"deliveredAt":        nullableTime(delivered),
-			"items":              items,
-			"payments":           payments,
-			"branch": map[string]interface{}{
-				"name":          brName.String,
-				"phone":         nullableStr(brPhone),
-				"whatsappLink":  nullableStr(brWA),
-				"address":       nullableStr(brAddr),
-				"latitude":      nullableFloat(lat),
-				"longitude":     nullableFloat(lon),
-				"invoiceFooter": nullableStr(brFoot),
-			},
-			"qrisImageUrl":      qrisImageUrl,
-			"whatsappTemplates": whatsappTemplates,
-		}})
-	})
-	r.Get("/api/track/{orderNumber}/photos", func(w http.ResponseWriter, req *http.Request) {
-		orderNumber := chi.URLParam(req, "orderNumber")
-		photos := []map[string]interface{}{}
-		rows, err := db.QueryContext(req.Context(), `
-			SELECT p.id, p.url FROM "OrderPhoto" p
-			JOIN "Order" o ON o.id = p."orderId"
-			WHERE o."orderNumber" = $1 ORDER BY p."createdAt"`, orderNumber)
-		if err == nil {
-			for rows.Next() {
-				var pid, url string
-				if rows.Scan(&pid, &url) == nil {
-					photos = append(photos, map[string]interface{}{"id": pid, "url": url})
-				}
-			}
-			rows.Close()
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "data": photos})
-	})
-
-	// Telemetry (authed POST, accepts client events)
-	telemetryModule := telemetry.NewModule(db)
-	r.With(middleware.RequireAuth).Post("/api/telemetry", telemetryModule.PostTelemetry)
-
-	// Reports (read-only)
-	reportsModule := reports.NewModule(db)
-	r.Route("/api/reports", func(r chi.Router) { r.Use(middleware.RequireResource("reports")); reportsModule.Register(r) })
-
-	// Super-admin
-	superAdminModule := superadmin.NewModule(db, cfg.AIKey, cfg.AIModel, cfg.AIBaseURL)
-	superAdminModule.SeedFeatureFlags(context.Background())
-	r.Route("/api/super-admin", func(r chi.Router) { r.Use(middleware.RequireAuth, middleware.RequireSuperAdmin); superAdminModule.Register(r) })
-
-	// Tenant
-	tenantModule := tenant.NewModule(db)
-	r.Route("/api/tenant", func(r chi.Router) { r.Use(middleware.RequireAuth, middleware.RequireTenant); tenantModule.Register(r) })
-
-	// WhatsApp gateway proxy (Baileys microservice)
-	whatsappModule := whatsapp.NewModule(db, cfg.WhatsAppGatewayURL)
-	r.Route("/api/whatsapp", func(r chi.Router) { r.Use(middleware.RequireAuth, middleware.RequireTenant); whatsappModule.Register(r) })
-
-	// Tenant support tickets (RBAC-free for logged-in tenant users; SUPER_ADMIN uses /api/super-admin/tickets)
-	ticketsModule := tickets.NewModule(db)
-	r.Route("/api/tickets", func(r chi.Router) { r.Use(middleware.RequireAuth, middleware.RequireTenant); ticketsModule.Register(r) })
-
-	// Account: onboarding progress + the current user's own profile.
-	accountModule := account.NewModule(db)
-	r.With(middleware.RequireAuth, middleware.RequireTenant).Get("/api/onboarding/status", accountModule.OnboardingStatus)
-	r.Route("/api/user", func(r chi.Router) {
-		r.Use(middleware.RequireAuth)
-		r.Get("/", accountModule.Me)
-		r.Get("/profile", accountModule.GetProfile)
-		r.Patch("/profile", accountModule.UpdateProfile)
-	})
-
-	// Printer scan/test — device-local hardware; backend can't access the cashier's USB.
-	// Return a helpful response so the frontend doesn't crash; the printer-settings page
-	// already has manual IP config as the primary path.
-	r.Post("/api/printers/scan", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   map[string]string{"message": "Auto-scan requires the local device. Use manual IP configuration."},
-		})
-	})
-	r.Post("/api/printers/test", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   map[string]string{"message": "Printer test requires the local device. Use the printer's built-in self-test."},
-		})
+	// Build router — all module wiring lives in router.BuildRouter (single source of
+	// truth, shared with cmd/genopenapi).
+	r := router.BuildRouter(router.Deps{
+		DB:                          db,
+		JWTSecret:                   cfg.JWTSecret,
+		MidtransServerKey:           cfg.MidtransServerKey,
+		MidtransEnv:                 cfg.MidtransEnv,
+		BillingAllowUnsignedWebhook: cfg.BillingAllowUnsignedWebhook,
+		GoogleClientID:              cfg.GoogleClientID,
+		GoogleClientSecret:          cfg.GoogleClientSecret,
+		GoogleRedirectURI:           cfg.GoogleRedirectURI,
+		WebOrigin:                   cfg.WebOrigin,
+		AIKey:                       cfg.AIKey,
+		AIModel:                     cfg.AIModel,
+		AIBaseURL:                   cfg.AIBaseURL,
+		WhatsAppGatewayURL:          cfg.WhatsAppGatewayURL,
 	})
 
 	// Photo cleanup cron — runs every 24h, deletes OrderPhoto rows older than 7 days.
 	// Replaces pos-saas's /api/photo-cleanup daily cron. Best-effort, non-blocking.
 	// reaperCancel stops it at shutdown so it can't fire a DELETE after db.Close().
-	// (Graceful HTTP shutdown already exists below: signal → srv.Shutdown(30s) → db.Close.)
 	reaperCtx, reaperCancel := context.WithCancel(context.Background())
 	go func() {
 		ticker := time.NewTicker(24 * time.Hour)
@@ -425,7 +99,6 @@ func main() {
 				}
 				// ErrorLog retention — cap table growth so a client-error flood or 5xx
 				// storm can't fill the shared DB disk and wedge every tenant at once.
-				// 90d keeps a generous support/debug window; selfheal only scans recent.
 				if res, err := db.ExecContext(reaperCtx,
 					`DELETE FROM "ErrorLog" WHERE "createdAt" < NOW() - INTERVAL '90 days'`); err != nil {
 					log.Printf("errorlog retention error: %v", err)
@@ -470,13 +143,6 @@ func main() {
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
-
-	// gRPC server (thin top layer — same service implementations)
-	// TODO: when internal service-to-service calls are needed:
-	//   grpcSrv := grpc.NewServer()
-	//   pb.RegisterOrderServiceServer(grpcSrv, ordersGrpcAdapter)
-	//   go func() { lis, _ := net.Listen("tcp", ":9090"); grpcSrv.Serve(lis) }()
-	// For now: HTTP-only. gRPC added when the first inter-service call is needed.
 
 	// Graceful shutdown
 	go func() {
